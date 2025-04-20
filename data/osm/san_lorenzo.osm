@@ -1,0 +1,2020 @@
+<?xml version="1.0" encoding="UTF-8"?><osm version="0.6" generator="Overpass API 0.7.62.5 1bd436f1">
+<note>The data included in this document is from www.openstreetmap.org. The data is made available under ODbL.</note>
+<meta osm_base="2025-04-19T00:58:47Z"/>
+
+  <node id="20928099" lat="-25.3420472" lon="-57.5158774"/>
+  <node id="20928100" lat="-25.3462947" lon="-57.5133507"/>
+  <node id="20928101" lat="-25.3432826" lon="-57.5070354">
+    <tag k="highway" v="traffic_signals"/>
+    <tag k="traffic_signals" v="signal"/>
+  </node>
+  <node id="20928102" lat="-25.3412123" lon="-57.4990523"/>
+  <node id="20929790" lat="-25.3515255" lon="-57.4912724"/>
+  <node id="20944199" lat="-25.3429009" lon="-57.5062254">
+    <tag k="highway" v="traffic_signals"/>
+  </node>
+  <node id="20944200" lat="-25.3377827" lon="-57.5092381"/>
+  <node id="20944201" lat="-25.3370013" lon="-57.5099294">
+    <tag k="highway" v="traffic_signals"/>
+  </node>
+  <node id="20944205" lat="-25.3440880" lon="-57.5055354">
+    <tag k="highway" v="traffic_signals"/>
+    <tag k="source" v="Reconocimiento cartográfico 2016 por KG"/>
+  </node>
+  <node id="59712817" lat="-25.3375927" lon="-57.5103002"/>
+  <node id="59712818" lat="-25.3387784" lon="-57.5096080"/>
+  <node id="59712819" lat="-25.3421472" lon="-57.5077210"/>
+  <node id="59712886" lat="-25.3431697" lon="-57.5035655"/>
+  <node id="59712888" lat="-25.3452310" lon="-57.5006766"/>
+  <node id="322784725" lat="-25.3332564" lon="-57.5387018"/>
+  <node id="322784726" lat="-25.3324684" lon="-57.5401545">
+    <tag k="highway" v="traffic_signals"/>
+  </node>
+  <node id="322784767" lat="-25.3415912" lon="-57.5162928"/>
+  <node id="322784787" lat="-25.3395957" lon="-57.5217908"/>
+  <node id="322784934" lat="-25.3479052" lon="-57.5136184"/>
+  <node id="322784935" lat="-25.3468801" lon="-57.5144753">
+    <tag k="highway" v="traffic_signals"/>
+    <tag k="traffic_signals" v="signal"/>
+  </node>
+  <node id="322784938" lat="-25.3445482" lon="-57.5166407">
+    <tag k="highway" v="traffic_signals"/>
+    <tag k="traffic_signals" v="signal"/>
+  </node>
+  <node id="322784940" lat="-25.3413171" lon="-57.5191944"/>
+  <node id="322784941" lat="-25.3399593" lon="-57.5210997"/>
+  <node id="322785427" lat="-25.3522042" lon="-57.4906922"/>
+  <node id="322785428" lat="-25.3539712" lon="-57.4897305"/>
+  <node id="322785429" lat="-25.3556156" lon="-57.4883934"/>
+  <node id="330721569" lat="-25.3293973" lon="-57.5172361">
+    <tag k="highway" v="traffic_signals"/>
+  </node>
+  <node id="330721570" lat="-25.3357188" lon="-57.5120465"/>
+  <node id="330721571" lat="-25.3368332" lon="-57.5109641"/>
+  <node id="330721572" lat="-25.3369276" lon="-57.5105626"/>
+  <node id="330721575" lat="-25.3368612" lon="-57.5103840"/>
+  <node id="330721576" lat="-25.3346482" lon="-57.5106246"/>
+  <node id="330721577" lat="-25.3342746" lon="-57.5106188"/>
+  <node id="330721661" lat="-25.3369690" lon="-57.5103123">
+    <tag k="highway" v="traffic_signals"/>
+    <tag k="traffic_signals" v="signal"/>
+  </node>
+  <node id="593806545" lat="-25.3414821" lon="-57.4999224"/>
+  <node id="593806548" lat="-25.3413745" lon="-57.4996033"/>
+  <node id="593806550" lat="-25.3413173" lon="-57.4990696"/>
+  <node id="593806553" lat="-25.3413770" lon="-57.4986582"/>
+  <node id="593806556" lat="-25.3420732" lon="-57.4956521"/>
+  <node id="593807041" lat="-25.3408165" lon="-57.5008749"/>
+  <node id="593807048" lat="-25.3408213" lon="-57.5014213"/>
+  <node id="593807051" lat="-25.3409234" lon="-57.5018563"/>
+  <node id="593808063" lat="-25.3439560" lon="-57.4872217"/>
+  <node id="612015715" lat="-25.3616822" lon="-57.5153545"/>
+  <node id="612015718" lat="-25.3618100" lon="-57.5153402"/>
+  <node id="612015720" lat="-25.3522371" lon="-57.5128767"/>
+  <node id="612015721" lat="-25.3515445" lon="-57.5117961"/>
+  <node id="612015722" lat="-25.3475979" lon="-57.5035494"/>
+  <node id="612015723" lat="-25.3468175" lon="-57.5050350"/>
+  <node id="612015724" lat="-25.3503720" lon="-57.5124943"/>
+  <node id="612015725" lat="-25.3464332" lon="-57.5041875">
+    <tag k="highway" v="traffic_signals"/>
+    <tag k="source" v="Reconocimiento cartográfico 2016 por KG"/>
+    <tag k="traffic_signals" v="signal"/>
+  </node>
+  <node id="612015726" lat="-25.3526320" lon="-57.5130786"/>
+  <node id="612015727" lat="-25.3525470" lon="-57.5131171"/>
+  <node id="616084259" lat="-25.3384754" lon="-57.5249256"/>
+  <node id="616084327" lat="-25.3337089" lon="-57.5137366">
+    <tag k="highway" v="traffic_signals"/>
+  </node>
+  <node id="618491528" lat="-25.3544856" lon="-57.5137829"/>
+  <node id="618491529" lat="-25.3545203" lon="-57.5137036"/>
+  <node id="618491530" lat="-25.3520544" lon="-57.5126018"/>
+  <node id="618491532" lat="-25.3485991" lon="-57.5119839"/>
+  <node id="618491533" lat="-25.3491741" lon="-57.5131719"/>
+  <node id="618491537" lat="-25.3485080" lon="-57.5054052"/>
+  <node id="618491538" lat="-25.3490265" lon="-57.5065690"/>
+  <node id="618491539" lat="-25.3478683" lon="-57.5072394"/>
+  <node id="618491540" lat="-25.3473106" lon="-57.5060892"/>
+  <node id="618491548" lat="-25.3456043" lon="-57.5056818"/>
+  <node id="618491549" lat="-25.3437662" lon="-57.5080615"/>
+  <node id="618491551" lat="-25.3443266" lon="-57.5092542"/>
+  <node id="618491552" lat="-25.3454950" lon="-57.5085729"/>
+  <node id="618491563" lat="-25.3444575" lon="-57.5063735">
+    <tag k="highway" v="traffic_signals"/>
+    <tag k="source" v="TangoGPS"/>
+  </node>
+  <node id="618491564" lat="-25.3452314" lon="-57.5048568"/>
+  <node id="842266525" lat="-25.3347312" lon="-57.4919762"/>
+  <node id="842266526" lat="-25.3389500" lon="-57.4911784"/>
+  <node id="842266528" lat="-25.3391480" lon="-57.4911662"/>
+  <node id="842266529" lat="-25.3393796" lon="-57.4911878"/>
+  <node id="842266532" lat="-25.3400277" lon="-57.4913488"/>
+  <node id="842266535" lat="-25.3406577" lon="-57.4915261"/>
+  <node id="842266537" lat="-25.3413359" lon="-57.4917003"/>
+  <node id="842266546" lat="-25.3419767" lon="-57.4918722"/>
+  <node id="843625994" lat="-25.3424079" lon="-57.4942107">
+    <tag k="highway" v="traffic_signals"/>
+  </node>
+  <node id="843646886" lat="-25.3373209" lon="-57.4915087"/>
+  <node id="845198063" lat="-25.3407908" lon="-57.5011906"/>
+  <node id="845198072" lat="-25.3411535" lon="-57.5023878"/>
+  <node id="845198126" lat="-25.3409689" lon="-57.5001140"/>
+  <node id="845230824" lat="-25.3436006" lon="-57.4889341"/>
+  <node id="845230923" lat="-25.3471108" lon="-57.4978649">
+    <tag k="source" v="Reconocimiento cartográfico 2016 por KG"/>
+  </node>
+  <node id="845230934" lat="-25.3465345" lon="-57.4987555">
+    <tag k="highway" v="traffic_signals"/>
+  </node>
+  <node id="845231050" lat="-25.3449902" lon="-57.5009878"/>
+  <node id="845236799" lat="-25.3423081" lon="-57.5017404"/>
+  <node id="845236825" lat="-25.3458643" lon="-57.4997392"/>
+  <node id="845236833" lat="-25.3433861" lon="-57.5028008"/>
+  <node id="845236852" lat="-25.3429207" lon="-57.5030449"/>
+  <node id="849589646" lat="-25.3417430" lon="-57.4975111">
+    <tag k="highway" v="traffic_signals"/>
+  </node>
+  <node id="849591403" lat="-25.3484553" lon="-57.4958608"/>
+  <node id="849591807" lat="-25.3496976" lon="-57.4939467">
+    <tag k="highway" v="traffic_signals"/>
+    <tag k="source" v="Reconocimiento cartográfico 2016 por KG"/>
+  </node>
+  <node id="849591808" lat="-25.3428767" lon="-57.4921093">
+    <tag k="highway" v="traffic_signals"/>
+  </node>
+  <node id="849591932" lat="-25.3495382" lon="-57.4939039"/>
+  <node id="849592137" lat="-25.3490602" lon="-57.4949128"/>
+  <node id="849592383" lat="-25.3436959" lon="-57.4923385"/>
+  <node id="849593406" lat="-25.3464510" lon="-57.4988862"/>
+  <node id="849595150" lat="-25.3417056" lon="-57.5004551"/>
+  <node id="853962883" lat="-25.3419594" lon="-57.4956521"/>
+  <node id="861340384" lat="-25.3449395" lon="-57.5104890"/>
+  <node id="861340389" lat="-25.3455691" lon="-57.5118449"/>
+  <node id="861340413" lat="-25.3417608" lon="-57.5160946"/>
+  <node id="861340415" lat="-25.3384063" lon="-57.5087981">
+    <tag k="highway" v="traffic_signals"/>
+  </node>
+  <node id="861340422" lat="-25.3429288" lon="-57.5153191"/>
+  <node id="861340424" lat="-25.3395438" lon="-57.5081311"/>
+  <node id="861340430" lat="-25.3402915" lon="-57.5077081"/>
+  <node id="861340436" lat="-25.3444469" lon="-57.5144217"/>
+  <node id="861340438" lat="-25.3410335" lon="-57.5072831"/>
+  <node id="970927960" lat="-25.3330905" lon="-57.5104345"/>
+  <node id="973603995" lat="-25.3423485" lon="-57.5156609"/>
+  <node id="973604077" lat="-25.3462333" lon="-57.5262812"/>
+  <node id="973604079" lat="-25.3435925" lon="-57.5215758"/>
+  <node id="973604080" lat="-25.3432552" lon="-57.5207931">
+    <tag k="source" v="Reconocimiento cartográfico 2016 por KG"/>
+  </node>
+  <node id="1126289680" lat="-25.3354394" lon="-57.5330498"/>
+  <node id="1241489781" lat="-25.3418518" lon="-57.4965861"/>
+  <node id="1241489782" lat="-25.3427852" lon="-57.4921046">
+    <tag k="highway" v="traffic_signals"/>
+  </node>
+  <node id="1241489785" lat="-25.3423024" lon="-57.4941935">
+    <tag k="highway" v="traffic_signals"/>
+  </node>
+  <node id="1314245384" lat="-25.3266963" lon="-57.5192276"/>
+  <node id="1437431219" lat="-25.3406779" lon="-57.5085167"/>
+  <node id="1437431226" lat="-25.3414125" lon="-57.5080990"/>
+  <node id="1437431229" lat="-25.3417350" lon="-57.5037116">
+    <tag k="highway" v="traffic_signals"/>
+    <tag k="traffic_signals" v="signal"/>
+  </node>
+  <node id="1437431230" lat="-25.3417728" lon="-57.5069027"/>
+  <node id="1437431242" lat="-25.3440119" lon="-57.5021076"/>
+  <node id="1437431244" lat="-25.3460988" lon="-57.5098268"/>
+  <node id="1437431245" lat="-25.3467401" lon="-57.5111770"/>
+  <node id="1437431247" lat="-25.3484707" lon="-57.5084848"/>
+  <node id="1437431248" lat="-25.3490825" lon="-57.5097907"/>
+  <node id="1437431249" lat="-25.3496158" lon="-57.5078005">
+    <tag k="source" v="Reconocimiento cartográfico 2016 por KG"/>
+  </node>
+  <node id="1437431250" lat="-25.3497951" lon="-57.5113195"/>
+  <node id="1437431251" lat="-25.3502751" lon="-57.5091362"/>
+  <node id="1437431252" lat="-25.3509683" lon="-57.5106382"/>
+  <node id="1437446566" lat="-25.3278406" lon="-57.5183890"/>
+  <node id="1437480440" lat="-25.3424833" lon="-57.5167287">
+    <tag k="traffic_calming" v="dip"/>
+  </node>
+  <node id="1437480442" lat="-25.3437733" lon="-57.5171218"/>
+  <node id="1437480457" lat="-25.3480212" lon="-57.5043736"/>
+  <node id="1439466022" lat="-25.3389533" lon="-57.5231372"/>
+  <node id="1461283940" lat="-25.3449243" lon="-57.4926818"/>
+  <node id="1461283956" lat="-25.3468836" lon="-57.4932172"/>
+  <node id="1461287280" lat="-25.3462200" lon="-57.4930282"/>
+  <node id="1461287281" lat="-25.3482156" lon="-57.4935602"/>
+  <node id="1687581287" lat="-25.3578884" lon="-57.5144765">
+    <tag k="highway" v="traffic_signals"/>
+    <tag k="traffic_signals" v="signal"/>
+  </node>
+  <node id="1763980130" lat="-25.3382854" lon="-57.4912984"/>
+  <node id="1764028720" lat="-25.3430970" lon="-57.4907155"/>
+  <node id="1764028730" lat="-25.3408543" lon="-57.5016267"/>
+  <node id="1764028735" lat="-25.3411277" lon="-57.4994216"/>
+  <node id="1764028738" lat="-25.3413102" lon="-57.4992789"/>
+  <node id="1764028756" lat="-25.3507261" lon="-57.4923268">
+    <tag k="source" v="Reconocimiento cartográfico 2016 por KG"/>
+  </node>
+  <node id="1764028760" lat="-25.3486563" lon="-57.4955751"/>
+  <node id="1764028796" lat="-25.3413258" lon="-57.4994203"/>
+  <node id="1764035520" lat="-25.3414747" lon="-57.4982105"/>
+  <node id="1764060371" lat="-25.3381197" lon="-57.5089729"/>
+  <node id="1764060373" lat="-25.3420077" lon="-57.5184670"/>
+  <node id="1764060374" lat="-25.3446778" lon="-57.5165553"/>
+  <node id="1764060375" lat="-25.3450372" lon="-57.5160919"/>
+  <node id="1764060376" lat="-25.3415854" lon="-57.5188926"/>
+  <node id="1764060377" lat="-25.3410844" lon="-57.5194485"/>
+  <node id="1764073237" lat="-25.3421136" lon="-57.5045280"/>
+  <node id="1764091557" lat="-25.3399300" lon="-57.5205030"/>
+  <node id="1764091561" lat="-25.3402860" lon="-57.5205816"/>
+  <node id="1764091567" lat="-25.3414244" lon="-57.5166195"/>
+  <node id="1764091570" lat="-25.3401145" lon="-57.5208550"/>
+  <node id="1764091571" lat="-25.3396909" lon="-57.5215775"/>
+  <node id="1764091580" lat="-25.3432328" lon="-57.5174697"/>
+  <node id="1764091606" lat="-25.3402053" lon="-57.5207131"/>
+  <node id="1764120756" lat="-25.3371514" lon="-57.5097792"/>
+  <node id="1764120757" lat="-25.3372358" lon="-57.5103576"/>
+  <node id="1764120758" lat="-25.3373413" lon="-57.5103647"/>
+  <node id="1764120759" lat="-25.3365376" lon="-57.5102797"/>
+  <node id="1764120761" lat="-25.3368655" lon="-57.5102965"/>
+  <node id="1764120762" lat="-25.3367883" lon="-57.5101066"/>
+  <node id="1764120763" lat="-25.3369715" lon="-57.5108166"/>
+  <node id="1764120764" lat="-25.3369843" lon="-57.5101910"/>
+  <node id="1764120768" lat="-25.3369251" lon="-57.5099981"/>
+  <node id="1764120769" lat="-25.3374428" lon="-57.5103483"/>
+  <node id="1764120770" lat="-25.3370714" lon="-57.5103299">
+    <tag k="highway" v="traffic_signals"/>
+  </node>
+  <node id="1764140378" lat="-25.3442858" lon="-57.4855652"/>
+  <node id="1764140448" lat="-25.3433135" lon="-57.4897732">
+    <tag k="highway" v="traffic_signals"/>
+  </node>
+  <node id="1764140619" lat="-25.3444124" lon="-57.4849642"/>
+  <node id="1782812215" lat="-25.3284464" lon="-57.5179493"/>
+  <node id="1782814438" lat="-25.3315455" lon="-57.5154911"/>
+  <node id="1782861666" lat="-25.3317113" lon="-57.5102000">
+    <tag k="highway" v="traffic_signals"/>
+    <tag k="traffic_signals" v="signal"/>
+  </node>
+  <node id="1783243999" lat="-25.3363490" lon="-57.5305172"/>
+  <node id="1783244006" lat="-25.3368994" lon="-57.5290378">
+    <tag k="highway" v="traffic_signals"/>
+    <tag k="traffic_signals" v="signal"/>
+  </node>
+  <node id="1929638631" lat="-25.3375492" lon="-57.5269431"/>
+  <node id="2394101900" lat="-25.3535333" lon="-57.4899575"/>
+  <node id="2408834199" lat="-25.3315139" lon="-57.4927055"/>
+  <node id="2408834217" lat="-25.3324081" lon="-57.4924475"/>
+  <node id="2408834245" lat="-25.3336257" lon="-57.4922005"/>
+  <node id="2444848628" lat="-25.3573091" lon="-57.5143719"/>
+  <node id="2558091385" lat="-25.3454946" lon="-57.5152920"/>
+  <node id="2558091386" lat="-25.3465163" lon="-57.5146990"/>
+  <node id="2669622254" lat="-25.3437148" lon="-57.5148723">
+    <tag k="highway" v="traffic_signals"/>
+  </node>
+  <node id="2669622262" lat="-25.3458974" lon="-57.5125395">
+    <tag k="highway" v="traffic_signals"/>
+  </node>
+  <node id="2669622270" lat="-25.3474534" lon="-57.5126473">
+    <tag k="highway" v="traffic_signals"/>
+  </node>
+  <node id="2669622279" lat="-25.3510654" lon="-57.4918142"/>
+  <node id="2669622281" lat="-25.3512644" lon="-57.4915462"/>
+  <node id="2669622283" lat="-25.3518727" lon="-57.4909178"/>
+  <node id="2682741927" lat="-25.3441699" lon="-57.5228806"/>
+  <node id="2682741929" lat="-25.3448424" lon="-57.5242547"/>
+  <node id="2813825937" lat="-25.3356952" lon="-57.5323494"/>
+  <node id="2813984760" lat="-25.3347700" lon="-57.5347354"/>
+  <node id="2813984785" lat="-25.3350027" lon="-57.5341033"/>
+  <node id="2813985984" lat="-25.3329302" lon="-57.5393230"/>
+  <node id="2815924990" lat="-25.3565481" lon="-57.5142417"/>
+  <node id="2815928046" lat="-25.3553910" lon="-57.5140021"/>
+  <node id="2833519019" lat="-25.3553296" lon="-57.4908553"/>
+  <node id="2833535494" lat="-25.3547090" lon="-57.4908274"/>
+  <node id="2840051810" lat="-25.3566233" lon="-57.4877632"/>
+  <node id="2840051819" lat="-25.3544690" lon="-57.4893752"/>
+  <node id="2840051822" lat="-25.3552243" lon="-57.4886964"/>
+  <node id="2840054253" lat="-25.3557422" lon="-57.4882931"/>
+  <node id="2840054254" lat="-25.3568603" lon="-57.4876127"/>
+  <node id="3314443341" lat="-25.3429788" lon="-57.5194359"/>
+  <node id="3630174051" lat="-25.3437271" lon="-57.4883200">
+    <tag k="highway" v="traffic_signals"/>
+  </node>
+  <node id="3630174053" lat="-25.3434032" lon="-57.4897880">
+    <tag k="highway" v="traffic_signals"/>
+  </node>
+  <node id="3702040613" lat="-25.3412250" lon="-57.4989910"/>
+  <node id="3702040616" lat="-25.3414168" lon="-57.4980679"/>
+  <node id="3708635374" lat="-25.3462911" lon="-57.4991187"/>
+  <node id="3744233325" lat="-25.3381224" lon="-57.5258699"/>
+  <node id="4412142164" lat="-25.3569974" lon="-57.4875214"/>
+  <node id="4436989411" lat="-25.3401704" lon="-57.5198685"/>
+  <node id="4436989415" lat="-25.3407567" lon="-57.5198762"/>
+  <node id="4436989417" lat="-25.3405652" lon="-57.5201632"/>
+  <node id="4508288843" lat="-25.3450549" lon="-57.5140585"/>
+  <node id="4554656442" lat="-25.3497228" lon="-57.4939150">
+    <tag k="source" v="Reconocimiento cartográfico 2016 por KG"/>
+  </node>
+  <node id="4557787173" lat="-25.3456890" lon="-57.5000060">
+    <tag k="source" v="Reconocimiento cartográfico 2016 por KG"/>
+  </node>
+  <node id="4557810782" lat="-25.3441832" lon="-57.5054835">
+    <tag k="source" v="Reconocimiento cartográfico 2016 por KG"/>
+  </node>
+  <node id="4557810783" lat="-25.3440430" lon="-57.5054262"/>
+  <node id="4577894791" lat="-25.3524383" lon="-57.5130655"/>
+  <node id="4589518346" lat="-25.3472718" lon="-57.5059980"/>
+  <node id="4589518347" lat="-25.3484571" lon="-57.5053167"/>
+  <node id="4589588100" lat="-25.3422142" lon="-57.5076829"/>
+  <node id="4589588101" lat="-25.3418360" lon="-57.5068670"/>
+  <node id="4614547414" lat="-25.3343416" lon="-57.5358765">
+    <tag k="highway" v="traffic_signals"/>
+  </node>
+  <node id="4614875861" lat="-25.3451106" lon="-57.5140180"/>
+  <node id="4614875863" lat="-25.3451384" lon="-57.5140003"/>
+  <node id="4614875864" lat="-25.3451673" lon="-57.5139840"/>
+  <node id="4614875867" lat="-25.3451992" lon="-57.5139661"/>
+  <node id="4616495949" lat="-25.3382109" lon="-57.5099133"/>
+  <node id="4616495950" lat="-25.3384293" lon="-57.5097910"/>
+  <node id="4616495951" lat="-25.3379577" lon="-57.5090867"/>
+  <node id="4616499693" lat="-25.3450690" lon="-57.5060069"/>
+  <node id="4616600321" lat="-25.3445594" lon="-57.5097416"/>
+  <node id="4616600322" lat="-25.3444268" lon="-57.5094557"/>
+  <node id="4616711668" lat="-25.3424032" lon="-57.5156220"/>
+  <node id="4616711669" lat="-25.3425407" lon="-57.5166902">
+    <tag k="traffic_calming" v="dip"/>
+  </node>
+  <node id="4616711670" lat="-25.3426655" lon="-57.5177311"/>
+  <node id="4616981949" lat="-25.3426892" lon="-57.5178469">
+    <tag k="highway" v="traffic_signals"/>
+    <tag k="traffic_signals" v="signal"/>
+  </node>
+  <node id="4616981950" lat="-25.3426179" lon="-57.5177334"/>
+  <node id="4617028674" lat="-25.3449433" lon="-57.5073824"/>
+  <node id="4617142039" lat="-25.3387501" lon="-57.5242074"/>
+  <node id="4617142040" lat="-25.3385869" lon="-57.5241454"/>
+  <node id="4617318173" lat="-25.3376840" lon="-57.5269471"/>
+  <node id="4618784320" lat="-25.3612089" lon="-57.5152516"/>
+  <node id="4618985880" lat="-25.3590082" lon="-57.5147393"/>
+  <node id="4618985881" lat="-25.3604043" lon="-57.5150800"/>
+  <node id="4955386321" lat="-25.3535460" lon="-57.5133811"/>
+  <node id="5627155201" lat="-25.3467446" lon="-57.5143033"/>
+  <node id="5627155202" lat="-25.3466407" lon="-57.5141075"/>
+  <node id="5638100586" lat="-25.3395446" lon="-57.5219197"/>
+  <node id="5664602811" lat="-25.3353863" lon="-57.5123529"/>
+  <node id="5664602812" lat="-25.3350144" lon="-57.5126712"/>
+  <node id="5664602814" lat="-25.3327216" lon="-57.5145395"/>
+  <node id="5664602815" lat="-25.3380362" lon="-57.5090273"/>
+  <node id="5664602817" lat="-25.3360982" lon="-57.5103802"/>
+  <node id="5664602818" lat="-25.3356594" lon="-57.5104593"/>
+  <node id="5664602819" lat="-25.3348721" lon="-57.5105960"/>
+  <node id="5664602820" lat="-25.3341180" lon="-57.5106078"/>
+  <node id="5664603321" lat="-25.3344551" lon="-57.5106314"/>
+  <node id="5664603323" lat="-25.3372299" lon="-57.5105905"/>
+  <node id="5664603325" lat="-25.3369973" lon="-57.5100769"/>
+  <node id="5664603328" lat="-25.3368062" lon="-57.5103222"/>
+  <node id="5664603329" lat="-25.3368985" lon="-57.5104921"/>
+  <node id="5693579964" lat="-25.3460781" lon="-57.5043853"/>
+  <node id="5745609012" lat="-25.3452348" lon="-57.5157168"/>
+  <node id="5869781617" lat="-25.3467965" lon="-57.5143657"/>
+  <node id="5919191550" lat="-25.3597571" lon="-57.5149190"/>
+  <node id="6096166070" lat="-25.3541569" lon="-57.5135835"/>
+  <node id="6096166080" lat="-25.3527052" lon="-57.5131029"/>
+  <node id="6201716671" lat="-25.3431824" lon="-57.5205731"/>
+  <node id="6379693211" lat="-25.3315869" lon="-57.4926069"/>
+  <node id="6548302462" lat="-25.3393539" lon="-57.5224312"/>
+  <node id="6554427862" lat="-25.3447623" lon="-57.5142372"/>
+  <node id="6572681793" lat="-25.3431393" lon="-57.4909369"/>
+  <node id="6572709594" lat="-25.3472579" lon="-57.5142523"/>
+  <node id="6572709595" lat="-25.3477601" lon="-57.5133278"/>
+  <node id="6588687021" lat="-25.3406784" lon="-57.5199938"/>
+  <node id="6588691059" lat="-25.3404072" lon="-57.5203979"/>
+  <node id="6588691060" lat="-25.3400416" lon="-57.5202031"/>
+  <node id="6614877061" lat="-25.3448815" lon="-57.5163360"/>
+  <node id="6672490057" lat="-25.3315485" lon="-57.4926295"/>
+  <node id="6783250419" lat="-25.3362059" lon="-57.5309120"/>
+  <node id="6988303921" lat="-25.3540175" lon="-57.5136221"/>
+  <node id="7170526405" lat="-25.3426485" lon="-57.5177947"/>
+  <node id="7326371209" lat="-25.3402331" lon="-57.5197067"/>
+  <node id="7344224805" lat="-25.3599765" lon="-57.5149736"/>
+  <node id="7436937624" lat="-25.3341495" lon="-57.5364427">
+    <tag k="entrance" v="yes"/>
+  </node>
+  <node id="7436937627" lat="-25.3340258" lon="-57.5367746"/>
+  <node id="7461301699" lat="-25.3382854" lon="-57.5249748"/>
+  <node id="7461301700" lat="-25.3394574" lon="-57.5217699"/>
+  <node id="7564689503" lat="-25.3416950" lon="-57.4968422"/>
+  <node id="7564689508" lat="-25.3415765" lon="-57.4973610"/>
+  <node id="7564689522" lat="-25.3415184" lon="-57.4976173"/>
+  <node id="7565024158" lat="-25.3438779" lon="-57.5022560"/>
+  <node id="7565024162" lat="-25.3426520" lon="-57.5024427"/>
+  <node id="7565024164" lat="-25.3436187" lon="-57.5025432"/>
+  <node id="7565120527" lat="-25.3426007" lon="-57.5023379"/>
+  <node id="7565120529" lat="-25.3425277" lon="-57.5021888"/>
+  <node id="7565120531" lat="-25.3424521" lon="-57.5020345"/>
+  <node id="7741168847" lat="-25.3470769" lon="-57.5118712"/>
+  <node id="7795098240" lat="-25.3412875" lon="-57.5169743"/>
+  <node id="7795101237" lat="-25.3391294" lon="-57.5230334"/>
+  <node id="7795101244" lat="-25.3388397" lon="-57.5234499"/>
+  <node id="7979290334" lat="-25.3473661" lon="-57.4974585">
+    <tag k="source" v="Reconocimiento cartográfico 2016 por KG"/>
+  </node>
+  <node id="8073204655" lat="-25.3378191" lon="-57.5101463"/>
+  <node id="8073204656" lat="-25.3380334" lon="-57.5100142"/>
+  <node id="8079548285" lat="-25.3410824" lon="-57.5175057"/>
+  <node id="8082378257" lat="-25.3520833" lon="-57.4907711"/>
+  <node id="8260798777" lat="-25.3367161" lon="-57.5102719"/>
+  <node id="8260798828" lat="-25.3370007" lon="-57.5100089"/>
+  <node id="8260798842" lat="-25.3373932" lon="-57.5103609"/>
+  <node id="8260798976" lat="-25.3366681" lon="-57.5102719"/>
+  <node id="8260798980" lat="-25.3366299" lon="-57.5102227"/>
+  <node id="8260888326" lat="-25.3282181" lon="-57.5181150">
+    <tag k="crossing" v="marked"/>
+    <tag k="highway" v="crossing"/>
+  </node>
+  <node id="8260979998" lat="-25.3331670" lon="-57.5104474">
+    <tag k="crossing" v="marked"/>
+    <tag k="highway" v="crossing"/>
+  </node>
+  <node id="8260980016" lat="-25.3368856" lon="-57.5104364"/>
+  <node id="8260980027" lat="-25.3317454" lon="-57.5153294"/>
+  <node id="8260980028" lat="-25.3314141" lon="-57.5155978"/>
+  <node id="8260980182" lat="-25.3352924" lon="-57.5124333">
+    <tag k="crossing" v="marked"/>
+    <tag k="highway" v="crossing"/>
+  </node>
+  <node id="8265603172" lat="-25.3329205" lon="-57.5104047">
+    <tag k="crossing" v="marked"/>
+    <tag k="highway" v="crossing"/>
+  </node>
+  <node id="8265603175" lat="-25.3318512" lon="-57.5102237">
+    <tag k="crossing" v="marked"/>
+    <tag k="highway" v="crossing"/>
+  </node>
+  <node id="8276798528" lat="-25.3398181" lon="-57.5213386"/>
+  <node id="8284342151" lat="-25.3336997" lon="-57.5376871"/>
+  <node id="8284342153" lat="-25.3325627" lon="-57.5399919"/>
+  <node id="8906479946" lat="-25.3382792" lon="-57.5249914"/>
+  <node id="8906479948" lat="-25.3336277" lon="-57.5138026">
+    <tag k="highway" v="traffic_signals"/>
+  </node>
+  <node id="8907075171" lat="-25.3381822" lon="-57.5257211"/>
+  <node id="8951765932" lat="-25.3519341" lon="-57.5124117"/>
+  <node id="8964589346" lat="-25.3352074" lon="-57.5335909"/>
+  <node id="8964589348" lat="-25.3377885" lon="-57.5266531"/>
+  <node id="8964589349" lat="-25.3379058" lon="-57.5263806"/>
+  <node id="8964589350" lat="-25.3380097" lon="-57.5261588"/>
+  <node id="8964589351" lat="-25.3378357" lon="-57.5265272"/>
+  <node id="8964589352" lat="-25.3388285" lon="-57.5239729"/>
+  <node id="8964589353" lat="-25.3388811" lon="-57.5237668"/>
+  <node id="8964589354" lat="-25.3389185" lon="-57.5236141"/>
+  <node id="8964589355" lat="-25.3389496" lon="-57.5234949"/>
+  <node id="8964589356" lat="-25.3390155" lon="-57.5233161"/>
+  <node id="8964589357" lat="-25.3415078" lon="-57.5164349"/>
+  <node id="8964589358" lat="-25.3416834" lon="-57.5161758"/>
+  <node id="8964589359" lat="-25.3415345" lon="-57.5163894"/>
+  <node id="8964589363" lat="-25.3453618" lon="-57.5154938"/>
+  <node id="8964589364" lat="-25.3457152" lon="-57.5151267"/>
+  <node id="8964589365" lat="-25.3456153" lon="-57.5151888"/>
+  <node id="8968940616" lat="-25.3525550" lon="-57.4907012"/>
+  <node id="9080962800" lat="-25.3436020" lon="-57.5044865"/>
+  <node id="9129155827" lat="-25.3475151" lon="-57.4933798"/>
+  <node id="9129155828" lat="-25.3480101" lon="-57.4965139"/>
+  <node id="9168400928" lat="-25.3443078" lon="-57.5064578"/>
+  <node id="9168400934" lat="-25.3441271" lon="-57.5065596"/>
+  <node id="9168408344" lat="-25.3423386" lon="-57.5050131"/>
+  <node id="9168413713" lat="-25.3435216" lon="-57.5043152"/>
+  <node id="9203836307" lat="-25.3431101" lon="-57.5201691"/>
+  <node id="9203892517" lat="-25.3466791" lon="-57.5051115"/>
+  <node id="9203892524" lat="-25.3467263" lon="-57.5050836"/>
+  <node id="9238836494" lat="-25.3611128" lon="-57.5152311"/>
+  <node id="9258887961" lat="-25.3399396" lon="-57.5089444"/>
+  <node id="9525435929" lat="-25.3478561" lon="-57.5139020"/>
+  <node id="9525435930" lat="-25.3478773" lon="-57.5138846"/>
+  <node id="9525435931" lat="-25.3478979" lon="-57.5138598"/>
+  <node id="9525435932" lat="-25.3479142" lon="-57.5138290"/>
+  <node id="9525435933" lat="-25.3479294" lon="-57.5137921"/>
+  <node id="9525435934" lat="-25.3479360" lon="-57.5137613"/>
+  <node id="9525435935" lat="-25.3479354" lon="-57.5137257"/>
+  <node id="9525435936" lat="-25.3479294" lon="-57.5136909"/>
+  <node id="9525435937" lat="-25.3479179" lon="-57.5136540"/>
+  <node id="9525435938" lat="-25.3480067" lon="-57.5138173"/>
+  <node id="9612227488" lat="-25.3414404" lon="-57.4997986"/>
+  <node id="9713168617" lat="-25.3533730" lon="-57.4907491"/>
+  <node id="9717058014" lat="-25.3425066" lon="-57.4933099"/>
+  <node id="9725938810" lat="-25.3409493" lon="-57.5019160"/>
+  <node id="9726007093" lat="-25.3411745" lon="-57.4992175"/>
+  <node id="9736350330" lat="-25.3417430" lon="-57.5005349"/>
+  <node id="9785433034" lat="-25.3414675" lon="-57.4998790"/>
+  <node id="9930217254" lat="-25.3370021" lon="-57.5099749"/>
+  <node id="9949692797" lat="-25.3420147" lon="-57.5043147"/>
+  <node id="10266934151" lat="-25.3341916" lon="-57.5363185"/>
+  <node id="10267751427" lat="-25.3422435" lon="-57.4944438"/>
+  <node id="10267757426" lat="-25.3424257" lon="-57.4936600"/>
+  <node id="10870293587" lat="-25.3422267" lon="-57.4949910"/>
+  <node id="11042368248" lat="-25.3416453" lon="-57.4974795"/>
+  <node id="11042368249" lat="-25.3416055" lon="-57.4976502">
+    <tag k="highway" v="traffic_signals"/>
+    <tag k="traffic_signals" v="signal"/>
+    <tag k="traffic_signals:direction" v="forward"/>
+  </node>
+  <node id="11042368250" lat="-25.3416049" lon="-57.4972366">
+    <tag k="highway" v="traffic_signals"/>
+    <tag k="traffic_signals" v="signal"/>
+    <tag k="traffic_signals:direction" v="forward"/>
+  </node>
+  <node id="11042368251" lat="-25.3415561" lon="-57.4974508"/>
+  <node id="11171096365" lat="-25.3434458" lon="-57.5041571"/>
+  <node id="11171219491" lat="-25.3473486" lon="-57.5124313"/>
+  <node id="11171219496" lat="-25.3470824" lon="-57.5128725"/>
+  <node id="11171219500" lat="-25.3473974" lon="-57.5125319"/>
+  <node id="11175740763" lat="-25.3432476" lon="-57.5037325"/>
+  <node id="11175942171" lat="-25.3537442" lon="-57.5134468"/>
+  <node id="11175995842" lat="-25.3359015" lon="-57.5317700"/>
+  <node id="11182580985" lat="-25.3434118" lon="-57.4897507"/>
+  <node id="11393319351" lat="-25.3347103" lon="-57.5348944"/>
+  <node id="11538724310" lat="-25.3334183" lon="-57.5104898"/>
+  <node id="12234036500" lat="-25.3424260" lon="-57.5162745"/>
+  <node id="12234058704" lat="-25.3419684" lon="-57.5159371"/>
+  <way id="8085058">
+    <nd ref="845198126"/>
+    <nd ref="593807041"/>
+    <nd ref="845198063"/>
+    <nd ref="593807048"/>
+    <nd ref="1764028730"/>
+    <nd ref="593807051"/>
+    <nd ref="9725938810"/>
+    <nd ref="845198072"/>
+    <nd ref="1437431229"/>
+    <tag k="highway" v="trunk"/>
+    <tag k="lanes" v="2"/>
+    <tag k="lit" v="yes"/>
+    <tag k="maxspeed" v="40"/>
+    <tag k="name" v="Julia Miranda Cueto"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="PY02"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="8085083">
+    <nd ref="1437431229"/>
+    <nd ref="9949692797"/>
+    <nd ref="1764073237"/>
+    <nd ref="9168408344"/>
+    <nd ref="20944199"/>
+    <tag k="highway" v="trunk"/>
+    <tag k="lanes" v="2"/>
+    <tag k="lit" v="yes"/>
+    <tag k="name" v="Julia Miranda Cueto"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="PY02;D027"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="29045179">
+    <nd ref="59712886"/>
+    <nd ref="845236852"/>
+    <tag k="highway" v="trunk"/>
+    <tag k="lanes" v="2"/>
+    <tag k="maxspeed" v="40"/>
+    <tag k="name" v="Avenida Mariscal Estigarribia"/>
+    <tag k="official_name" v="Avenida Mariscal José Félix Estigarribia"/>
+    <tag k="old_ref" v="RN 2"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="PY02 V"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="30033175">
+    <nd ref="861340415"/>
+    <nd ref="1764060371"/>
+    <tag k="highway" v="trunk"/>
+    <tag k="lanes" v="2"/>
+    <tag k="maxspeed" v="40"/>
+    <tag k="name" v="Saturio Ríos"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="D027;D067"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="30033177">
+    <nd ref="8260798777"/>
+    <nd ref="5664603328"/>
+    <nd ref="330721575"/>
+    <nd ref="8260980016"/>
+    <nd ref="5664603329"/>
+    <nd ref="330721572"/>
+    <tag k="highway" v="primary"/>
+    <tag k="lanes" v="2"/>
+    <tag k="name" v="General Eugenio Alejandrino Garay"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="30033180">
+    <nd ref="1764120759"/>
+    <nd ref="8260798976"/>
+    <nd ref="8260798777"/>
+    <tag k="cycleway" v="no"/>
+    <tag k="highway" v="primary"/>
+    <tag k="horse" v="permissive"/>
+    <tag k="lanes" v="1"/>
+    <tag k="maxspeed" v="40"/>
+    <tag k="name" v="General Eugenio A. Garay"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="D067"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="48161982">
+    <nd ref="612015720"/>
+    <nd ref="4577894791"/>
+    <nd ref="612015727"/>
+    <nd ref="6988303921"/>
+    <nd ref="618491528"/>
+    <nd ref="2815928046"/>
+    <nd ref="2815924990"/>
+    <nd ref="2444848628"/>
+    <nd ref="1687581287"/>
+    <nd ref="4618985880"/>
+    <nd ref="5919191550"/>
+    <nd ref="7344224805"/>
+    <nd ref="4618985881"/>
+    <nd ref="9238836494"/>
+    <nd ref="4618784320"/>
+    <nd ref="612015715"/>
+    <nd ref="612015718"/>
+    <tag k="highway" v="primary"/>
+    <tag k="lanes" v="2"/>
+    <tag k="loc_name" v="Ruta Departamental 067"/>
+    <tag k="maxspeed" v="40"/>
+    <tag k="name" v="Avenida Manuel Ortíz Guerrero"/>
+    <tag k="official_name" v="Ruta Departamental Nº 067"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="D067"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="48162002">
+    <nd ref="59712818"/>
+    <nd ref="9258887961"/>
+    <nd ref="1437431219"/>
+    <nd ref="1437431226"/>
+    <nd ref="59712819"/>
+    <nd ref="4589588100"/>
+    <nd ref="20928101"/>
+    <tag k="highway" v="trunk"/>
+    <tag k="lanes" v="2"/>
+    <tag k="name" v="Doctor Gaspar Rodríguez de Francia"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="D027;D067"/>
+    <tag k="source" v="Reconocimiento cartográfico 2016 por KG"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="48162003">
+    <nd ref="9525435929"/>
+    <nd ref="9525435938"/>
+    <nd ref="618491533"/>
+    <tag k="highway" v="secondary"/>
+    <tag k="lanes" v="2"/>
+    <tag k="name" v="Marcelina Insfran"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="source" v="TangoGPS"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="48162004">
+    <nd ref="612015725"/>
+    <nd ref="612015723"/>
+    <tag k="highway" v="secondary"/>
+    <tag k="lanes" v="2"/>
+    <tag k="name" v="Teniente Benítez"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="source" v="Reconocimiento cartográfico 2016 por KG"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="48162005">
+    <nd ref="612015720"/>
+    <nd ref="618491530"/>
+    <nd ref="8951765932"/>
+    <nd ref="612015721"/>
+    <tag k="highway" v="primary"/>
+    <tag k="lanes" v="2"/>
+    <tag k="maxspeed" v="40"/>
+    <tag k="name" v="Avenida Manuel Ortíz Guerrero"/>
+    <tag k="ref" v="D067"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="48162006">
+    <nd ref="612015721"/>
+    <nd ref="1437431252"/>
+    <nd ref="1437431251"/>
+    <nd ref="1437431249"/>
+    <nd ref="618491538"/>
+    <nd ref="618491537"/>
+    <nd ref="4589518347"/>
+    <nd ref="1437480457"/>
+    <nd ref="612015722"/>
+    <tag k="highway" v="secondary"/>
+    <tag k="lanes" v="2"/>
+    <tag k="loc_name" v="Ruta Departamental 067"/>
+    <tag k="maxspeed" v="40"/>
+    <tag k="name" v="Manuel Ortíz Guerrero"/>
+    <tag k="official_name" v="Ruta Departamental Nº 067"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="D067"/>
+    <tag k="source" v="Reconocimiento cartográfico 2016 por KG"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="70579088">
+    <nd ref="2408834199"/>
+    <nd ref="6672490057"/>
+    <nd ref="6379693211"/>
+    <nd ref="2408834217"/>
+    <nd ref="2408834245"/>
+    <nd ref="842266525"/>
+    <nd ref="843646886"/>
+    <nd ref="1763980130"/>
+    <nd ref="842266526"/>
+    <nd ref="842266528"/>
+    <nd ref="842266529"/>
+    <nd ref="842266532"/>
+    <nd ref="842266535"/>
+    <nd ref="842266537"/>
+    <nd ref="842266546"/>
+    <tag k="highway" v="secondary"/>
+    <tag k="lanes" v="2"/>
+    <tag k="lit" v="yes"/>
+    <tag k="loc_name" v="Ruta Departamental 69"/>
+    <tag k="maxspeed" v="40"/>
+    <tag k="name" v="Ruta Departamental 069 - PORVENIR NORTE"/>
+    <tag k="network" v="PY:departamental"/>
+    <tag k="official_name" v="Ruta Departamental N° 069"/>
+    <tag k="oneway" v="no"/>
+    <tag k="ref" v="D069"/>
+    <tag k="source:name" v="Resolución Nº 600/2020 MOPC"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="70912182">
+    <nd ref="845236833"/>
+    <nd ref="845236852"/>
+    <tag k="highway" v="primary"/>
+    <tag k="lanes" v="2"/>
+    <tag k="maxspeed" v="20"/>
+    <tag k="name" v="Ruta Departamental 027"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="D027"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="71403306">
+    <nd ref="20928100"/>
+    <nd ref="4614875867"/>
+    <nd ref="4614875864"/>
+    <nd ref="4614875863"/>
+    <nd ref="4614875861"/>
+    <nd ref="4508288843"/>
+    <nd ref="6554427862"/>
+    <nd ref="861340436"/>
+    <nd ref="2669622254"/>
+    <nd ref="861340422"/>
+    <nd ref="4616711668"/>
+    <nd ref="973603995"/>
+    <tag k="highway" v="trunk"/>
+    <tag k="lanes" v="3"/>
+    <tag k="name" v="Avenida Mariscal Estigarribia"/>
+    <tag k="official_name" v="Avenida Mariscal José Félix Estigarribia"/>
+    <tag k="old_ref" v="RN 2"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="PY02"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="108188179">
+    <nd ref="322785427"/>
+    <nd ref="8968940616"/>
+    <nd ref="9713168617"/>
+    <nd ref="2833535494"/>
+    <nd ref="2833519019"/>
+    <tag k="alt_name" v="Ruta Departamental 069"/>
+    <tag k="highway" v="secondary"/>
+    <tag k="lanes" v="2"/>
+    <tag k="loc_name" v="Ruta Departamental 69"/>
+    <tag k="name" v="De la Victoria"/>
+    <tag k="network" v="PY:departamental"/>
+    <tag k="official_name" v="Ruta Departamental N° 069"/>
+    <tag k="oneway" v="no"/>
+    <tag k="ref" v="D069"/>
+    <tag k="source:name" v="Resolución Nº 600/2020 MOPC"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="130539908">
+    <nd ref="618491563"/>
+    <nd ref="4616499693"/>
+    <nd ref="618491548"/>
+    <nd ref="9203892517"/>
+    <nd ref="9203892524"/>
+    <nd ref="612015723"/>
+    <tag k="highway" v="secondary"/>
+    <tag k="lanes" v="2"/>
+    <tag k="name" v="Doctor Gaspar Rodríguez de Francia"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="D067"/>
+    <tag k="source" v="TangoGPS"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="130539910">
+    <nd ref="20944205"/>
+    <nd ref="20944199"/>
+    <nd ref="4589588101"/>
+    <nd ref="1437431230"/>
+    <nd ref="861340438"/>
+    <nd ref="861340430"/>
+    <nd ref="861340424"/>
+    <nd ref="861340415"/>
+    <tag k="highway" v="trunk"/>
+    <tag k="lanes" v="2"/>
+    <tag k="maxspeed" v="40"/>
+    <tag k="name" v="Saturio Ríos"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="D027;D067"/>
+    <tag k="source" v="Reconocimiento cartográfico 2016 por KG"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="130539911">
+    <nd ref="612015722"/>
+    <nd ref="612015725"/>
+    <nd ref="5693579964"/>
+    <nd ref="618491564"/>
+    <nd ref="4557810782"/>
+    <nd ref="20944205"/>
+    <tag k="highway" v="secondary"/>
+    <tag k="lanes" v="2"/>
+    <tag k="loc_name" v="Ruta Departamental 067"/>
+    <tag k="maxspeed" v="40"/>
+    <tag k="name" v="Saturio Ríos"/>
+    <tag k="official_name" v="Ruta Departamental Nº 067"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="D067"/>
+    <tag k="source" v="Reconocimiento cartográfico 2016 por KG"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="130627111">
+    <nd ref="322784934"/>
+    <nd ref="6572709595"/>
+    <nd ref="2669622270"/>
+    <nd ref="11171219500"/>
+    <nd ref="11171219491"/>
+    <nd ref="7741168847"/>
+    <nd ref="1437431245"/>
+    <nd ref="1437431244"/>
+    <nd ref="618491552"/>
+    <nd ref="4617028674"/>
+    <nd ref="618491563"/>
+    <tag k="highway" v="trunk"/>
+    <tag k="lanes" v="2"/>
+    <tag k="maxspeed" v="40"/>
+    <tag k="name" v="Avenida Mariscal Estigarribia"/>
+    <tag k="official_name" v="Avenida Mariscal José Félix Estigarribia"/>
+    <tag k="old_ref" v="RN 2"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="PY02 V"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="164798030">
+    <nd ref="7565024164"/>
+    <nd ref="7565024158"/>
+    <nd ref="1437431242"/>
+    <tag k="highway" v="primary"/>
+    <tag k="lanes" v="2"/>
+    <tag k="loc_name" v="Ruta departamental 027"/>
+    <tag k="maxspeed" v="40"/>
+    <tag k="name" v="Ruta Departamental 027"/>
+    <tag k="official_name" v="Ruta departamental N° 027"/>
+    <tag k="old_ref" v="RN 1"/>
+    <tag k="oneway" v="no"/>
+    <tag k="ref" v="D027"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="164798662">
+    <nd ref="618491563"/>
+    <nd ref="20944205"/>
+    <nd ref="4557810783"/>
+    <tag k="highway" v="trunk"/>
+    <tag k="lanes" v="2"/>
+    <tag k="name" v="Avenida Mariscal José Félix Estigarribia"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="PY02 V"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="164798664">
+    <nd ref="20944199"/>
+    <nd ref="20928101"/>
+    <tag k="highway" v="trunk"/>
+    <tag k="lanes" v="2"/>
+    <tag k="lit" v="yes"/>
+    <tag k="name" v="Julia Miranda Cueto"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="PY02"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="164799269">
+    <nd ref="20928100"/>
+    <nd ref="5627155202"/>
+    <nd ref="5627155201"/>
+    <nd ref="5869781617"/>
+    <nd ref="322784935"/>
+    <tag k="highway" v="trunk"/>
+    <tag k="lanes" v="2"/>
+    <tag k="lit" v="yes"/>
+    <tag k="name" v="Julia Miranda Cueto"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="PY02"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="164804488">
+    <nd ref="20944201"/>
+    <nd ref="1764120768"/>
+    <nd ref="1764120762"/>
+    <nd ref="8260798980"/>
+    <nd ref="1764120759"/>
+    <tag k="highway" v="primary"/>
+    <tag k="lanes" v="1"/>
+    <tag k="lit" v="yes"/>
+    <tag k="maxspeed" v="40"/>
+    <tag k="name" v="General Eugenio Alejandrino Garay"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="D067"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="299619486">
+    <nd ref="322784726"/>
+    <nd ref="8284342153"/>
+    <nd ref="2813985984"/>
+    <nd ref="322784725"/>
+    <nd ref="8284342151"/>
+    <nd ref="7436937627"/>
+    <nd ref="7436937624"/>
+    <nd ref="10266934151"/>
+    <nd ref="4614547414"/>
+    <nd ref="11393319351"/>
+    <nd ref="2813984760"/>
+    <nd ref="2813984785"/>
+    <nd ref="8964589346"/>
+    <nd ref="1126289680"/>
+    <nd ref="2813825937"/>
+    <nd ref="11175995842"/>
+    <nd ref="6783250419"/>
+    <nd ref="1783243999"/>
+    <nd ref="1783244006"/>
+    <nd ref="4617318173"/>
+    <nd ref="8964589348"/>
+    <nd ref="8964589351"/>
+    <nd ref="8964589349"/>
+    <nd ref="8964589350"/>
+    <nd ref="3744233325"/>
+    <nd ref="8907075171"/>
+    <nd ref="616084259"/>
+    <nd ref="4617142039"/>
+    <nd ref="8964589352"/>
+    <nd ref="8964589353"/>
+    <nd ref="8964589354"/>
+    <nd ref="8964589355"/>
+    <nd ref="8964589356"/>
+    <nd ref="7795101237"/>
+    <nd ref="6548302462"/>
+    <nd ref="5638100586"/>
+    <nd ref="322784787"/>
+    <nd ref="1764091571"/>
+    <nd ref="8276798528"/>
+    <nd ref="322784941"/>
+    <tag k="highway" v="trunk"/>
+    <tag k="lanes" v="3"/>
+    <tag k="name" v="Avenida Mariscal Estigarribia"/>
+    <tag k="official_name" v="Avenida Mariscal José Félix Estigarribia"/>
+    <tag k="old_ref" v="RN 2"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="PY02"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="299677230">
+    <nd ref="618491533"/>
+    <nd ref="612015724"/>
+    <tag k="highway" v="secondary"/>
+    <tag k="lanes" v="2"/>
+    <tag k="name" v="Marcelina Insfran"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="source" v="TangoGPS"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="299677231">
+    <nd ref="20928101"/>
+    <nd ref="9168400934"/>
+    <nd ref="9168400928"/>
+    <nd ref="618491563"/>
+    <tag k="highway" v="trunk"/>
+    <tag k="lanes" v="2"/>
+    <tag k="name" v="Doctor Gaspar Rodríguez de Francia"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="D027;D067"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="299677233">
+    <nd ref="20928101"/>
+    <nd ref="618491549"/>
+    <nd ref="618491551"/>
+    <nd ref="4616600322"/>
+    <nd ref="4616600321"/>
+    <nd ref="861340384"/>
+    <nd ref="861340389"/>
+    <nd ref="2669622262"/>
+    <nd ref="20928100"/>
+    <tag k="highway" v="trunk"/>
+    <tag k="lanes" v="2"/>
+    <tag k="lit" v="yes"/>
+    <tag k="name" v="Julia Miranda Cueto"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="PY02"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="299677237">
+    <nd ref="322784935"/>
+    <nd ref="6572709594"/>
+    <nd ref="9525435929"/>
+    <tag k="highway" v="trunk"/>
+    <tag k="lanes" v="2"/>
+    <tag k="name" v="Marcelina Insfran"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="PY02 V"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="300591203">
+    <nd ref="612015723"/>
+    <nd ref="4589518346"/>
+    <nd ref="618491540"/>
+    <nd ref="618491539"/>
+    <nd ref="1437431247"/>
+    <nd ref="1437431248"/>
+    <nd ref="1437431250"/>
+    <tag k="highway" v="secondary"/>
+    <tag k="lanes" v="2"/>
+    <tag k="maxspeed" v="40"/>
+    <tag k="name" v="Teniente Benítez"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="D067"/>
+    <tag k="source" v="Reconocimiento cartográfico 2016 por KG"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="300591205">
+    <nd ref="612015724"/>
+    <nd ref="612015721"/>
+    <tag k="highway" v="secondary"/>
+    <tag k="lanes" v="2"/>
+    <tag k="maxspeed" v="40"/>
+    <tag k="name" v="Marcelina Insfran"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="D067"/>
+    <tag k="source" v="TangoGPS"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="300592593">
+    <nd ref="1437431250"/>
+    <nd ref="618491532"/>
+    <nd ref="2669622270"/>
+    <tag k="highway" v="secondary"/>
+    <tag k="lanes" v="2"/>
+    <tag k="name" v="Hernandarias"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="300592594">
+    <nd ref="1437431250"/>
+    <nd ref="612015724"/>
+    <tag k="highway" v="secondary"/>
+    <tag k="lanes" v="2"/>
+    <tag k="maxspeed" v="40"/>
+    <tag k="name" v="Teniente Benítez"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="D067"/>
+    <tag k="source" v="TangoGPS"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="300593294">
+    <nd ref="1437431242"/>
+    <nd ref="845231050"/>
+    <nd ref="59712888"/>
+    <nd ref="4557787173"/>
+    <nd ref="845236825"/>
+    <tag k="highway" v="primary"/>
+    <tag k="lanes" v="2"/>
+    <tag k="loc_name" v="Ruta departamental 027"/>
+    <tag k="maxspeed" v="40"/>
+    <tag k="name" v="Ruta Departamental 027"/>
+    <tag k="official_name" v="Ruta departamental N° 027"/>
+    <tag k="old_name" v="Ruta Nacional N° 1 &quot;Mariscal Francisco Solano López&quot;"/>
+    <tag k="old_ref" v="RN 1"/>
+    <tag k="oneway" v="no"/>
+    <tag k="ref" v="D027"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="357939408">
+    <nd ref="1241489785"/>
+    <nd ref="10267751427"/>
+    <nd ref="853962883"/>
+    <nd ref="7564689503"/>
+    <nd ref="11042368250"/>
+    <nd ref="7564689508"/>
+    <nd ref="11042368251"/>
+    <nd ref="7564689522"/>
+    <tag k="highway" v="trunk"/>
+    <tag k="lanes" v="3"/>
+    <tag k="maxspeed" v="60"/>
+    <tag k="name" v="Avenida Mariscal Estigarribia"/>
+    <tag k="official_name" v="Avenida Mariscal José Félix Estigarribia"/>
+    <tag k="old_ref" v="RN 2"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="PY02"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="362619311">
+    <nd ref="322784941"/>
+    <nd ref="1764091570"/>
+    <nd ref="1764091606"/>
+    <nd ref="1764091561"/>
+    <nd ref="6588691059"/>
+    <nd ref="4436989417"/>
+    <nd ref="6588687021"/>
+    <nd ref="4436989415"/>
+    <nd ref="1764060377"/>
+    <nd ref="322784940"/>
+    <nd ref="1764060376"/>
+    <tag k="highway" v="trunk"/>
+    <tag k="lanes" v="3"/>
+    <tag k="name" v="Avenida Mariscal Estigarribia"/>
+    <tag k="old_ref" v="RN 2"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="PY02"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="416234258">
+    <nd ref="2669622270"/>
+    <nd ref="11171219496"/>
+    <nd ref="20928100"/>
+    <tag k="highway" v="trunk"/>
+    <tag k="lanes" v="2"/>
+    <tag k="name" v="Hernandarias"/>
+    <tag k="old_ref" v="RN 2"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="PY02"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="416234260">
+    <nd ref="1437431252"/>
+    <nd ref="1437431250"/>
+    <tag k="highway" v="secondary"/>
+    <tag k="lanes" v="2"/>
+    <tag k="name" v="Hernandarias"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="source" v="Reconocimiento cartográfico 2016 por KG"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="443657025">
+    <nd ref="322785427"/>
+    <nd ref="8082378257"/>
+    <nd ref="2669622283"/>
+    <nd ref="20929790"/>
+    <nd ref="2669622281"/>
+    <nd ref="2669622279"/>
+    <nd ref="1764028756"/>
+    <nd ref="4554656442"/>
+    <nd ref="849591807"/>
+    <tag k="highway" v="primary"/>
+    <tag k="horse" v="no"/>
+    <tag k="lanes" v="2"/>
+    <tag k="loc_name" v="Ruta departamental 027"/>
+    <tag k="maxspeed" v="40"/>
+    <tag k="name" v="Ruta Departamental 027"/>
+    <tag k="official_name" v="Ruta departamental N° 027"/>
+    <tag k="old_name" v="Ruta Nacional N° 1 &quot;Mariscal Francisco Solano López&quot;"/>
+    <tag k="old_ref" v="RN 1"/>
+    <tag k="oneway" v="no"/>
+    <tag k="ref" v="D027;D069"/>
+    <tag k="source_old" v="Reconocimiento cartográfico 2016 por KG"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="446855128">
+    <nd ref="1764120759"/>
+    <nd ref="5664602817"/>
+    <nd ref="5664602818"/>
+    <nd ref="5664602819"/>
+    <nd ref="330721576"/>
+    <nd ref="5664603321"/>
+    <nd ref="330721577"/>
+    <nd ref="5664602820"/>
+    <nd ref="11538724310"/>
+    <nd ref="8260979998"/>
+    <nd ref="970927960"/>
+    <nd ref="8265603172"/>
+    <nd ref="8265603175"/>
+    <nd ref="1782861666"/>
+    <tag k="access" v="yes"/>
+    <tag k="alt_name" v="Gral. Eugenio A. Garay"/>
+    <tag k="bicycle" v="yes"/>
+    <tag k="cycleway" v="no"/>
+    <tag k="foot" v="yes"/>
+    <tag k="highway" v="primary"/>
+    <tag k="horse" v="permissive"/>
+    <tag k="lanes" v="2"/>
+    <tag k="loc_name" v="Ruta Departamental 067"/>
+    <tag k="maxspeed" v="50"/>
+    <tag k="motor_vehicle" v="yes"/>
+    <tag k="name" v="General Eugenio Alejandrino Garay"/>
+    <tag k="official_name" v="Ruta Departamental Nº 067"/>
+    <tag k="oneway" v="no"/>
+    <tag k="ref" v="D067"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="446855132">
+    <nd ref="4412142164"/>
+    <nd ref="2840054254"/>
+    <nd ref="2840051810"/>
+    <nd ref="2840054253"/>
+    <nd ref="322785429"/>
+    <nd ref="2840051822"/>
+    <nd ref="2840051819"/>
+    <nd ref="322785428"/>
+    <nd ref="2394101900"/>
+    <nd ref="322785427"/>
+    <tag k="highway" v="primary"/>
+    <tag k="horse" v="no"/>
+    <tag k="lanes" v="2"/>
+    <tag k="loc_name" v="Ruta departamental 027"/>
+    <tag k="maxspeed" v="40"/>
+    <tag k="name" v="Ruta Departamental 027"/>
+    <tag k="old_name" v="Ruta Nacional N° 1 &quot;Mariscal Francisco Solano López&quot;"/>
+    <tag k="old_ref" v="RN 1"/>
+    <tag k="oneway" v="no"/>
+    <tag k="ref" v="D027"/>
+    <tag k="source_old" v="Reconocimiento cartográfico 2016 por KG"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="447703687">
+    <nd ref="973603995"/>
+    <nd ref="20928099"/>
+    <nd ref="12234058704"/>
+    <nd ref="861340413"/>
+    <tag k="highway" v="trunk"/>
+    <tag k="lanes" v="3"/>
+    <tag k="name" v="Mariscal José Félix Estigarribia"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="PY02"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="447703689">
+    <nd ref="1764091580"/>
+    <nd ref="1437480442"/>
+    <nd ref="322784938"/>
+    <nd ref="1764060374"/>
+    <nd ref="6614877061"/>
+    <nd ref="1764060375"/>
+    <nd ref="5745609012"/>
+    <nd ref="8964589363"/>
+    <nd ref="2558091385"/>
+    <tag k="highway" v="trunk"/>
+    <tag k="lanes" v="2"/>
+    <tag k="maxspeed" v="40"/>
+    <tag k="name" v="Avenida del Agrónomo"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="PY02 V"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="447703690">
+    <nd ref="6572681793"/>
+    <nd ref="3630174053"/>
+    <nd ref="11182580985"/>
+    <nd ref="845230824"/>
+    <nd ref="3630174051"/>
+    <nd ref="593808063"/>
+    <nd ref="1764140378"/>
+    <nd ref="1764140619"/>
+    <tag k="highway" v="trunk"/>
+    <tag k="lanes" v="2"/>
+    <tag k="maxspeed" v="50"/>
+    <tag k="name" v="Avenida Mariscal Estigarribia"/>
+    <tag k="official_name" v="Avenida Mariscal José Félix Estigarribia"/>
+    <tag k="old_ref" v="RN 2"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="PY02"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="447703692">
+    <nd ref="8079548285"/>
+    <nd ref="7326371209"/>
+    <nd ref="4436989411"/>
+    <tag k="highway" v="trunk"/>
+    <tag k="lanes" v="3"/>
+    <tag k="maxspeed" v="40"/>
+    <tag k="name" v="Avenida Mariscal Estigarribia"/>
+    <tag k="official_name" v="Avenida Mariscal José Félix Estigarribia"/>
+    <tag k="old_ref" v="RN 2"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="PY02"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="460105271">
+    <nd ref="4557810783"/>
+    <nd ref="9080962800"/>
+    <tag k="highway" v="trunk"/>
+    <tag k="lanes" v="2"/>
+    <tag k="maxspeed" v="40"/>
+    <tag k="name" v="Avenida Mariscal Estigarribia"/>
+    <tag k="official_name" v="Avenida Mariscal José Félix Estigarribia"/>
+    <tag k="old_ref" v="RN 2"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="PY02 V"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="466952696">
+    <nd ref="4616495949"/>
+    <nd ref="4616495950"/>
+    <tag k="access" v="yes"/>
+    <tag k="bridge" v="yes"/>
+    <tag k="foot" v="no"/>
+    <tag k="highway" v="trunk"/>
+    <tag k="lanes" v="2"/>
+    <tag k="layer" v="1"/>
+    <tag k="name" v="Avenida Mariscal López"/>
+    <tag k="official_name" v="Avenida Mariscal Francisco Solano López"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="D027;D067"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="466952697">
+    <nd ref="4616495950"/>
+    <nd ref="59712818"/>
+    <tag k="access" v="yes"/>
+    <tag k="highway" v="trunk"/>
+    <tag k="lanes" v="2"/>
+    <tag k="name" v="Avenida Mariscal López"/>
+    <tag k="official_name" v="Avenida Mariscal Francisco Solano López"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="D027;D067"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="466952698">
+    <nd ref="4616495951"/>
+    <nd ref="20944200"/>
+    <nd ref="1764120756"/>
+    <nd ref="20944201"/>
+    <tag k="highway" v="trunk"/>
+    <tag k="lanes" v="2"/>
+    <tag k="maxspeed" v="40"/>
+    <tag k="name" v="Saturio Ríos"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="D027;D067"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="466952699">
+    <nd ref="1764060371"/>
+    <nd ref="5664602815"/>
+    <nd ref="4616495951"/>
+    <tag k="bridge" v="yes"/>
+    <tag k="highway" v="trunk"/>
+    <tag k="lanes" v="2"/>
+    <tag k="layer" v="1"/>
+    <tag k="maxspeed" v="40"/>
+    <tag k="name" v="Saturio Ríos"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="D027;D067"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="466974721">
+    <nd ref="4616981949"/>
+    <nd ref="4616711670"/>
+    <nd ref="4616711669"/>
+    <nd ref="4616711668"/>
+    <tag k="highway" v="primary"/>
+    <tag k="lanes" v="2"/>
+    <tag k="loc_name" v="Ruta departamental 068"/>
+    <tag k="maxspeed" v="40"/>
+    <tag k="name" v="Avenida Avelino Martinez"/>
+    <tag k="official_name" v="Ruta departamental Nº 068"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="D068"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="467004337">
+    <nd ref="1437480440"/>
+    <nd ref="4616981950"/>
+    <nd ref="7170526405"/>
+    <nd ref="4616981949"/>
+    <tag k="highway" v="primary"/>
+    <tag k="lanes" v="2"/>
+    <tag k="lit" v="yes"/>
+    <tag k="loc_name" v="Ruta departamental 068"/>
+    <tag k="maxspeed" v="40"/>
+    <tag k="name" v="Avenida Avelino Martinez"/>
+    <tag k="official_name" v="Ruta departamental Nº 068"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="D068"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="467005944">
+    <nd ref="2558091386"/>
+    <nd ref="322784935"/>
+    <tag k="highway" v="trunk"/>
+    <tag k="lanes" v="2"/>
+    <tag k="maxspeed" v="40"/>
+    <tag k="name" v="Avenida del Agrónomo"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="PY02 V"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="467016769">
+    <nd ref="2558091385"/>
+    <nd ref="8964589365"/>
+    <nd ref="8964589364"/>
+    <nd ref="2558091386"/>
+    <tag k="highway" v="trunk"/>
+    <tag k="lanes" v="2"/>
+    <tag k="maxspeed" v="40"/>
+    <tag k="name" v="Avenida del Agrónomo"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="PY02 V"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="467042663">
+    <nd ref="4436989411"/>
+    <nd ref="6588691060"/>
+    <nd ref="1764091557"/>
+    <nd ref="7461301700"/>
+    <nd ref="1439466022"/>
+    <nd ref="7795101244"/>
+    <nd ref="4617142040"/>
+    <nd ref="7461301699"/>
+    <nd ref="8906479946"/>
+    <nd ref="1929638631"/>
+    <tag k="highway" v="trunk"/>
+    <tag k="lanes" v="3"/>
+    <tag k="maxspeed" v="40"/>
+    <tag k="name" v="Avenida Mariscal Estigarribia"/>
+    <tag k="official_name" v="Avenida Mariscal José Félix Estigarribia"/>
+    <tag k="old_ref" v="RN 2"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="PY02"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="467209749">
+    <nd ref="618491529"/>
+    <nd ref="6096166070"/>
+    <nd ref="11175942171"/>
+    <nd ref="4955386321"/>
+    <nd ref="6096166080"/>
+    <nd ref="612015726"/>
+    <nd ref="612015720"/>
+    <tag k="highway" v="primary"/>
+    <tag k="lanes" v="2"/>
+    <tag k="maxspeed" v="40"/>
+    <tag k="name" v="Avenida Manuel Ortíz Guerrero"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="D067"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="700954729">
+    <nd ref="845236852"/>
+    <nd ref="7565024162"/>
+    <nd ref="7565120527"/>
+    <nd ref="7565120529"/>
+    <nd ref="7565120531"/>
+    <nd ref="845236799"/>
+    <nd ref="9736350330"/>
+    <nd ref="849595150"/>
+    <nd ref="593806545"/>
+    <nd ref="9785433034"/>
+    <nd ref="9612227488"/>
+    <nd ref="593806548"/>
+    <nd ref="1764028796"/>
+    <tag k="highway" v="trunk"/>
+    <tag k="lanes" v="2"/>
+    <tag k="maxspeed" v="40"/>
+    <tag k="name" v="Avenida Mariscal Estigarribia"/>
+    <tag k="official_name" v="Avenida Mariscal José Félix Estigarribia"/>
+    <tag k="old_ref" v="RN 2"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="PY02 V"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="700954730">
+    <nd ref="845236852"/>
+    <nd ref="1437431229"/>
+    <tag k="highway" v="primary"/>
+    <tag k="lanes" v="2"/>
+    <tag k="maxspeed" v="40"/>
+    <tag k="name" v="General Genes"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="D027"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="790589568">
+    <nd ref="1314245384"/>
+    <nd ref="1437446566"/>
+    <nd ref="8260888326"/>
+    <nd ref="1782812215"/>
+    <nd ref="330721569"/>
+    <nd ref="8260980028"/>
+    <nd ref="1782814438"/>
+    <nd ref="8260980027"/>
+    <nd ref="5664602814"/>
+    <nd ref="8906479948"/>
+    <nd ref="616084327"/>
+    <nd ref="5664602812"/>
+    <nd ref="8260980182"/>
+    <nd ref="5664602811"/>
+    <nd ref="330721570"/>
+    <nd ref="330721571"/>
+    <nd ref="1764120763"/>
+    <tag k="highway" v="trunk"/>
+    <tag k="lanes" v="2"/>
+    <tag k="loc_name" v="Ruta departamental 027"/>
+    <tag k="maxspeed" v="60"/>
+    <tag k="name" v="Avenida Mariscal López"/>
+    <tag k="official_name" v="Ruta departamental N° 027"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="D027"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="802057656">
+    <nd ref="59712817"/>
+    <nd ref="8073204655"/>
+    <nd ref="8073204656"/>
+    <nd ref="4616495949"/>
+    <tag k="access" v="yes"/>
+    <tag k="highway" v="trunk"/>
+    <tag k="lanes" v="2"/>
+    <tag k="loc_name" v="Ruta departamental 027"/>
+    <tag k="maxspeed" v="60"/>
+    <tag k="name" v="Avenida Mariscal López"/>
+    <tag k="official_name" v="Ruta departamental N° 027"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="D027;D067"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="802455775">
+    <nd ref="849591807"/>
+    <nd ref="849592137"/>
+    <nd ref="1764028760"/>
+    <nd ref="849591403"/>
+    <nd ref="9129155828"/>
+    <nd ref="7979290334"/>
+    <nd ref="845230923"/>
+    <nd ref="845230934"/>
+    <nd ref="849593406"/>
+    <nd ref="3708635374"/>
+    <nd ref="845236825"/>
+    <tag k="highway" v="primary"/>
+    <tag k="horse" v="no"/>
+    <tag k="lanes" v="2"/>
+    <tag k="loc_name" v="Ruta departamental 027"/>
+    <tag k="maxspeed" v="40"/>
+    <tag k="name" v="Ruta Departamental 027"/>
+    <tag k="official_name" v="Ruta departamental N° 027"/>
+    <tag k="old_name" v="Ruta Nacional N° 1 &quot;Mariscal Francisco Solano López&quot;"/>
+    <tag k="old_ref" v="RN 1"/>
+    <tag k="oneway" v="no"/>
+    <tag k="ref" v="D027"/>
+    <tag k="source_old" v="Reconocimiento cartográfico 2016 por KG"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="866820585">
+    <nd ref="1764060373"/>
+    <nd ref="4616981949"/>
+    <tag k="highway" v="trunk"/>
+    <tag k="lanes" v="2"/>
+    <tag k="maxspeed" v="40"/>
+    <tag k="name" v="Avenida del Agrónomo"/>
+    <tag k="old_ref" v="RN 2"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="PY02 V"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="866820586">
+    <nd ref="1764060376"/>
+    <nd ref="1764060373"/>
+    <tag k="bridge" v="yes"/>
+    <tag k="highway" v="trunk"/>
+    <tag k="lanes" v="2"/>
+    <tag k="layer" v="1"/>
+    <tag k="maxspeed" v="40"/>
+    <tag k="name" v="Avenida del Agrónomo"/>
+    <tag k="old_ref" v="RN 2"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="PY02 V"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="866820587">
+    <nd ref="861340413"/>
+    <nd ref="8964589358"/>
+    <nd ref="322784767"/>
+    <nd ref="8964589359"/>
+    <nd ref="8964589357"/>
+    <nd ref="1764091567"/>
+    <nd ref="7795098240"/>
+    <tag k="highway" v="trunk"/>
+    <tag k="lanes" v="3"/>
+    <tag k="name" v="Avenida Mariscal Estigarribia"/>
+    <tag k="official_name" v="Avenida Mariscal José Félix Estigarribia"/>
+    <tag k="old_ref" v="RN 2"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="PY02"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="866820588">
+    <nd ref="7795098240"/>
+    <nd ref="8079548285"/>
+    <tag k="bridge" v="yes"/>
+    <tag k="highway" v="trunk"/>
+    <tag k="lanes" v="3"/>
+    <tag k="layer" v="1"/>
+    <tag k="name" v="Avenida Mariscal Estigarribia"/>
+    <tag k="official_name" v="Avenida Mariscal José Félix Estigarribia"/>
+    <tag k="old_ref" v="RN 2"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="PY02"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="976107159">
+    <nd ref="593806556"/>
+    <nd ref="10870293587"/>
+    <nd ref="843625994"/>
+    <tag k="highway" v="trunk"/>
+    <tag k="lanes" v="3"/>
+    <tag k="maxspeed" v="60"/>
+    <tag k="name" v="Avenida Mariscal Estigarribia"/>
+    <tag k="official_name" v="Avenida Mariscal José Félix Estigarribia"/>
+    <tag k="old_ref" v="RN 2"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="PY02"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="976107160">
+    <nd ref="593806550"/>
+    <nd ref="593806553"/>
+    <nd ref="1764035520"/>
+    <nd ref="11042368249"/>
+    <nd ref="11042368248"/>
+    <nd ref="1241489781"/>
+    <nd ref="593806556"/>
+    <tag k="highway" v="trunk"/>
+    <tag k="lanes" v="3"/>
+    <tag k="maxspeed" v="60"/>
+    <tag k="name" v="Avenida Mariscal Estigarribia"/>
+    <tag k="official_name" v="Avenida Mariscal José Félix Estigarribia"/>
+    <tag k="old_ref" v="RN 2"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="PY02"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="976749368">
+    <nd ref="973604077"/>
+    <nd ref="2682741929"/>
+    <nd ref="2682741927"/>
+    <nd ref="973604079"/>
+    <nd ref="973604080"/>
+    <nd ref="6201716671"/>
+    <nd ref="9203836307"/>
+    <nd ref="3314443341"/>
+    <nd ref="4616981949"/>
+    <tag k="highway" v="primary"/>
+    <tag k="lanes" v="2"/>
+    <tag k="lit" v="yes"/>
+    <tag k="loc_name" v="Ruta departamental 068"/>
+    <tag k="maxspeed" v="40"/>
+    <tag k="name" v="Avenida Avelino Martinez"/>
+    <tag k="official_name" v="Ruta departamental Nº 068"/>
+    <tag k="oneway" v="no"/>
+    <tag k="ref" v="D068"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="976752206">
+    <nd ref="4616981949"/>
+    <nd ref="1764091580"/>
+    <tag k="highway" v="trunk"/>
+    <tag k="lanes" v="2"/>
+    <tag k="maxspeed" v="40"/>
+    <tag k="name" v="Avenida del Agrónomo"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="PY02 V"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="976752207">
+    <nd ref="973603995"/>
+    <nd ref="12234036500"/>
+    <nd ref="1437480440"/>
+    <tag k="highway" v="primary"/>
+    <tag k="lanes" v="2"/>
+    <tag k="lit" v="yes"/>
+    <tag k="loc_name" v="Ruta departamental 068"/>
+    <tag k="maxspeed" v="40"/>
+    <tag k="name" v="Avenida Avelino Martinez"/>
+    <tag k="official_name" v="Ruta departamental Nº 068"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="D068"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="976752599">
+    <nd ref="20944201"/>
+    <nd ref="9930217254"/>
+    <nd ref="8260798828"/>
+    <nd ref="5664603325"/>
+    <nd ref="1764120764"/>
+    <nd ref="330721661"/>
+    <tag k="highway" v="trunk"/>
+    <tag k="lanes" v="2"/>
+    <tag k="loc_name" v="Ruta departamental 027"/>
+    <tag k="maxspeed" v="60"/>
+    <tag k="name" v="Mariscal Francisco Solano López"/>
+    <tag k="official_name" v="Ruta departamental N° 027"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="D027"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="980735185">
+    <nd ref="1764028735"/>
+    <nd ref="845198126"/>
+    <tag k="highway" v="trunk"/>
+    <tag k="lanes" v="2"/>
+    <tag k="lit" v="yes"/>
+    <tag k="maxspeed" v="40"/>
+    <tag k="name" v="Julia Miranda Cueto"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="PY02"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="980735186">
+    <nd ref="20928102"/>
+    <nd ref="9726007093"/>
+    <nd ref="1764028735"/>
+    <tag k="highway" v="trunk"/>
+    <tag k="lanes" v="2"/>
+    <tag k="lit" v="yes"/>
+    <tag k="maxspeed" v="40"/>
+    <tag k="name" v="Julia Miranda Cueto"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="PY02"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="980735189">
+    <nd ref="7564689522"/>
+    <nd ref="3702040616"/>
+    <nd ref="3702040613"/>
+    <nd ref="20928102"/>
+    <tag k="highway" v="trunk"/>
+    <tag k="lanes" v="3"/>
+    <tag k="maxspeed" v="60"/>
+    <tag k="name" v="Avenida Mariscal Estigarribia"/>
+    <tag k="official_name" v="Avenida Mariscal José Félix Estigarribia"/>
+    <tag k="old_ref" v="RN 2"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="PY02"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="981035386">
+    <nd ref="842266546"/>
+    <nd ref="1241489782"/>
+    <tag k="highway" v="secondary"/>
+    <tag k="lanes" v="2"/>
+    <tag k="lit" v="yes"/>
+    <tag k="loc_name" v="Ruta Departamental 69"/>
+    <tag k="maxspeed" v="40"/>
+    <tag k="name" v="Ruta Departamental 069 - PORVENIR NORTE"/>
+    <tag k="network" v="PY:departamental"/>
+    <tag k="official_name" v="Ruta Departamental N° 069"/>
+    <tag k="oneway" v="no"/>
+    <tag k="ref" v="D069"/>
+    <tag k="source:name" v="Resolución Nº 600/2020 MOPC"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="981035387">
+    <nd ref="849591808"/>
+    <nd ref="6572681793"/>
+    <tag k="highway" v="trunk"/>
+    <tag k="lanes" v="2"/>
+    <tag k="maxspeed" v="50"/>
+    <tag k="name" v="Avenida Mariscal Estigarribia"/>
+    <tag k="official_name" v="Avenida Mariscal José Félix Estigarribia"/>
+    <tag k="old_ref" v="RN 2"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="PY02"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="981035388">
+    <nd ref="843625994"/>
+    <nd ref="849591808"/>
+    <tag k="highway" v="trunk"/>
+    <tag k="lanes" v="4"/>
+    <tag k="maxspeed" v="50"/>
+    <tag k="name" v="Avenida Mariscal Estigarribia"/>
+    <tag k="official_name" v="Avenida Mariscal José Félix Estigarribia"/>
+    <tag k="old_ref" v="RN 2"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="PY02"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="981035389">
+    <nd ref="1241489782"/>
+    <nd ref="9717058014"/>
+    <nd ref="10267757426"/>
+    <nd ref="1241489785"/>
+    <tag k="highway" v="trunk"/>
+    <tag k="lanes" v="2"/>
+    <tag k="maxspeed" v="50"/>
+    <tag k="name" v="Avenida Mariscal Estigarribia"/>
+    <tag k="official_name" v="Avenida Mariscal José Félix Estigarribia"/>
+    <tag k="old_ref" v="RN 2"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="PY02"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="981035390">
+    <nd ref="1764140448"/>
+    <nd ref="1764028720"/>
+    <nd ref="1241489782"/>
+    <tag k="highway" v="trunk"/>
+    <tag k="lanes" v="2"/>
+    <tag k="maxspeed" v="50"/>
+    <tag k="name" v="Avenida Mariscal Estigarribia"/>
+    <tag k="official_name" v="Avenida Mariscal José Félix Estigarribia"/>
+    <tag k="old_ref" v="RN 2"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="PY02"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="981035391">
+    <nd ref="849591808"/>
+    <nd ref="849592383"/>
+    <tag k="highway" v="secondary"/>
+    <tag k="lanes" v="2"/>
+    <tag k="lit" v="yes"/>
+    <tag k="loc_name" v="Ruta Departamental 69"/>
+    <tag k="maxspeed" v="40"/>
+    <tag k="name" v="Ruta Departamental 069 - PORVENIR NORTE"/>
+    <tag k="network" v="PY:departamental"/>
+    <tag k="official_name" v="Ruta Departamental N° 069"/>
+    <tag k="oneway" v="no"/>
+    <tag k="ref" v="D069"/>
+    <tag k="source:name" v="Resolución Nº 600/2020 MOPC"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="981035392">
+    <nd ref="1241489782"/>
+    <nd ref="849591808"/>
+    <tag k="highway" v="secondary"/>
+    <tag k="lanes" v="2"/>
+    <tag k="lit" v="yes"/>
+    <tag k="loc_name" v="Ruta Departamental 69"/>
+    <tag k="maxspeed" v="40"/>
+    <tag k="name" v="Ruta Departamental 069 - PORVENIR NORTE"/>
+    <tag k="network" v="PY:departamental"/>
+    <tag k="official_name" v="Ruta Departamental N° 069"/>
+    <tag k="oneway" v="no"/>
+    <tag k="ref" v="D069"/>
+    <tag k="source:name" v="Resolución Nº 600/2020 MOPC"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="981035393">
+    <nd ref="849592383"/>
+    <nd ref="1461283940"/>
+    <nd ref="1461287280"/>
+    <nd ref="1461283956"/>
+    <nd ref="9129155827"/>
+    <nd ref="1461287281"/>
+    <nd ref="849591932"/>
+    <nd ref="849591807"/>
+    <tag k="highway" v="secondary"/>
+    <tag k="lanes" v="2"/>
+    <tag k="lit" v="yes"/>
+    <tag k="loc_name" v="Ruta Departamental 69"/>
+    <tag k="maxspeed" v="40"/>
+    <tag k="name" v="Ruta Departamental 069 - PORVENIR NORTE"/>
+    <tag k="network" v="PY:departamental"/>
+    <tag k="official_name" v="Ruta Departamental N° 069"/>
+    <tag k="oneway" v="no"/>
+    <tag k="ref" v="D069"/>
+    <tag k="source:name" v="Resolución Nº 600/2020 MOPC"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="981852375">
+    <nd ref="845236833"/>
+    <nd ref="7565024164"/>
+    <tag k="highway" v="primary"/>
+    <tag k="lanes" v="2"/>
+    <tag k="loc_name" v="Ruta departamental 027"/>
+    <tag k="maxspeed" v="40"/>
+    <tag k="name" v="Ruta Departamental 027"/>
+    <tag k="official_name" v="Ruta departamental N° 027"/>
+    <tag k="old_ref" v="RN 1"/>
+    <tag k="oneway" v="no"/>
+    <tag k="ref" v="D027"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="981852376">
+    <nd ref="9080962800"/>
+    <nd ref="9168413713"/>
+    <nd ref="11171096365"/>
+    <nd ref="11175740763"/>
+    <nd ref="59712886"/>
+    <tag k="highway" v="trunk"/>
+    <tag k="lanes" v="2"/>
+    <tag k="maxspeed" v="40"/>
+    <tag k="name" v="Avenida Mariscal Estigarribia"/>
+    <tag k="official_name" v="Avenida Mariscal José Félix Estigarribia"/>
+    <tag k="old_ref" v="RN 2"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="PY02 V"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="1033965905">
+    <nd ref="9525435929"/>
+    <nd ref="9525435930"/>
+    <nd ref="9525435931"/>
+    <nd ref="9525435932"/>
+    <nd ref="9525435933"/>
+    <nd ref="9525435934"/>
+    <nd ref="9525435935"/>
+    <nd ref="9525435936"/>
+    <nd ref="9525435937"/>
+    <nd ref="322784934"/>
+    <tag k="highway" v="trunk"/>
+    <tag k="lanes" v="2"/>
+    <tag k="name" v="Chaflán"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="PY02 V"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="1044768246">
+    <nd ref="330721661"/>
+    <nd ref="1764120770"/>
+    <tag k="cycleway" v="no"/>
+    <tag k="highway" v="primary"/>
+    <tag k="horse" v="permissive"/>
+    <tag k="lanes" v="1"/>
+    <tag k="maxspeed" v="40"/>
+    <tag k="name" v="General Eugenio A. Garay"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="D067"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="1044768249">
+    <nd ref="1764120770"/>
+    <nd ref="1764120757"/>
+    <nd ref="1764120758"/>
+    <nd ref="8260798842"/>
+    <nd ref="1764120769"/>
+    <nd ref="59712817"/>
+    <tag k="access" v="yes"/>
+    <tag k="cycleway" v="no"/>
+    <tag k="highway" v="primary"/>
+    <tag k="horse" v="permissive"/>
+    <tag k="lanes" v="1"/>
+    <tag k="maxspeed" v="40"/>
+    <tag k="name" v="General Eugenio A. Garay"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="D067"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="1044768250">
+    <nd ref="8260798777"/>
+    <nd ref="1764120761"/>
+    <nd ref="330721661"/>
+    <tag k="cycleway" v="no"/>
+    <tag k="highway" v="primary"/>
+    <tag k="horse" v="permissive"/>
+    <tag k="lanes" v="1"/>
+    <tag k="maxspeed" v="40"/>
+    <tag k="name" v="General Eugenio A. Garay"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="D067"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="1055432741">
+    <nd ref="1764120763"/>
+    <nd ref="5664603323"/>
+    <nd ref="59712817"/>
+    <tag k="access" v="yes"/>
+    <tag k="highway" v="trunk"/>
+    <tag k="lanes" v="2"/>
+    <tag k="loc_name" v="Ruta departamental 027"/>
+    <tag k="maxspeed" v="60"/>
+    <tag k="name" v="Avenida Mariscal López"/>
+    <tag k="official_name" v="Ruta departamental N° 027"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="D027"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+  <way id="1189158487">
+    <nd ref="1764028796"/>
+    <nd ref="1764028738"/>
+    <nd ref="593806550"/>
+    <tag k="highway" v="trunk"/>
+    <tag k="lanes" v="2"/>
+    <tag k="maxspeed" v="40"/>
+    <tag k="name" v="Avenida Mariscal Estigarribia"/>
+    <tag k="official_name" v="Avenida Mariscal José Félix Estigarribia"/>
+    <tag k="old_ref" v="RN 2"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="ref" v="PY02"/>
+    <tag k="surface" v="asphalt"/>
+  </way>
+
+</osm>

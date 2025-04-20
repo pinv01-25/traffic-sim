@@ -1,0 +1,99 @@
+<additional>
+  <!-- 1. Restricción RUTA PY02 (Res. 2443/24) -->
+  <rerouter id="restrict_py02" edges="
+    299619486#0
+    299619486#1
+    299619486#2
+    362619311
+    866820586
+    866820585
+    976752206
+    447703689#0
+    447703689#1
+    467016769
+    467005944
+    299677237
+    48162003
+    299677230
+    300591205
+    416234260
+    300592593
+    416234258
+    71403306#0
+    71403306#1
+    447703687
+    866820587
+    866820588
+    447703692
+    467042663
+    1033965905
+    130539911#0
+    130627111#1
+    164798662#0
+    164798662#1
+    460105271
+    981852376
+    29045179
+    700954729
+    1189158487
+    976107160#0
+    976107159
+    981035388
+    981035387
+    447703690#0
+    447703690#1
+    447703690#2
+    981035390
+    981035389
+    357939408#0
+    357939408#1
+    980735189">
+    <!-- Miércoles 15:00-24:00 -->
+    <interval begin="54000" end="86400">
+      <vClass value="truck"/>
+      <param key="restriction" value="no_circulation_py02"/>
+    </interval>
+    <!-- Viernes-Domingo 17:00-24:00 -->
+    <interval begin="61200" end="86400" disallow="truck"/>
+  </rerouter>
+
+  <!-- 2. Restricción RADIO URBANO 5KM (calles secundarias) -->
+  <rerouter id="restrict_radio_urbano" edges="
+    980735186
+    980735185
+    8085058
+    8085083
+    164798664
+    299677233#0
+    299677233#1
+    164799269
+    130539908
+    299677231
+    48162002
+    466952697
+    466952696
+    802057656
+    1055432741">
+    <!-- Todos los días 6:00-19:00 -->
+    <interval begin="21600" end="68400">
+      <vClass value="truck"/>
+      <param key="restriction" value="urban_zone"/>
+    </interval>
+  </rerouter>
+
+  <!-- 3. Zona universitaria (horario extendido) -->
+  <rerouter id="restrict_universidad" edges="
+    976752599
+    466952698
+    466952699
+    30033175
+    130539910#1
+    130539910#0
+    130539911#1
+    130539911#0">
+    <!-- Todos los dias 5:00-21:00 -->
+    <interval begin="18000" end="75600"> 
+      <vClass value="truck" disallow="true"/>
+    </interval>
+  </rerouter>
+</additional>
