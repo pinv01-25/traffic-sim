@@ -65,7 +65,6 @@ if __name__ == "__main__":
     create_config(
         net_file="data/net/san_lorenzo.net.xml",
         route_file=route_file,
-        restriction_file="data/net/restrictions/truck_restrictions.xml",
     )
 
     # 5. Ejecutar simulación

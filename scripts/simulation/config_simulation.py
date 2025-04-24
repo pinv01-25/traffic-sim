@@ -1,6 +1,6 @@
 import os
 
-def create_config(net_file, route_file, restriction_file):
+def create_config(net_file, route_file):
     """
     Generates a SUMO simulation configuration file.
 
@@ -22,7 +22,6 @@ def create_config(net_file, route_file, restriction_file):
     """
     net_file_abs = os.path.abspath(net_file)
     route_file_abs = os.path.abspath(route_file)
-    restriction_file_abs = os.path.abspath(restriction_file)
 
     with open("output/runs/scenario.sumocfg", "w") as f:
         f.write(f"""
@@ -30,7 +29,6 @@ def create_config(net_file, route_file, restriction_file):
           <input>
             <net-file value="{net_file_abs}"/>
             <route-files value="{route_file_abs}"/>
-            <additional-files value="{restriction_file_abs}"/>
             <time-to-teleport value="-1"/> 
           </input>
         </configuration>

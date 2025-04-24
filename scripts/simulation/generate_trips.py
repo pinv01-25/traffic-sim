@@ -43,13 +43,13 @@ def generate_trips(net_file, output_file):
     Example:
         generate_trips("network.net.xml", "output.trips.xml")
     """
-    today = datetime.datetime.now().weekday()  # 0=Lunes, 6=Domingo
     generated = []
 
     vehicle_configs = [
-        {"id": "passenger", "color": "yellow", "period": 2.5, "slots": [("25200", "28800")]},
-        {"id": "motorcycle", "color": "green", "period": 12.0, "slots": [("25200", "28800")]},
-        {"id": "bus", "color": "red", "period": 8.0, "slots": [("25200", "28800")]},
+        {"id": "passenger", "color": "yellow", "period": 2.0, "slots": [("25200", "28800")]},  # Cars: 60-65%
+        {"id": "motorcycle", "color": "green", "period": 15.0, "slots": [("25200", "28800")]}, # Motorcycles: 5-10%
+        {"id": "bus", "color": "red", "period": 6.0, "slots": [("25200", "28800")]},          # Buses: 30-35%
+        {"id": "truck", "color": "orange", "period": 6.0, "slots": [("25200", "28800")], "attributes": 'length="16.5" accel="1.0"'},
     ]
 
     for cfg in vehicle_configs:
@@ -66,7 +66,7 @@ def generate_trips(net_file, output_file):
                 "--speed-exponent", "0.5",
                 "--edge-param", "traveltime",
                 "--vehicle-class", cfg["id"],
-                "--trip-attributes", f'color="{cfg["color"]}"',
+                "--trip-attributes", f'color="{cfg["color"]}" {cfg.get("attributes", "")}',
                 "--prefix", f"{cfg['id']}_{i}",
                 "--begin", begin,
                 "--end", end,
@@ -77,44 +77,6 @@ def generate_trips(net_file, output_file):
             ]
             subprocess.run(cmd, check=True)
             generated.append(temp_route)
-
-    # Camiones
-    truck_slots = []
-
-    # Restricciones horarias para camiones
-    '''if today == 2:  # Miércoles – prohibido después de 15:00
-        truck_slots.append(("0", "54000"))
-    elif today >= 4:  # Viernes a Domingo – prohibido después de 17:00
-        truck_slots.append(("0", "61200"))
-    else:  # Lunes, Martes, Jueves
-        truck_slots.append(("0", "68400"))'''
-    
-    truck_slots.append(("25200", "28800"))  # 7–8AM
-
-    for i, (begin, end) in enumerate(truck_slots):
-        temp_route = os.path.join(
-            os.path.dirname(output_file), 
-            os.path.basename(output_file).replace(".trips.xml", f"_truck_{i}.rou.xml")
-        )
-        cmd = [
-            os.path.join(SUMO_TOOLS, "randomTrips.py"),
-            "-n", net_file,
-            "-o", temp_route,
-            "--fringe-factor", "0.1",
-            "--speed-exponent", "0.5",
-            "--edge-param", "traveltime",
-            "--vehicle-class", "truck",
-            "--trip-attributes", f'length="16.5" accel="1.0" color="orange"',
-            "--prefix", f"truck_{i}",
-            "--begin", begin,
-            "--end", end,
-            "--period", "20.0",
-            "--validate",
-            "--random-depart",
-            "--min-distance", "50"
-        ]
-        subprocess.run(cmd, check=True)
-        generated.append(temp_route)
 
     merge_trips(generated, output_file)
 
