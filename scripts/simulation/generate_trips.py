@@ -46,10 +46,10 @@ def generate_trips(net_file, output_file):
     generated = []
 
     vehicle_configs = [
-        {"id": "passenger", "color": "yellow", "period": 2.0, "slots": [("25200", "28800")]},  # Cars: 60-65%
-        {"id": "motorcycle", "color": "green", "period": 15.0, "slots": [("25200", "28800")]}, # Motorcycles: 5-10%
-        {"id": "bus", "color": "red", "period": 6.0, "slots": [("25200", "28800")]},          # Buses: 30-35%
-        {"id": "truck", "color": "orange", "period": 6.0, "slots": [("25200", "28800")], "attributes": 'length="16.5" accel="1.0"'},
+        {"id": "passenger", "color": "yellow", "period": 2.0, "slots": [("0", "3000")]},
+        {"id": "motorcycle", "color": "green", "period": 15.0, "slots": [("0", "3000")]}, 
+        {"id": "bus", "color": "red", "period": 6.0, "slots": [("0", "3000")]}, 
+        {"id": "truck", "color": "orange", "period": 6.0, "slots": [("0", "3000")], "attributes": 'length="16.5" accel="1.0"'},
     ]
 
     for cfg in vehicle_configs:
@@ -62,7 +62,7 @@ def generate_trips(net_file, output_file):
                 os.path.join(SUMO_TOOLS, "randomTrips.py"),
                 "-n", net_file,
                 "-o", temp_route,
-                "--fringe-factor", "0.1",
+                "--weights-prefix", "data/net/outer_edges",
                 "--speed-exponent", "0.5",
                 "--edge-param", "traveltime",
                 "--vehicle-class", cfg["id"],
