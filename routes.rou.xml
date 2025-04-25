@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<!-- generated on 2025-04-24 21:25:19.235498 by randomTrips.py UNKNOWN
+<!-- generated on 2025-04-24 22:54:31.534140 by randomTrips.py UNKNOWN
 <configuration>
     <net-file value="data/net/san_lorenzo.net.xml"/>
     <weights-prefix value="data/net/outer_edges"/>
@@ -18,7 +18,7 @@
 </configuration>
 -->
 
-<!-- generated on 2025-04-24 21:25:19 by Eclipse SUMO duarouter Version 1.18.0
+<!-- generated on 2025-04-24 22:54:31 by Eclipse SUMO duarouter Version 1.18.0
 <configuration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/duarouterConfiguration.xsd">
 
     <input>
