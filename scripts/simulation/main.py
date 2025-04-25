@@ -42,7 +42,7 @@ def run_simulation_with_traci(config_file, gui=True):
             veh_ids = traci.vehicle.getIDList()
             print(f"Paso {step} — Vehículos en red: {len(veh_ids)}")
 
-            sleep(0.001)
+            sleep(0.3)
 
             # Aquí luego puedes agregar análisis de cuellos de botella o semáforos
             step += 1

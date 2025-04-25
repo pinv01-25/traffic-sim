@@ -46,10 +46,10 @@ def generate_trips(net_file, output_file):
     generated = []
 
     vehicle_configs = [
-        {"id": "passenger", "color": "yellow", "period": 2.0, "slots": [("0", "3000")]},
-        {"id": "motorcycle", "color": "green", "period": 15.0, "slots": [("0", "3000")]}, 
-        {"id": "bus", "color": "red", "period": 6.0, "slots": [("0", "3000")]}, 
-        {"id": "truck", "color": "orange", "period": 6.0, "slots": [("0", "3000")], "attributes": 'length="16.5" accel="1.0"'},
+        {"id": "passenger", "color": "yellow", "period": 0.45, "slots": [("0", "3000")]},  
+        {"id": "motorcycle", "color": "green", "period": 3.4, "slots": [("0", "3000")]},   
+        {"id": "bus", "color": "orange", "period": 1.0, "slots": [("0", "3000")]},          
+        {"id": "truck", "color": "red", "period": 1.7, "slots": [("0", "3000")], "attributes": 'length="16.5" accel="1.0"'},
     ]
 
     for cfg in vehicle_configs:
