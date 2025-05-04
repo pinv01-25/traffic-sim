@@ -59,7 +59,8 @@ def convert_trips_to_routes(trips_file, route_file):
     ]
     subprocess.run(cmd, check=True)
 
-def monitor_congestion_normalized(step, net_info, last_alert_sent, intervalo=60, densidad_umbral=0.1):
+
+def monitor_congestion_normalized(step, net_info, last_alert_sent, interval=30, threshold=0.1):
     tls_ids = traci.trafficlight.getIDList()
 
     for tls_id in tls_ids:
@@ -68,19 +69,19 @@ def monitor_congestion_normalized(step, net_info, last_alert_sent, intervalo=60,
 
         for edge_id in edges:
             key = (tls_id, edge_id)
-            if key in last_alert_sent and step - last_alert_sent[key] < intervalo:
+            if key in last_alert_sent and step - last_alert_sent[key] < interval:
                 continue
             try:
                 vehs = traci.edge.getLastStepVehicleNumber(edge_id)
                 length = traci.lane.getLength(edge_id + "_0")
-                densidad = vehs / length if length > 0 else 0
+                density = vehs / length if length > 0 else 0
 
-                if densidad > densidad_umbral:
+                if density > threshold:
                     edge_name = net_info.get_edge_name(edge_id)
                     intersection = ", ".join(net_info.get_tls_streets(tls_id))
                     print(f"[PASO {step}] Alta densidad en '{edge_name}' cerca de la intersección con {intersection}")
                     
-                    send_congestion_alert(tls_id, edge_id, net_info, densidad, step)
+                    send_congestion_alert(tls_id, edge_id, net_info, density, step)
                     last_alert_sent[key] = step
             
             except traci.exceptions.TraCIException:
