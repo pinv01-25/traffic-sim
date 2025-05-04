@@ -123,10 +123,8 @@ def merge_trips(input_files, merged_output):
             elif elem.tag in ("vehicle", "trip"):
                 trips_or_vehicles.append(elem)
 
-    # Ordenar por tiempo de salida
     trips_or_vehicles.sort(key=lambda e: float(e.get("depart")))
 
-    # Ensamblar XML final
     for vt in vtypes:
         root.append(vt)
     for item in trips_or_vehicles:
