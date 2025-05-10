@@ -129,6 +129,17 @@ def send_congestion_alert(tls_id, edge_id, net_info, density, step):
         "vehicle_stats": vehicle_types
     }
 
+    # Save the payload to a local JSON file for debugging
+    '''try:
+        os.makedirs("output/alerts", exist_ok=True)
+        file_path = f"output/alerts/congestion_alert_step_{step}.json"
+        with open(file_path, "w") as f:
+            json.dump(payload, f, indent=4)
+        print(f"[PASO {step}] Alerta guardada localmente en {file_path}")
+    except Exception as e:
+        print(f"[PASO {step}] Error al guardar alerta localmente: {e}")'''
+
+    # Send the payload to the API
     try:
         load_dotenv()
         storage_api_url = os.getenv("STORAGE_API_URL")
