@@ -5,7 +5,7 @@ import traci
 from lxml import etree
 from time import sleep
 import requests
-from datetime import datetime
+from datetime import datetime, timezone
 from dotenv import load_dotenv
 from generate_trips import generate_trips
 from config_simulation import create_config
@@ -117,7 +117,7 @@ def send_congestion_alert(tls_id, edge_id, net_info, density, step):
     payload = {
         "version": "1.0",
         "type": "data",
-        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "traffic_light_id": tls_id,
         "controlled_edges": controlled_edges,
         "metrics": {
@@ -142,8 +142,10 @@ def send_congestion_alert(tls_id, edge_id, net_info, density, step):
     # Send the payload to the API
     try:
         load_dotenv()
-        storage_api_url = os.getenv("STORAGE_API_URL")
-        r = requests.post(storage_api_url, json=payload)
+        storage_api_url = os.getenv("CONTROL_API_URL")
+        print(f"[PASO {step}] Enviando evento a API → {storage_api_url}")
+        storage_process_api_url = f"{storage_api_url}/process"
+        r = requests.post(storage_process_api_url, json=payload)
         r.raise_for_status()
         print(f"[PASO {step}] Enviando evento a API → status {r.status_code}")
     except Exception as e:
