@@ -14,6 +14,7 @@ from config_simulation import create_config
 load_dotenv()
 
 VISIBLE_RANGE = float(os.getenv("VISIBLE_RANGE"))
+SHOW_GUI = bool(os.getenv("SHOW_GUI"))
 recent_detections = deque(maxlen=1000)
 
 class NetInfo:
@@ -249,4 +250,4 @@ if __name__ == "__main__":
         route_file=route_file,
     )
 
-    run_simulation_with_traci(config_file="output/runs/scenario.sumocfg", gui=True)
+    run_simulation_with_traci(config_file="output/runs/scenario.sumocfg", gui=SHOW_GUI)
