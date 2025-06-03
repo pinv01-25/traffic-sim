@@ -214,7 +214,7 @@ def send_congestion_alert(tls_id, edge_id, net_info, density, step, visible_vehi
 
 def run_simulation_with_traci(config_file, gui=True):
     net_info = NetInfo("data/net/san_lorenzo.net.xml")
-    sumo_binary = "sumo-gui" if gui else "sumo"
+    sumo_binary = "sumo" if gui else "sumo"
     traci.start([sumo_binary, "-c", config_file])
     last_alert_sent = {}
 
