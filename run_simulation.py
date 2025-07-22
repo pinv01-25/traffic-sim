@@ -11,6 +11,7 @@ import tempfile
 import shutil
 import argparse
 from pathlib import Path
+from datetime import datetime
 
 # Agregar el directorio raíz al path para importaciones
 sys.path.insert(0, str(Path(__file__).parent))
@@ -142,9 +143,10 @@ def run_with_sumo_gui(simulation_dir: str) -> bool:
                     detections = detector.detect_bottlenecks()
                     if detections:
                         print(f"🚨 Se detectaron {len(detections)} cuellos de botella")
+                        batch_timestamp = datetime.now().isoformat()
+                        sensors = []
                         for detection in detections:
                             print(f"📍 {detection.intersection_id}: {detection.severity}")
-                            # Imprimir el payload que se enviaría a traffic-control
                             controlled_edges = detector.intersection_edges.get(detection.intersection_id, [])
                             payload = traffic_control_client.create_traffic_payload(
                                 traffic_light_id=detection.traffic_light_id,
@@ -153,12 +155,22 @@ def run_with_sumo_gui(simulation_dir: str) -> bool:
                                 average_speed=float(detection.metrics['average_speed']),
                                 density=float(detection.metrics['density']),
                                 queue_length=int(detection.metrics['queue_length']),
-                                timestamp=None
+                                timestamp=batch_timestamp
                             )
-                            import json as _json
-                            print("\n========== PAYLOAD A TRAFFIC-CONTROL ==========")
-                            print(_json.dumps(payload.to_dict(), indent=2, ensure_ascii=False))
-                            print("==============================================\n")
+                            # Agregar el sensor completo (no eliminar campos)
+                            sensors.append(payload.to_dict())
+                        # Construir batch
+                        batch_payload = {
+                            "version": "2.0",
+                            "type": "data",
+                            "timestamp": batch_timestamp,
+                            "traffic_light_id": detections[0].traffic_light_id if detections else "",
+                            "sensors": sensors
+                        }
+                        import json as _json
+                        print("\n========== BATCH PAYLOAD A TRAFFIC-CONTROL ==========")
+                        print(_json.dumps(batch_payload, indent=2, ensure_ascii=False))
+                        print("====================================================\n")
                     else:
                         print("✅ No se detectaron cuellos de botella")
                     last_detection_time = current_time
