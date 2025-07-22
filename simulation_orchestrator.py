@@ -323,6 +323,12 @@ class SimulationOrchestrator:
                 queue_length=intersection_data.queue_length,
                 timestamp=datetime.now().isoformat()
             )
+
+            # Imprimir en consola el payload que se enviará
+            import json as _json
+            print("\n========== PAYLOAD A TRAFFIC-CONTROL ==========")
+            print(_json.dumps(payload.to_dict(), indent=2, ensure_ascii=False))
+            print("==============================================\n")
             
             # Enviar a traffic-control
             self.logger.info(f"Enviando datos a traffic-control para {detection.traffic_light_id}")

@@ -88,6 +88,8 @@ def run_with_sumo_gui(simulation_dir: str) -> bool:
         import os
         import subprocess
         from detectors.bottleneck_detector import BottleneckDetector
+        from services.traffic_control_client import TrafficControlClient
+        traffic_control_client = TrafficControlClient()
         
         # Generar red si no existe
         network_file = os.path.join(simulation_dir, "network.net.xml")
@@ -142,6 +144,21 @@ def run_with_sumo_gui(simulation_dir: str) -> bool:
                         print(f"🚨 Se detectaron {len(detections)} cuellos de botella")
                         for detection in detections:
                             print(f"📍 {detection.intersection_id}: {detection.severity}")
+                            # Imprimir el payload que se enviaría a traffic-control
+                            controlled_edges = detector.intersection_edges.get(detection.intersection_id, [])
+                            payload = traffic_control_client.create_traffic_payload(
+                                traffic_light_id=detection.traffic_light_id,
+                                controlled_edges=controlled_edges,
+                                vehicle_count=int(detection.metrics['vehicle_count']),
+                                average_speed=float(detection.metrics['average_speed']),
+                                density=float(detection.metrics['density']),
+                                queue_length=int(detection.metrics['queue_length']),
+                                timestamp=None
+                            )
+                            import json as _json
+                            print("\n========== PAYLOAD A TRAFFIC-CONTROL ==========")
+                            print(_json.dumps(payload.to_dict(), indent=2, ensure_ascii=False))
+                            print("==============================================\n")
                     else:
                         print("✅ No se detectaron cuellos de botella")
                     last_detection_time = current_time
