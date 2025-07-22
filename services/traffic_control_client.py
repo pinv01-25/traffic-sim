@@ -6,8 +6,9 @@ import requests
 import time
 from typing import Dict, Any, Optional
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 import json
+import re
 
 from utils.logger import setup_logger
 from config import TRAFFIC_CONTROL_CONFIG
@@ -49,8 +50,41 @@ class TrafficDataPayload:
         if self.vehicle_stats is None:
             self.vehicle_stats = VehicleStats(0, 0, 0, 0)
 
+    def normalize(self):
+        """Normaliza los campos para cumplir con el formato requerido por traffic-control (Pydantic)."""
+        # traffic_light_id: solo números
+        if self.traffic_light_id:
+            match = re.search(r"(\d+)", str(self.traffic_light_id))
+            if match:
+                self.traffic_light_id = match.group(1)
+        # timestamp: ISO 8601
+        try:
+            # Si es epoch (todo dígitos y largo típico de 10), convertir a ISO
+            if self.timestamp and re.match(r"^\d{10}$", str(self.timestamp)):
+                ts = int(self.timestamp)
+                self.timestamp = datetime.fromtimestamp(ts, tz=timezone.utc).isoformat().replace('+00:00', 'Z')
+            # Si es epoch string largo (13 dígitos, ms), convertir a segundos
+            elif self.timestamp and re.match(r"^\d{13}$", str(self.timestamp)):
+                ts = int(self.timestamp) // 1000
+                self.timestamp = datetime.fromtimestamp(ts, tz=timezone.utc).isoformat().replace('+00:00', 'Z')
+            # Si es ISO pero sin Z, agregar Z
+            elif self.timestamp and re.match(r"^\d{4}-\d{2}-\d{2}T.*", str(self.timestamp)) and not self.timestamp.endswith('Z'):
+                self.timestamp = self.timestamp + 'Z'
+        except Exception:
+            pass
+        # density: si es mayor a 1, dividir por 100
+        if self.metrics and hasattr(self.metrics, 'density'):
+            try:
+                if self.metrics.density > 1:
+                    self.metrics.density = round(self.metrics.density / 100, 3)
+            except Exception:
+                pass
+        # versión: forzar a 2.0
+        self.version = "2.0"
+
     def to_dict(self) -> Dict[str, Any]:
         """Convierte el payload a diccionario para envío HTTP"""
+        self.normalize()
         return {
             "version": self.version,
             "type": self.type,
@@ -163,6 +197,9 @@ class TrafficControlClient:
         """
         try:
             logger.info(f"Enviando datos de tráfico para semáforo {payload.traffic_light_id}")
+            
+            # Normalizar antes de validar y enviar
+            payload.normalize()
             
             # Validar payload antes de enviar
             self._validate_payload(payload)
