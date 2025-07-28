@@ -321,7 +321,7 @@ class SimulationOrchestrator:
                 average_speed=intersection_data.average_speed,
                 density=intersection_data.density,
                 queue_length=intersection_data.queue_length,
-                timestamp=datetime.now().isoformat()
+                timestamp=datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
             )
 
             # Imprimir en consola el payload que se enviará

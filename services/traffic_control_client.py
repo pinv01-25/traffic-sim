@@ -57,21 +57,6 @@ class TrafficDataPayload:
             match = re.search(r"(\d+)", str(self.traffic_light_id))
             if match:
                 self.traffic_light_id = match.group(1)
-        # timestamp: ISO 8601
-        try:
-            # Si es epoch (todo dígitos y largo típico de 10), convertir a ISO
-            if self.timestamp and re.match(r"^\d{10}$", str(self.timestamp)):
-                ts = int(self.timestamp)
-                self.timestamp = datetime.fromtimestamp(ts, tz=timezone.utc).isoformat().replace('+00:00', 'Z')
-            # Si es epoch string largo (13 dígitos, ms), convertir a segundos
-            elif self.timestamp and re.match(r"^\d{13}$", str(self.timestamp)):
-                ts = int(self.timestamp) // 1000
-                self.timestamp = datetime.fromtimestamp(ts, tz=timezone.utc).isoformat().replace('+00:00', 'Z')
-            # Si es ISO pero sin Z, agregar Z
-            elif self.timestamp and re.match(r"^\d{4}-\d{2}-\d{2}T.*", str(self.timestamp)) and not self.timestamp.endswith('Z'):
-                self.timestamp = self.timestamp + 'Z'
-        except Exception:
-            pass
         # density: si es mayor a 1, dividir por 100
         if self.metrics and hasattr(self.metrics, 'density'):
             try:
@@ -271,7 +256,7 @@ class TrafficControlClient:
             Payload formateado para traffic-control
         """
         if timestamp is None:
-            timestamp = datetime.now().isoformat()
+            timestamp = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
         
         # Calcular métricas adicionales
         vehicles_per_minute = int(vehicle_count * 60 / 3600)  # Estimación por minuto

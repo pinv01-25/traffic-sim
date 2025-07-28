@@ -143,7 +143,7 @@ def run_with_sumo_gui(simulation_dir: str) -> bool:
                     detections = detector.detect_bottlenecks()
                     if detections:
                         print(f"🚨 Se detectaron {len(detections)} cuellos de botella")
-                        batch_timestamp = datetime.now().isoformat()
+                        batch_timestamp = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
                         sensors = []
                         for detection in detections:
                             print(f"📍 {detection.intersection_id}: {detection.severity}")
