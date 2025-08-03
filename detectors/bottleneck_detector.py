@@ -35,6 +35,7 @@ class IntersectionData:
     density: float  # vehículos por kilómetro
     queue_length: int
     avg_circulation_time: float  # tiempo promedio de circulación en segundos
+    vehicle_stats: Dict[str, int]  # Clasificación por tipo de vehículo
     timestamp: float
 
 @dataclass
@@ -99,6 +100,7 @@ class BottleneckDetector:
         total_vehicles_per_minute = 0
         total_circulation_time = 0.0
         all_visible_vehicles = []
+        vehicle_stats: Dict[str, int] = {}
         
         # Debug logging solo para archivo (no consola)
         intersection_name = descriptive_names.get_intersection_name(intersection_id)
@@ -123,6 +125,13 @@ class BottleneckDetector:
                 visible_vehicles = self.metrics_calculator.get_visible_vehicles(edge_id)
                 all_visible_vehicles.extend(visible_vehicles)
                 
+                # Acumular estadísticas de vehículos por tipo
+                for vehicle_type, count in edge_metrics.vehicle_stats.items():
+                    if vehicle_type in vehicle_stats:
+                        vehicle_stats[vehicle_type] += count
+                    else:
+                        vehicle_stats[vehicle_type] = count
+                
                 log_to_file(f"   {edge_name} ({edge_id}): {edge_metrics.vehicle_count} veh, {edge_metrics.avg_speed_kmh:.1f} km/h, "
                             f"density: {edge_metrics.density:.2f} veh/km, "
                             f"circulation: {edge_metrics.avg_circulation_time_sec:.1f}s")
@@ -142,6 +151,7 @@ class BottleneckDetector:
                 density=0.0,
                 queue_length=0,
                 avg_circulation_time=0.0,
+                vehicle_stats={},
                 timestamp=current_time
             )
         
@@ -187,6 +197,7 @@ class BottleneckDetector:
             density=density,
             queue_length=queue_length,
             avg_circulation_time=avg_circulation_time,
+            vehicle_stats=vehicle_stats,
             timestamp=current_time
         )
 
@@ -281,7 +292,8 @@ class BottleneckDetector:
             "average_speed": data.average_speed,
             "density": data.density,
             "queue_length": data.queue_length,
-            "avg_circulation_time_sec": data.avg_circulation_time
+            "avg_circulation_time_sec": data.avg_circulation_time,
+            "vehicle_stats": data.vehicle_stats
         }
         return BottleneckDetection(
             intersection_id=data.intersection_id,

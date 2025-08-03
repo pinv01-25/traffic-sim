@@ -34,6 +34,7 @@ class TrafficMetrics:
     avg_circulation_time_sec: float
     density: float  # vehículos por kilómetro
     vehicle_count: int
+    vehicle_stats: Dict[str, int]  # Clasificación por tipo de vehículo
     timestamp: float
 
 class MetricsCalculator:
@@ -362,6 +363,7 @@ class MetricsCalculator:
         avg_circulation_time_sec = self.calculate_avg_circulation_time_sec(visible_vehicles)
         density = self.calculate_density(visible_vehicles, edge_id)
         vehicle_count = len(visible_vehicles)
+        vehicle_stats = self.classify_vehicles_by_type(visible_vehicles)
         
         # Crear objeto de métricas
         metrics = TrafficMetrics(
@@ -370,6 +372,7 @@ class MetricsCalculator:
             avg_circulation_time_sec=avg_circulation_time_sec,
             density=density,
             vehicle_count=vehicle_count,
+            vehicle_stats=vehicle_stats,
             timestamp=current_time
         )
         
@@ -395,6 +398,36 @@ class MetricsCalculator:
                 logger.error(f"   Error: {error}")
         
         return metrics
+    
+    def classify_vehicles_by_type(self, visible_vehicles: List[str]) -> Dict[str, int]:
+        """
+        Clasifica los vehículos visibles por tipo de vehículo.
+        
+        Args:
+            visible_vehicles: Lista de IDs de vehículos visibles.
+            
+        Returns:
+            Un diccionario con el tipo de vehículo como clave y el número de vehículos
+            de ese tipo como valor.
+        """
+        vehicle_stats: Dict[str, int] = {}
+        
+        for v_id in visible_vehicles:
+            try:
+                # Usar getTypeID() para obtener el tipo exacto definido en routes.rou.xml
+                vehicle_type = traci.vehicle.getTypeID(v_id)
+                if isinstance(vehicle_type, (list, tuple)):
+                    vehicle_type = str(vehicle_type[0]) if vehicle_type else ""
+                else:
+                    vehicle_type = str(vehicle_type)
+                
+                if vehicle_type:
+                    vehicle_stats[vehicle_type] = vehicle_stats.get(vehicle_type, 0) + 1
+            except Exception as e:
+                logger.warning(f"Error clasificando vehículo {v_id} por tipo: {e}")
+                continue
+            
+        return vehicle_stats
     
     def cleanup_old_tracking(self, current_time: float):
         """

@@ -174,12 +174,12 @@ def run_with_sumo_gui(simulation_dir: str) -> bool:
                                 'avg_speed_kmh': average_speed,
                                 'avg_circulation_time_sec': avg_circulation_time_sec,
                                 'density': density,
-                                'vehicle_stats': {
+                                'vehicle_stats': detection.metrics.get('vehicle_stats', {
                                     'motorcycle': 0,
                                     'car': vehicle_count,
                                     'bus': 0,
                                     'truck': 0
-                                }
+                                })
                             }
                             
                             payload = traffic_control_client.create_traffic_payload(

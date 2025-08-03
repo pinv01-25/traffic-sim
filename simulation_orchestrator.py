@@ -293,12 +293,12 @@ class SimulationOrchestrator:
                 'avg_speed_kmh': float(detection.metrics.get('average_speed', 0.0)),
                 'avg_circulation_time_sec': float(detection.metrics.get('avg_circulation_time_sec', 30.0)),
                 'density': float(detection.metrics.get('density', 0.0)),
-                'vehicle_stats': {
+                'vehicle_stats': detection.metrics.get('vehicle_stats', {
                     'motorcycle': 0,
                     'car': int(detection.metrics.get('vehicle_count', 0)),
                     'bus': 0,
                     'truck': 0
-                }
+                })
             }
             
             # Crear payload
