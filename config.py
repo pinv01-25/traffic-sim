@@ -17,11 +17,12 @@ SIMULATION_CONFIG = {
 
 # Configuración de detección de cuellos de botella
 BOTTLENECK_CONFIG = {
-    "density_threshold": 8.0,   # vehículos por kilómetro (más sensible)
-    "speed_threshold": 10.0,    # metros por segundo (36 km/h)
-    "queue_length_threshold": 2, # número de vehículos en cola (muy sensible)
-    "detection_interval": 10,   # segundos entre detecciones (muy frecuente)
+    "density_threshold": 50.0,  # vehículos por kilómetro (reducido de 100.0 - más realista)
+    "speed_threshold": 15.0,    # metros por segundo (54 km/h - más realista)
+    "queue_length_threshold": 3, # número de vehículos en cola (aumentado de 2)
+    "detection_interval": 15,   # segundos entre detecciones (15 pasos)
     "min_detection_duration": 3, # segundos mínimos para confirmar cuello de botella
+    "visible_range": 60.0,      # metros visibles desde el semáforo (realista para urbano)
 }
 
 # Configuración de comunicación con traffic-control
@@ -43,7 +44,7 @@ TRAFFIC_LIGHT_CONFIG = {
 
 # Configuración de logging
 LOGGING_CONFIG = {
-    "level": "INFO",
+    "level": "DEBUG",
     "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     "file": "traffic_sim.log",
 } 

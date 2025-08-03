@@ -7,7 +7,9 @@ import numpy as np
 from typing import Dict, List, Tuple, Optional
 from dataclasses import dataclass
 from utils.logger import setup_logger
+from utils.descriptive_names import descriptive_names
 from config import BOTTLENECK_CONFIG
+from services.metrics_calculator import MetricsCalculator, TrafficMetrics
 import os
 from datetime import datetime
 
@@ -32,6 +34,7 @@ class IntersectionData:
     average_speed: float
     density: float  # vehículos por kilómetro
     queue_length: int
+    avg_circulation_time: float  # tiempo promedio de circulación en segundos
     timestamp: float
 
 @dataclass
@@ -46,14 +49,14 @@ class BottleneckDetector:
     def __init__(self):
         self.detection_history: Dict[str, List[BottleneckDetection]] = {}
         self.intersection_edges: Dict[str, List[str]] = {}
-        self.visible_range = 100.0  # metros visibles para detección
+        self.metrics_calculator = MetricsCalculator()
         self._initialize_intersections()
 
     def _initialize_intersections(self):
         try:
             traffic_lights = traci.trafficlight.getIDList()
             all_edges = set(traci.edge.getIDList())
-            log_to_file(f"Semáforos encontrados: {traffic_lights}")
+            logger.info(f"Semáforos encontrados: {traffic_lights}")
 
             for tl_id in traffic_lights:
                 try:
@@ -67,13 +70,13 @@ class BottleneckDetector:
                                 controlled_edges.add(edge_candidate)
                     if controlled_edges:
                         self.intersection_edges[tl_id] = list(controlled_edges)
-                        log_to_file(f"Semáforo {tl_id} controla edges: {list(controlled_edges)}")
+                        logger.info(f"Semáforo {tl_id} controla edges: {list(controlled_edges)}")
                     else:
-                        log_to_file(f"Semáforo {tl_id} no controla edges válidos")
+                        logger.warning(f"Semáforo {tl_id} no controla edges válidos")
                 except Exception as e:
-                    log_to_file(f"Error obteniendo edges para semáforo {tl_id}: {e}")
+                    logger.error(f"Error obteniendo edges para semáforo {tl_id}: {e}")
         except Exception as e:
-            log_to_file(f"Error inicializando intersecciones: {e}")
+            logger.error(f"Error inicializando intersecciones: {e}")
 
     def _get_intersection_for_traffic_light(self, tl_id: str) -> str:
         return tl_id
@@ -81,66 +84,55 @@ class BottleneckDetector:
     def get_intersection_data(self, intersection_id: str) -> Optional[IntersectionData]:
         if intersection_id not in self.intersection_edges:
             return None
+        
         edges = self.intersection_edges[intersection_id]
         traffic_light_id = intersection_id
-        vehicles = []
-        total_speed = 0.0
-        total_length = 0.0
+        current_time = float(traci.simulation.getTime())
         
-        # Debug: imprimir información de cada edge
-        # log_to_file(f"\n🔍 DEBUG - Intersección {intersection_id}:")
+        # Limpiar tracking antiguo
+        self.metrics_calculator.cleanup_old_tracking(current_time)
+        
+        # Calcular métricas agregadas para toda la intersección
+        total_vehicles = 0
+        total_speed = 0.0
+        total_waiting_time = 0.0
+        total_vehicles_per_minute = 0
+        total_circulation_time = 0.0
+        all_visible_vehicles = []
+        
+        # Debug logging solo para archivo (no consola)
+        intersection_name = descriptive_names.get_intersection_name(intersection_id)
+        log_to_file(f"\nDEBUG - Intersección {intersection_name} ({intersection_id}):")
         
         for edge_id in edges:
             try:
-                # Obtener vehículos visibles en el rango especificado
-                visible_vehicles = self._get_visible_vehicles(edge_id)
-                vehicles.extend(visible_vehicles)
+                # Obtener nombre descriptivo al inicio para evitar errores de scope
+                edge_name = descriptive_names.get_edge_name(edge_id)
                 
-                if visible_vehicles:
-                    edge_speed = traci.edge.getLastStepMeanSpeed(edge_id)
-                    # Robustecer: asegurar que edge_speed sea float y no tupla/lista
-                    if isinstance(edge_speed, (list, tuple)):
-                        edge_speed = float(edge_speed[0]) if edge_speed else 0.0
-                    else:
-                        try:
-                            edge_speed = float(edge_speed)
-                        except Exception:
-                            edge_speed = 0.0
-                    
-                    # getLength: sumar la longitud de todos los lanes del edge
-                    try:
-                        lane_ids = traci.edge.getLaneIDs(edge_id)
-                        if not isinstance(lane_ids, (list, tuple)):
-                            lane_ids = [lane_ids]
-                        edge_length = 0.0
-                        for lane in lane_ids:
-                            lane_length = traci.lane.getLength(lane)
-                            if isinstance(lane_length, (list, tuple)):
-                                lane_length = float(lane_length[0]) if lane_length else 0.0
-                            else:
-                                try:
-                                    lane_length = float(lane_length)
-                                except Exception:
-                                    lane_length = 0.0
-                            edge_length += lane_length
-                        if edge_length == 0.0:
-                            edge_length = 100.0  # valor por defecto si no hay lanes
-                    except Exception:
-                        edge_length = 100.0  # valor por defecto si no está disponible
-                    
-                    if edge_length > 0:
-                        total_speed += edge_speed * edge_length
-                        total_length += edge_length
+                # Calcular métricas para este edge usando el nuevo calculador
+                edge_metrics = self.metrics_calculator.calculate_metrics(edge_id, current_time)
                 
-                # Debug: información de cada edge (eliminado)
-                # log_to_file(f"   🛣️  {edge_id}: {len(edge_vehicles)} veh, {edge_speed:.1f} m/s, {edge_length:.0f}m")
+                # Acumular métricas
+                total_vehicles += edge_metrics.vehicle_count
+                total_speed += edge_metrics.avg_speed_kmh * edge_metrics.vehicle_count  # Ponderado por vehículos
+                total_waiting_time += edge_metrics.avg_circulation_time_sec * edge_metrics.vehicle_count
+                total_vehicles_per_minute += edge_metrics.vehicles_per_minute
+                total_circulation_time += edge_metrics.avg_circulation_time_sec * edge_metrics.vehicle_count
+                
+                # Obtener vehículos visibles para densidad
+                visible_vehicles = self.metrics_calculator.get_visible_vehicles(edge_id)
+                all_visible_vehicles.extend(visible_vehicles)
+                
+                log_to_file(f"   {edge_name} ({edge_id}): {edge_metrics.vehicle_count} veh, {edge_metrics.avg_speed_kmh:.1f} km/h, "
+                            f"density: {edge_metrics.density:.2f} veh/km, "
+                            f"circulation: {edge_metrics.avg_circulation_time_sec:.1f}s")
                 
             except Exception as e:
-                logger.warning(f"Error obteniendo datos de edge {edge_id}: {e}")
+                edge_name = descriptive_names.get_edge_name(edge_id)
+                logger.warning(f"Error obteniendo datos de {edge_name} ({edge_id}): {e}")
         
-        current_time = float(traci.simulation.getTime())
-        if not vehicles or total_length == 0.0:
-            log_to_file(f"   ❌ Sin vehículos o longitud total = 0")
+        if total_vehicles == 0:
+            log_to_file(f"   Sin vehículos en la intersección")
             return IntersectionData(
                 intersection_id=intersection_id,
                 edges=edges,
@@ -149,114 +141,64 @@ class BottleneckDetector:
                 average_speed=0.0,
                 density=0.0,
                 queue_length=0,
+                avg_circulation_time=0.0,
                 timestamp=current_time
             )
         
-        vehicle_count = len(vehicles)
+        # Calcular métricas agregadas
+        average_speed = total_speed / total_vehicles if total_vehicles > 0 else 0.0
+        avg_circulation_time = total_circulation_time / total_vehicles if total_vehicles > 0 else 0.0
         
-        # Robustecer: asegurar que los valores sean float
-        try:
-            if isinstance(total_speed, (list, tuple)):
-                total_speed = float(total_speed[0]) if total_speed else 0.0
-            else:
-                total_speed = float(total_speed)
-        except Exception:
-            total_speed = 0.0
-        try:
-            if isinstance(total_length, (list, tuple)):
-                total_length = float(total_length[0]) if total_length else 0.0
-            else:
-                total_length = float(total_length)
-        except Exception:
-            total_length = 0.0
-        try:
-            vehicle_count = int(vehicle_count)
-        except Exception:
-            vehicle_count = 0
+        # Calcular densidad agregada (promedio ponderado de todos los edges)
+        if edges and all_visible_vehicles:
+            total_density = 0.0
+            total_weight = 0.0
+            
+            for edge_id in edges:
+                edge_vehicles = [v for v in all_visible_vehicles if v in self.metrics_calculator.get_visible_vehicles(edge_id)]
+                if edge_vehicles:
+                    edge_density = self.metrics_calculator.calculate_density(edge_vehicles, edge_id)
+                    # Ponderar por número de vehículos en este edge
+                    weight = len(edge_vehicles)
+                    total_density += edge_density * weight
+                    total_weight += weight
+            
+            density = total_density / total_weight if total_weight > 0 else 0.0
+            log_to_file(f"   DENSIDAD CALCULADA: {density:.2f} veh/km (promedio ponderado de {len(edges)} edges, total vehicles: {len(all_visible_vehicles)})")
+        else:
+            density = 0.0
+            log_to_file(f"   DENSIDAD: 0.0 (no edges or vehicles)")
         
-        # Calcular densidad de manera más precisa usando rango visible
-        visible_length_km = min(self.visible_range, total_length) / 1000.0
-        average_speed = total_speed / total_length if total_length > 0 else 0.0
-        
-        # Densidad: vehículos por kilómetro en el rango visible
-        density = vehicle_count / visible_length_km if visible_length_km > 0 else 0.0
-        
-        # Calcular cola
+        # Calcular cola (solo para detección interna)
         queue_length = self._calculate_queue_length(edges)
         
         # Debug: información final
-        log_to_file(f"   📊 Total: {vehicle_count} veh, {average_speed:.1f} m/s, {visible_length_km:.3f} km")
-        log_to_file(f"   🚗 Densidad: {density:.1f} veh/km (umbral: {BOTTLENECK_CONFIG['density_threshold']})")
-        log_to_file(f"   🚦 Cola: {queue_length} veh (umbral: {BOTTLENECK_CONFIG['queue_length_threshold']})")
-        log_to_file(f"   ⚡ Velocidad: {average_speed:.1f} m/s (umbral: {BOTTLENECK_CONFIG['speed_threshold']})")
+        log_to_file(f"   Total: {total_vehicles} veh, {average_speed:.1f} km/h")
+        log_to_file(f"   Densidad: {density:.1f} veh/km (umbral: {BOTTLENECK_CONFIG['density_threshold']})")
+        log_to_file(f"   Cola: {queue_length} veh (umbral: {BOTTLENECK_CONFIG['queue_length_threshold']})")
+        log_to_file(f"   Velocidad: {average_speed:.1f} km/h (umbral: {BOTTLENECK_CONFIG['speed_threshold'] * 3.6})")
         
         return IntersectionData(
             intersection_id=intersection_id,
             edges=edges,
             traffic_light_id=traffic_light_id,
-            vehicle_count=vehicle_count,
+            vehicle_count=total_vehicles,
             average_speed=average_speed,
             density=density,
             queue_length=queue_length,
+            avg_circulation_time=avg_circulation_time,
             timestamp=current_time
         )
 
-    def _get_visible_vehicles(self, edge_id: str) -> List[str]:
-        """Obtiene solo los vehículos visibles en el rango especificado"""
-        visible_vehicles = []
-        try:
-            # Obtener el primer carril como referencia
-            lane_id = edge_id + "_0"
-            lane_length = traci.lane.getLength(lane_id)
-            if isinstance(lane_length, (list, tuple)):
-                lane_length = float(lane_length[0]) if lane_length else 0.0
-            else:
-                try:
-                    lane_length = float(lane_length)
-                except Exception:
-                    lane_length = 0.0
-            for v_id in traci.edge.getLastStepVehicleIDs(edge_id):
-                try:
-                    v_lane = traci.vehicle.getLaneID(v_id)
-                    if isinstance(v_lane, (list, tuple)):
-                        v_lane = str(v_lane[0]) if v_lane else ""
-                    if isinstance(edge_id, (list, tuple)):
-                        edge_id_str = str(edge_id[0]) if edge_id else ""
-                    else:
-                        edge_id_str = str(edge_id)
-                    if v_lane.startswith(edge_id_str):  # Asegurarse de que el vehículo está en la misma edge
-                        pos = traci.vehicle.getLanePosition(v_id)
-                        if isinstance(pos, (list, tuple)):
-                            pos = float(pos[0]) if pos else 0.0
-                        else:
-                            try:
-                                pos = float(pos)
-                            except Exception:
-                                pos = 0.0
-                        # Comprobar si el vehículo está dentro del rango visible
-                        try:
-                            if (lane_length - pos) <= self.visible_range:
-                                visible_vehicles.append(v_id)
-                        except Exception:
-                            continue
-                except Exception:
-                    continue
-        except Exception:
-            # Si hay error, usar todos los vehículos como fallback
-            try:
-                vehicles = traci.edge.getLastStepVehicleIDs(edge_id)
-                if isinstance(vehicles, (list, tuple)):
-                    visible_vehicles = list(vehicles)
-                else:
-                    visible_vehicles = [vehicles]
-            except Exception:
-                visible_vehicles = []
-        return visible_vehicles
+
 
     def _calculate_queue_length(self, edges: List[str]) -> int:
         queue_length = 0
         for edge_id in edges:
             try:
+                # Obtener nombre descriptivo al inicio para evitar errores de scope
+                edge_name = descriptive_names.get_edge_name(edge_id)
+                
                 vehicles = traci.edge.getLastStepVehicleIDs(edge_id)
                 for vehicle_id in vehicles:
                     speed = traci.vehicle.getSpeed(vehicle_id)
@@ -271,7 +213,7 @@ class BottleneckDetector:
                     if speed < 1.0:
                         queue_length += 1
             except Exception as e:
-                logger.warning(f"Error calculando cola en edge {edge_id}: {e}")
+                logger.warning(f"Error calculando cola en {edge_name} ({edge_id}): {e}")
         return queue_length
 
     def detect_bottlenecks(self) -> List[BottleneckDetection]:
@@ -286,7 +228,8 @@ class BottleneckDetector:
                 if intersection_id not in self.detection_history:
                     self.detection_history[intersection_id] = []
                 self.detection_history[intersection_id].append(bottleneck)
-                log_to_file(f"Cuello de botella detectado en {intersection_id}: {bottleneck.severity}")
+                intersection_name = descriptive_names.get_intersection_name(intersection_id)
+                logger.info(f"Cuello de botella detectado en {intersection_name} ({intersection_id}): {bottleneck.severity}")
         return detections
 
     def _analyze_bottleneck(self, data: IntersectionData) -> Optional[BottleneckDetection]:
@@ -298,42 +241,47 @@ class BottleneckDetector:
         if data.vehicle_count == 0:
             return None
         
-        # Lógica mejorada basada en el enfoque de referencia
+        # CORRECCIÓN: Lógica mejorada de detección
         density_ok = data.density > density_threshold
         speed_ok = data.average_speed < speed_threshold
         queue_ok = data.queue_length > queue_threshold
         
-        # Debug: mostrar qué criterios se cumplen
-        log_to_file(f"   🔍 Análisis para {data.intersection_id}:")
-        log_to_file(f"      • Vehículos: {data.vehicle_count}")
-        log_to_file(f"      • Densidad: {data.density:.1f} > {density_threshold} = {density_ok}")
-        log_to_file(f"      • Velocidad: {data.average_speed:.1f} < {speed_threshold} = {speed_ok}")
-        log_to_file(f"      • Cola: {data.queue_length} > {queue_threshold} = {queue_ok}")
-        
-        # Detectar si hay congestión REAL (al menos 2 criterios Y vehículos suficientes)
-        if data.vehicle_count >= 3:  # Mínimo 3 vehículos para considerar congestión
-            if density_ok and (speed_ok or queue_ok):
-                severity = "high" if data.density > density_threshold * 1.5 else "medium"
-            elif density_ok or (speed_ok and queue_ok):
+        # CORRECCIÓN: Lógica de detección más sofisticada
+        # Detectar si hay congestión REAL con criterios más estrictos
+        if data.vehicle_count >= 4:  # Reducido de 6 a 4 vehículos mínimos
+            # Criterio 1: Alta densidad Y baja velocidad (congestión severa)
+            if density_ok and speed_ok:
+                severity = "high"
+            # Criterio 2: Alta densidad Y cola significativa
+            elif density_ok and queue_ok:
+                severity = "medium"
+            # Criterio 3: Baja velocidad Y cola significativa
+            elif speed_ok and queue_ok:
+                severity = "medium"
+            # Criterio 4: Solo alta densidad (congestión leve)
+            elif density_ok:
+                severity = "low"
+            # Criterio 5: Solo baja velocidad (posible congestión)
+            elif speed_ok and data.average_speed < 5.0:  # Muy baja velocidad
                 severity = "low"
             else:
-                log_to_file(f"   ❌ No se cumple ningún criterio de detección")
                 return None
         else:
-            log_to_file(f"   ❌ Muy pocos vehículos ({data.vehicle_count}) para considerar congestión")
             return None
-        
-        log_to_file(f"   ✅ Detección: {severity.upper()}")
         
         if not self._check_detection_duration(data.intersection_id, severity):
-            log_to_file(f"   ⏰ Duración insuficiente para {severity}")
             return None
+        
+        # Solo log cuando hay detección real
+        intersection_name = descriptive_names.get_intersection_name(data.intersection_id)
+        logger.info(f"Cuello de botella detectado en {intersection_name} ({data.intersection_id}): {severity}")
         
         metrics = {
             "vehicle_count": data.vehicle_count,
             "average_speed": data.average_speed,
             "density": data.density,
-            "queue_length": data.queue_length
+            "queue_length": data.queue_length,
+            "avg_circulation_time_sec": data.avg_circulation_time
         }
         return BottleneckDetection(
             intersection_id=data.intersection_id,

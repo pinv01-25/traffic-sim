@@ -57,10 +57,10 @@ class TrafficDataPayload:
             match = re.search(r"(\d+)", str(self.traffic_light_id))
             if match:
                 self.traffic_light_id = match.group(1)
-        # density: si es mayor a 1, dividir por 100
+        # density: solo normalizar si es extremadamente alta (> 1000 veh/km)
         if self.metrics and hasattr(self.metrics, 'density'):
             try:
-                if self.metrics.density > 1:
+                if self.metrics.density > 1000:
                     self.metrics.density = round(self.metrics.density / 100, 3)
             except Exception:
                 pass
@@ -234,10 +234,7 @@ class TrafficControlClient:
         self,
         traffic_light_id: str,
         controlled_edges: list,
-        vehicle_count: int,
-        average_speed: float,
-        density: float,
-        queue_length: int,
+        metrics: dict,
         timestamp: str | None = None
     ) -> TrafficDataPayload:
         """
@@ -256,28 +253,24 @@ class TrafficControlClient:
             Payload formateado para traffic-control
         """
         if timestamp is None:
-            timestamp = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
+            timestamp = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
         
-        # Calcular métricas adicionales
-        vehicles_per_minute = int(vehicle_count * 60 / 3600)  # Estimación por minuto
-        avg_circulation_time = 30.0  # Valor por defecto, se puede calcular más precisamente
-        
-        # Crear payload
+        # Crear payload usando las métricas calculadas
         payload = TrafficDataPayload(
             traffic_light_id=traffic_light_id,
             controlled_edges=controlled_edges,
             timestamp=timestamp,
             metrics=TrafficMetrics(
-                vehicles_per_minute=vehicles_per_minute,
-                avg_speed_kmh=average_speed * 3.6,  # Convertir m/s a km/h
-                avg_circulation_time_sec=avg_circulation_time,
-                density=density
+                vehicles_per_minute=metrics.get('vehicles_per_minute', 0),
+                avg_speed_kmh=metrics.get('avg_speed_kmh', 0.0),
+                avg_circulation_time_sec=metrics.get('avg_circulation_time_sec', 0.0),
+                density=metrics.get('density', 0.0)
             ),
             vehicle_stats=VehicleStats(
-                motorcycle=0,  # Por defecto, se puede calcular más precisamente
-                car=vehicle_count,
-                bus=0,
-                truck=0
+                motorcycle=metrics.get('vehicle_stats', {}).get('motorcycle', 0),
+                car=metrics.get('vehicle_stats', {}).get('car', 0),
+                bus=metrics.get('vehicle_stats', {}).get('bus', 0),
+                truck=metrics.get('vehicle_stats', {}).get('truck', 0)
             )
         )
         

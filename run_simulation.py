@@ -11,7 +11,7 @@ import tempfile
 import shutil
 import argparse
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 
 # Agregar el directorio raíz al path para importaciones
 sys.path.insert(0, str(Path(__file__).parent))
@@ -70,7 +70,7 @@ def extract_simulation_zip(zip_path: str, extract_dir: str | None = None) -> str
     if missing_files:
         raise ValueError(f"Archivos faltantes en el ZIP: {missing_files}")
     
-    print("✅ Archivos extraídos correctamente")
+    print("Archivos extraídos correctamente")
     return str(extract_dir)
 
 def run_with_sumo_gui(simulation_dir: str) -> bool:
@@ -90,6 +90,7 @@ def run_with_sumo_gui(simulation_dir: str) -> bool:
         import subprocess
         from detectors.bottleneck_detector import BottleneckDetector
         from services.traffic_control_client import TrafficControlClient
+        from utils.descriptive_names import descriptive_names
         traffic_control_client = TrafficControlClient()
         
         # Generar red si no existe
@@ -106,27 +107,24 @@ def run_with_sumo_gui(simulation_dir: str) -> bool:
             ]
             result = subprocess.run(netconvert_cmd, cwd=simulation_dir, capture_output=True, text=True)
             if result.returncode != 0:
-                print(f"❌ Error generando red: {result.stderr}")
+                print(f"Error generando red: {result.stderr}")
                 return False
-            print("✅ Red generada exitosamente")
+            print("Red generada exitosamente")
         
         config_file = os.path.join(simulation_dir, "simulation.sumocfg")
-        print("🖥️  Iniciando SUMO-GUI con control TraCI desde Python...")
+        print("Iniciando simulación...")
         traci.start([
             "sumo-gui",
             "-c", config_file,
             "--no-step-log", "true",
             "--time-to-teleport", "-1"
         ])
-        print("✅ SUMO-GUI iniciado y conectado via TraCI")
-        print("🎉 NO pulses play en la GUI, el script controla el avance.")
-        print("📝 El debug output aparecerá en esta consola")
-        print("🛑 Presiona Ctrl+C para detener")
+        print("Simulación iniciada")
 
         detector = BottleneckDetector()
-        print("✅ Detector de cuellos de botella configurado")
-        last_detection_time = 0
-        detection_interval = 10  # segundos
+        last_detection_step = 0
+        from config import BOTTLENECK_CONFIG
+        detection_interval_steps = BOTTLENECK_CONFIG["detection_interval"]  # pasos entre detecciones
         step = 0
         try:
             # type: ignore
@@ -137,24 +135,57 @@ def run_with_sumo_gui(simulation_dir: str) -> bool:
                 # type: ignore
                 vehicle_count = int(traci.vehicle.getIDCount())
 
-                # Detectar cuellos de botella periódicamente
-                if (current_time - last_detection_time) >= detection_interval:
-                    print(f"\n🔍 DETECCIÓN EN TIEMPO {current_time:.0f}s")
+                # Detectar cuellos de botella cada N pasos
+                if (step - last_detection_step) >= detection_interval_steps:
                     detections = detector.detect_bottlenecks()
                     if detections:
-                        print(f"🚨 Se detectaron {len(detections)} cuellos de botella")
-                        batch_timestamp = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
+                        print(f"\nCUELLO DE BOTELLA DETECTADO")
+                        print(f"Paso: {step} | Tiempo: {current_time:.0f}s")
+                        batch_timestamp = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
                         sensors = []
                         for detection in detections:
-                            print(f"📍 {detection.intersection_id}: {detection.severity}")
+                            intersection_name = descriptive_names.get_intersection_name(detection.intersection_id)
+                            controlled_streets = detector.intersection_edges.get(detection.intersection_id, [])
+                            print(f"Intersección: {intersection_name}")
+                            print(f"Calles: {', '.join([descriptive_names.get_edge_name(edge) for edge in controlled_streets])}")
+                            print(f"Severidad: {detection.severity.upper()}")
+                            print(f"Métricas:")
+                            print(f"   • Vehículos: {detection.metrics.get('vehicle_count', 0)}")
+                            print(f"   • Velocidad promedio: {detection.metrics.get('average_speed', 0.0):.1f} m/s")
+                            print(f"   • Densidad: {detection.metrics.get('density', 0.0):.2f} veh/km")
+                            print(f"   • Cola: {detection.metrics.get('queue_length', 0)} vehículos")
+                            print(f"Tiempo: {current_time:.0f}s")
+                            print("=" * 50)
+                            
                             controlled_edges = detector.intersection_edges.get(detection.intersection_id, [])
+                            # Crear métricas para el payload
+                            vehicle_count = int(detection.metrics.get('vehicle_count', 0))
+                            average_speed = float(detection.metrics.get('average_speed', 0.0))
+                            density = float(detection.metrics.get('density', 0.0))
+                            
+                            # Calcular vehicles_per_minute correctamente (vehículos por minuto)
+                            vehicles_per_minute = int(vehicle_count * 60 / 60)  # Corregido: dividir por 60, no 3600
+                            
+                            # Obtener avg_circulation_time_sec del detector
+                            avg_circulation_time_sec = float(detection.metrics.get('avg_circulation_time_sec', 30.0))
+                            
+                            metrics = {
+                                'vehicles_per_minute': vehicles_per_minute,
+                                'avg_speed_kmh': average_speed,
+                                'avg_circulation_time_sec': avg_circulation_time_sec,
+                                'density': density,
+                                'vehicle_stats': {
+                                    'motorcycle': 0,
+                                    'car': vehicle_count,
+                                    'bus': 0,
+                                    'truck': 0
+                                }
+                            }
+                            
                             payload = traffic_control_client.create_traffic_payload(
                                 traffic_light_id=detection.traffic_light_id,
                                 controlled_edges=controlled_edges,
-                                vehicle_count=int(detection.metrics['vehicle_count']),
-                                average_speed=float(detection.metrics['average_speed']),
-                                density=float(detection.metrics['density']),
-                                queue_length=int(detection.metrics['queue_length']),
+                                metrics=metrics,
                                 timestamp=batch_timestamp
                             )
                             # Agregar el sensor completo (no eliminar campos)
@@ -172,28 +203,25 @@ def run_with_sumo_gui(simulation_dir: str) -> bool:
                         print(_json.dumps(batch_payload, indent=2, ensure_ascii=False))
                         print("====================================================\n")
                     else:
-                        print("✅ No se detectaron cuellos de botella")
-                    last_detection_time = current_time
-
-                # Log de progreso cada 10 segundos
-                if int(current_time) % 10 == 0 and current_time > 0:
-                    print(f"⏰ Tiempo: {current_time:.0f}s | Vehículos: {vehicle_count}")
+                        # Mensaje pequeño cada 15 pasos cuando no hay detecciones
+                        print(f"Paso {step} | Tiempo {current_time:.0f}s | Vehículos {vehicle_count} | Sin cuellos de botella")
+                    last_detection_step = step
 
                 step += 1
                 time.sleep(0.05)  # 50ms para no saturar
         except KeyboardInterrupt:
-            print("\n⚠️  Simulación interrumpida por el usuario")
+            print("\nSimulación interrumpida por el usuario")
         finally:
             traci.close()
-            print("✅ Simulación finalizada.")
+            print("Simulación finalizada.")
         return True
     except Exception as e:
-        print(f"❌ Error ejecutando SUMO-GUI: {e}")
+        print(f"Error ejecutando SUMO-GUI: {e}")
         return False
 
 def run_with_sumo_headless(simulation_dir: str) -> bool:
     """
-    Ejecuta la simulación con sumo (modo headless) usando el orquestador
+    Ejecuta la simulación con sumo (modo headless)
     
     Args:
         simulation_dir: Directorio con archivos de simulación
@@ -206,19 +234,13 @@ def run_with_sumo_headless(simulation_dir: str) -> bool:
         
         # Crear orquestador
         orchestrator = SimulationOrchestrator(simulation_dir)
-        print("✅ Orquestador creado exitosamente")
         
         # Configurar simulación
-        print("Configurando simulación...")
         if not orchestrator.setup_simulation():
-            print("❌ Error configurando simulación")
+            print("Error configurando simulación")
             return False
-        print("✅ Simulación configurada exitosamente")
         
-        print()
-        print("Iniciando simulación en modo headless...")
-        print("Presiona Ctrl+C para detener")
-        print()
+        print("Iniciando simulación...")
         
         # Ejecutar simulación
         orchestrator.run_simulation()
@@ -237,21 +259,23 @@ def run_with_sumo_headless(simulation_dir: str) -> bool:
                 print(f"  - {detection['intersection_id']}: {detection['severity']} (t={detection['timestamp']:.0f}s)")
         
         print()
-        print("✅ Simulación completada exitosamente")
+        print("Simulación completada exitosamente")
         return True
         
     except KeyboardInterrupt:
         print()
-        print("⚠️  Simulación interrumpida por el usuario")
+        print("Simulación interrumpida por el usuario")
         return True
     except Exception as e:
-        print(f"❌ Error durante la simulación: {e}")
+        print(f"Error durante la simulación: {e}")
         return False
     finally:
         try:
             orchestrator._cleanup()
         except Exception as e:
-            print(f"⚠️  Error en limpieza: {e}")
+            print(f"Error en limpieza: {e}")
+
+
 
 def main():
     """Función principal para ejecutar la simulación"""
@@ -292,35 +316,25 @@ Ejemplos de uso:
     
     logger = setup_logger("main")
     
-    print("=== Traffic-Sim: Simulador de Tráfico Inteligente ===")
-    print()
-    
     # Extraer archivo ZIP
     try:
         simulation_dir = extract_simulation_zip(args.zip_file, args.extract_dir)
-        print(f"Directorio de simulación: {simulation_dir}")
-        print()
     except Exception as e:
-        print(f"❌ Error extrayendo ZIP: {e}")
+        print(f"Error extrayendo ZIP: {e}")
         return False
     
     # Ejecutar según el modo seleccionado
     if args.gui:
-        print("🖥️  Modo GUI seleccionado")
-        print("✅ Tendrás GUI Y debug output en consola")
         success = run_with_sumo_gui(simulation_dir)
     else:
-        print("🤖 Modo headless seleccionado")
-        print("✅ Este modo mostrará debug output de detección de cuellos de botella")
         success = run_with_sumo_headless(simulation_dir)
     
     # Limpiar archivos temporales
     if not args.keep_files and args.extract_dir is None:
         try:
-            print(f"Limpiando archivos temporales: {simulation_dir}")
             shutil.rmtree(simulation_dir)
         except Exception as e:
-            print(f"⚠️  Error limpiando archivos temporales: {e}")
+            print(f"Error limpiando archivos temporales: {e}")
     
     return success
 
