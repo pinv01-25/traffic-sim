@@ -88,10 +88,59 @@ def run_with_sumo_gui(simulation_dir: str) -> bool:
         import time
         import os
         import subprocess
+        import threading
+        from queue import Queue, Empty
         from detectors.bottleneck_detector import BottleneckDetector
         from services.traffic_control_client import TrafficControlClient
         from utils.descriptive_names import descriptive_names
+        
+        # Configuración para threading
         traffic_control_client = TrafficControlClient()
+        request_queue = Queue()
+        worker_running = True
+        worker_thread = None
+        
+        def http_worker():
+            """Worker thread que procesa peticiones HTTP en segundo plano"""
+            while worker_running:
+                try:
+                    # Obtener petición de la cola (con timeout para poder salir)
+                    try:
+                        batch_payload = request_queue.get(timeout=1.0)
+                    except Empty:
+                        continue  # Continuar el loop si no hay peticiones
+                    
+                    try:
+                        # Enviar petición HTTP (esto es lo que antes bloqueaba)
+                        response = traffic_control_client.send_traffic_data_batch(batch_payload)
+                        
+                        # Procesar respuesta
+                        if response and response.get("status") == "success":
+                            print("✅ Payload enviado exitosamente a traffic-control")
+                            print(f"Respuesta: {response.get('message', 'Sin mensaje')}")
+                        else:
+                            print("❌ Error enviando payload a traffic-control")
+                            print(f"Respuesta: {response}")
+                    
+                    except Exception as e:
+                        print(f"❌ Error enviando a traffic-control: {e}")
+                    
+                    finally:
+                        # Marcar la tarea como completada
+                        request_queue.task_done()
+                        
+                except Exception as e:
+                    print(f"Error en worker thread: {e}")
+                    # Continuar procesando otras peticiones
+        
+        # Iniciar worker thread
+        worker_thread = threading.Thread(
+            target=http_worker,
+            name="HTTP-Worker-GUI",
+            daemon=True
+        )
+        worker_thread.start()
+        print("Worker thread para peticiones HTTP iniciado")
         
         # Generar red si no existe
         network_file = os.path.join(simulation_dir, "network.net.xml")
@@ -216,18 +265,14 @@ def run_with_sumo_gui(simulation_dir: str) -> bool:
                         print(_json.dumps(batch_payload, indent=2, ensure_ascii=False))
                         print("====================================================\n")
                         
-                        # ENVIAR A TRAFFIC-CONTROL
+                        # ENVIAR A TRAFFIC-CONTROL (versión no bloqueante)
                         try:
                             print("Enviando payload a traffic-control...")
-                            response = traffic_control_client.send_traffic_data_batch(batch_payload)
-                            if response and response.get("status") == "success":
-                                print("✅ Payload enviado exitosamente a traffic-control")
-                                print(f"Respuesta: {response.get('message', 'Sin mensaje')}")
-                            else:
-                                print("❌ Error enviando payload a traffic-control")
-                                print(f"Respuesta: {response}")
+                            # Agregar a la cola para procesamiento asíncrono
+                            request_queue.put(batch_payload)
+                            print("Petición agregada a cola para procesamiento asíncrono")
                         except Exception as e:
-                            print(f"❌ Error enviando a traffic-control: {e}")
+                            print(f"❌ Error agregando petición a cola: {e}")
                     else:
                         # Mensaje pequeño cada 15 pasos cuando no hay detecciones
                         print(f"Paso {step} | Tiempo {current_time:.0f}s | Vehículos {vehicle_count} | Sin cuellos de botella")
@@ -238,6 +283,17 @@ def run_with_sumo_gui(simulation_dir: str) -> bool:
         except KeyboardInterrupt:
             print("\nSimulación interrumpida por el usuario")
         finally:
+            # Detener worker thread
+            worker_running = False
+            
+            # Esperar a que el worker thread termine (máximo 5 segundos)
+            if worker_thread and worker_thread.is_alive():
+                worker_thread.join(timeout=5.0)
+                if worker_thread.is_alive():
+                    print("Worker thread no terminó en el tiempo esperado")
+                else:
+                    print("Worker thread terminado correctamente")
+            
             traci.close()
             print("Simulación finalizada.")
         return True

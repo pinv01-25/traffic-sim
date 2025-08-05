@@ -9,6 +9,8 @@ import subprocess
 import time
 import traci
 import json
+import threading
+from queue import Queue, Empty
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone
@@ -47,6 +49,12 @@ class SimulationOrchestrator:
         self.end_time = SIMULATION_CONFIG["end_time"]
         self.step_length = SIMULATION_CONFIG["step_length"]
         self.detection_interval = BOTTLENECK_CONFIG["detection_interval"]
+        
+        # Nuevos atributos para threading
+        self.request_queue = Queue()
+        self.response_queue = Queue()
+        self.worker_thread = None
+        self.worker_running = False
         
         self.logger.info("Orquestador de simulación inicializado")
     
@@ -150,6 +158,70 @@ class SimulationOrchestrator:
             self.logger.error(f"Error iniciando TraCI: {e}")
             return False
     
+    def _start_worker_thread(self):
+        """Inicia el thread worker para manejar peticiones HTTP"""
+        try:
+            self.worker_running = True
+            self.worker_thread = threading.Thread(
+                target=self._http_worker,
+                name="HTTP-Worker",
+                daemon=True  # Se cerrará automáticamente cuando el programa principal termine
+            )
+            self.worker_thread.start()
+            self.logger.info("Worker thread para peticiones HTTP iniciado")
+        except Exception as e:
+            self.logger.error(f"Error iniciando worker thread: {e}")
+            raise
+    
+    def _http_worker(self):
+        """Worker thread que procesa peticiones HTTP en segundo plano"""
+        while self.worker_running:
+            try:
+                # Obtener petición de la cola (con timeout para poder salir)
+                try:
+                    request_data = self.request_queue.get(timeout=1.0)
+                except Empty:
+                    continue  # Continuar el loop si no hay peticiones
+                
+                # Procesar la petición
+                payload, detection, current_time = request_data
+                
+                try:
+                    # Enviar petición HTTP (esto es lo que antes bloqueaba)
+                    response = self.traffic_control_client.send_traffic_data(payload)
+                    
+                    # Procesar respuesta
+                    if response and response.get("status") == "success":
+                        self.logger.info("Datos enviados exitosamente a traffic-control")
+                        
+                        # Procesar optimización si está disponible
+                        optimization_data = self._extract_optimization_data(response)
+                        if optimization_data:
+                            # Aplicar optimización en el thread principal
+                            self._apply_traffic_optimization(optimization_data)
+                    else:
+                        self.logger.warning("Error enviando datos a traffic-control")
+                    
+                    # Guardar en historial (thread-safe)
+                    with threading.Lock():
+                        self.bottleneck_history.append({
+                            "timestamp": current_time,
+                            "intersection_id": detection.intersection_id,
+                            "severity": detection.severity,
+                            "metrics": detection.metrics
+                        })
+                    
+                except Exception as e:
+                    self.logger.error(f"Error procesando petición HTTP: {e}")
+                
+                finally:
+                    # Marcar la tarea como completada
+                    self.request_queue.task_done()
+                    
+            except Exception as e:
+                self.logger.error(f"Error en worker thread: {e}")
+                # Continuar procesando otras peticiones
+    
     def _initialize_components(self):
         """Inicializa todos los componentes del sistema"""
         try:
@@ -161,6 +233,9 @@ class SimulationOrchestrator:
             
             # Controlador de semáforos
             self.traffic_light_controller = TrafficLightController()
+            
+            # Iniciar worker thread para peticiones HTTP
+            self._start_worker_thread()
             
             self.logger.info("Componentes inicializados")
             
@@ -252,31 +327,15 @@ class SimulationOrchestrator:
             self.logger.error(f"Error en detección de cuellos de botella: {e}")
     
     def _process_bottleneck_detection(self, detection: BottleneckDetection, current_time: float):
-        """Procesa una detección de cuello de botella"""
+        """Procesa una detección de cuello de botella (versión no bloqueante)"""
         try:
             # Crear payload para traffic-control
             payload = self._create_traffic_payload(detection, current_time)
             
-            # Enviar a traffic-control
-            response = self.traffic_control_client.send_traffic_data(payload)
+            # En lugar de enviar directamente, agregar a la cola para procesamiento asíncrono
+            self.request_queue.put((payload, detection, current_time))
             
-            if response and response.get("status") == "success":
-                self.logger.info("Datos enviados exitosamente a traffic-control")
-                
-                # Procesar optimización si está disponible
-                optimization_data = self._extract_optimization_data(response)
-                if optimization_data:
-                    self._apply_traffic_optimization(optimization_data)
-            else:
-                self.logger.warning("Error enviando datos a traffic-control")
-            
-            # Guardar en historial
-            self.bottleneck_history.append({
-                "timestamp": current_time,
-                "intersection_id": detection.intersection_id,
-                "severity": detection.severity,
-                "metrics": detection.metrics
-            })
+            self.logger.info(f"Petición agregada a cola para semáforo {detection.traffic_light_id}")
             
         except Exception as e:
             self.logger.error(f"Error procesando detección: {e}")
@@ -353,6 +412,18 @@ class SimulationOrchestrator:
     def _cleanup(self):
         """Limpia recursos de la simulación"""
         try:
+            # Detener worker thread
+            if hasattr(self, 'worker_running'):
+                self.worker_running = False
+                
+                # Esperar a que el worker thread termine (máximo 5 segundos)
+                if self.worker_thread and self.worker_thread.is_alive():
+                    self.worker_thread.join(timeout=5.0)
+                    if self.worker_thread.is_alive():
+                        self.logger.warning("Worker thread no terminó en el tiempo esperado")
+                    else:
+                        self.logger.info("Worker thread terminado correctamente")
+            
             # Verificar si traci está disponible y conectado
             if 'traci' in globals() and hasattr(traci, 'isConnected'):
                 if traci.isConnected():
@@ -370,11 +441,16 @@ class SimulationOrchestrator:
             current_time = float(traci.simulation.getTime()) if traci.isConnected() else 0.0
             vehicle_count = traci.vehicle.getIDCount() if traci.isConnected() else 0
             
+            # Obtener estadísticas de la cola de peticiones
+            queue_size = self.request_queue.qsize() if hasattr(self, 'request_queue') else 0
+            
             return {
                 "current_time": current_time,
                 "vehicle_count": vehicle_count,
                 "bottleneck_detections": len(self.bottleneck_history),
-                "detection_history": self.bottleneck_history
+                "detection_history": self.bottleneck_history,
+                "pending_requests": queue_size,
+                "worker_thread_alive": self.worker_thread.is_alive() if hasattr(self, 'worker_thread') else False
             }
         except Exception as e:
             self.logger.error(f"Error obteniendo estadísticas: {e}")
