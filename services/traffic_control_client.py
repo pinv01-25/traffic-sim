@@ -75,19 +75,24 @@ class TrafficDataPayload:
             "type": self.type,
             "timestamp": self.timestamp,
             "traffic_light_id": self.traffic_light_id,
-            "controlled_edges": self.controlled_edges,
-            "metrics": {
-                "vehicles_per_minute": self.metrics.vehicles_per_minute,
-                "avg_speed_kmh": self.metrics.avg_speed_kmh,
-                "avg_circulation_time_sec": self.metrics.avg_circulation_time_sec,
-                "density": self.metrics.density
-            },
-            "vehicle_stats": {
-                "motorcycle": self.vehicle_stats.motorcycle,
-                "car": self.vehicle_stats.car,
-                "bus": self.vehicle_stats.bus,
-                "truck": self.vehicle_stats.truck
-            }
+            "sensors": [
+                {
+                    "traffic_light_id": self.traffic_light_id,
+                    "controlled_edges": self.controlled_edges,
+                    "metrics": {
+                        "vehicles_per_minute": self.metrics.vehicles_per_minute,
+                        "avg_speed_kmh": self.metrics.avg_speed_kmh,
+                        "avg_circulation_time_sec": self.metrics.avg_circulation_time_sec,
+                        "density": self.metrics.density
+                    },
+                    "vehicle_stats": {
+                        "motorcycle": self.vehicle_stats.motorcycle,
+                        "car": self.vehicle_stats.car,
+                        "bus": self.vehicle_stats.bus,
+                        "truck": self.vehicle_stats.truck
+                    }
+                }
+            ]
         }
 
 class TrafficControlClient:
@@ -135,11 +140,6 @@ class TrafficControlClient:
                     response = self.session.post(url, json=data, timeout=self.timeout)
                 else:
                     raise ValueError(f"Método HTTP no soportado: {method}")
-                
-                response.raise_for_status()
-                
-                logger.info(f"Petición exitosa - Status: {response.status_code}")
-                return response.json()
                 
                 response.raise_for_status()
                 
@@ -200,6 +200,30 @@ class TrafficControlClient:
             
         except Exception as e:
             logger.error(f"Error enviando datos de tráfico: {e}")
+            raise
+    
+    def send_traffic_data_batch(self, batch_payload: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Envía datos de tráfico en formato batch a traffic-control para procesamiento
+        
+        Args:
+            batch_payload: Datos de tráfico en formato batch
+            
+        Returns:
+            Respuesta de traffic-control con datos optimizados
+        """
+        try:
+            traffic_light_id = batch_payload.get("traffic_light_id", "unknown")
+            logger.info(f"Enviando datos de tráfico batch para semáforo {traffic_light_id}")
+            
+            # Enviar a traffic-control
+            response = self._make_request("POST", "/process", batch_payload)
+            
+            logger.info(f"Datos batch procesados exitosamente para {traffic_light_id}")
+            return response
+            
+        except Exception as e:
+            logger.error(f"Error enviando datos de tráfico batch: {e}")
             raise
     
     def _validate_payload(self, payload: TrafficDataPayload):

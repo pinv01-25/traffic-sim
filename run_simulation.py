@@ -182,14 +182,27 @@ def run_with_sumo_gui(simulation_dir: str) -> bool:
                                 })
                             }
                             
-                            payload = traffic_control_client.create_traffic_payload(
-                                traffic_light_id=detection.traffic_light_id,
-                                controlled_edges=controlled_edges,
-                                metrics=metrics,
-                                timestamp=batch_timestamp
-                            )
-                            # Agregar el sensor completo (no eliminar campos)
-                            sensors.append(payload.to_dict())
+                            # Crear el sensor individual directamente
+                            # Normalizar densidad a rango 0-1 (traffic-control espera valores entre 0 y 1)
+                            normalized_density = min(metrics['density'] / 100.0, 1.0) if metrics['density'] > 1.0 else metrics['density']
+                            
+                            sensor_data = {
+                                "traffic_light_id": detection.traffic_light_id,
+                                "controlled_edges": controlled_edges,
+                                "metrics": {
+                                    "vehicles_per_minute": metrics['vehicles_per_minute'],
+                                    "avg_speed_kmh": metrics['avg_speed_kmh'],
+                                    "avg_circulation_time_sec": metrics['avg_circulation_time_sec'],
+                                    "density": normalized_density
+                                },
+                                "vehicle_stats": {
+                                    "motorcycle": metrics['vehicle_stats'].get('motorcycle', 0),
+                                    "car": metrics['vehicle_stats'].get('car', 0),
+                                    "bus": metrics['vehicle_stats'].get('bus', 0),
+                                    "truck": metrics['vehicle_stats'].get('truck', 0)
+                                }
+                            }
+                            sensors.append(sensor_data)
                         # Construir batch
                         batch_payload = {
                             "version": "2.0",
@@ -202,6 +215,19 @@ def run_with_sumo_gui(simulation_dir: str) -> bool:
                         print("\n========== BATCH PAYLOAD A TRAFFIC-CONTROL ==========")
                         print(_json.dumps(batch_payload, indent=2, ensure_ascii=False))
                         print("====================================================\n")
+                        
+                        # ENVIAR A TRAFFIC-CONTROL
+                        try:
+                            print("Enviando payload a traffic-control...")
+                            response = traffic_control_client.send_traffic_data_batch(batch_payload)
+                            if response and response.get("status") == "success":
+                                print("✅ Payload enviado exitosamente a traffic-control")
+                                print(f"Respuesta: {response.get('message', 'Sin mensaje')}")
+                            else:
+                                print("❌ Error enviando payload a traffic-control")
+                                print(f"Respuesta: {response}")
+                        except Exception as e:
+                            print(f"❌ Error enviando a traffic-control: {e}")
                     else:
                         # Mensaje pequeño cada 15 pasos cuando no hay detecciones
                         print(f"Paso {step} | Tiempo {current_time:.0f}s | Vehículos {vehicle_count} | Sin cuellos de botella")

@@ -353,7 +353,12 @@ class SimulationOrchestrator:
     def _cleanup(self):
         """Limpia recursos de la simulación"""
         try:
-            if traci.isConnected():
+            # Verificar si traci está disponible y conectado
+            if 'traci' in globals() and hasattr(traci, 'isConnected'):
+                if traci.isConnected():
+                    traci.close()
+            elif 'traci' in globals():
+                # Si traci está disponible pero no tiene isConnected, cerrar directamente
                 traci.close()
             self.logger.info("Recursos de simulación liberados")
         except Exception as e:

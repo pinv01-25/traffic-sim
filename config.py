@@ -27,7 +27,7 @@ BOTTLENECK_CONFIG = {
 
 # Configuración de comunicación con traffic-control
 TRAFFIC_CONTROL_CONFIG = {
-    "base_url": os.getenv("TRAFFIC_CONTROL_URL", "http://localhost:8000"),
+    "base_url": os.getenv("TRAFFIC_CONTROL_URL", "http://localhost:8003"),
     "timeout": 30,  # segundos
     "retry_attempts": 3,
     "retry_delay": 5,  # segundos
