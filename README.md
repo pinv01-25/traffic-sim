@@ -5,7 +5,7 @@ Traffic-Sim es un sistema de simulación de tráfico urbano que utiliza SUMO (Si
 ## Características
 
 - **Detección automática de cuellos de botella**: Analiza densidad de vehículos, velocidad promedio y longitud de colas
-- **Comunicación síncrona con traffic-control**: Envía datos de tráfico y recibe optimizaciones de semáforos
+- **Comunicación síncrona con traffic-control**: Envía datos de tráfico y recibe optimizaciones de semáforos (con logging en consola para debugging)
 - **Control dinámico de semáforos**: Actualiza tiempos de semáforos en tiempo real
 - **Pipeline completo**: Desde detección hasta aplicación de optimizaciones
 - **Logging robusto**: Sistema completo de logs para monitoreo y debugging
@@ -49,40 +49,47 @@ traffic-sim/
 ## Requisitos
 
 ### Software
+
 - Python ≥ 3.10
 - SUMO ≥ 1.8.0
 
 ### Instalación de SUMO
 
 #### Ubuntu/Debian:
+
 ```bash
 sudo apt-get update
 sudo apt-get install sumo sumo-tools sumo-gui sumo-doc
 ```
 
 #### macOS:
+
 ```bash
 brew install sumo
 ```
 
 #### Windows:
+
 Descargar desde [SUMO Downloads](https://sumo.dlr.de/docs/Downloads.php)
 
 ## Instalación
 
 1. **Clonar el repositorio:**
+
 ```bash
 git clone <repository-url>
 cd traffic-sim
 ```
 
 2. **Instalar dependencias Python:**
+
 ```bash
 pip install -r requirements.txt
 ```
 
 3. **Configurar variables de entorno:**
-Crear archivo `.env` en la raíz del proyecto:
+   Crear archivo `.env` en la raíz del proyecto:
+
 ```env
 TRAFFIC_CONTROL_URL=http://localhost:8003
 LOG_LEVEL=INFO
@@ -90,6 +97,7 @@ LOG_FILE=traffic_sim.log
 ```
 
 4. **Verificar instalación de SUMO:**
+
 ```bash
 sumo --version
 ```
@@ -140,6 +148,7 @@ python run_simulation.py simulation.zip --keep-files
 ### Estructura del Archivo ZIP
 
 El archivo ZIP debe contener los siguientes archivos SUMO:
+
 ```
 simulation.zip
 ├── edges.edg.xml
@@ -152,6 +161,7 @@ simulation.zip
 ### Modos de Ejecución
 
 #### Modo Headless (Por defecto)
+
 - Detecta cuellos de botella automáticamente
 - Envía datos a traffic-control (simulado)
 - Actualiza semáforos dinámicamente
@@ -160,6 +170,7 @@ simulation.zip
 - Ideal para ejecuciones automatizadas y análisis de datos
 
 #### Modo GUI
+
 - Abre la interfaz gráfica de SUMO
 - Controla el avance de la simulación desde Python
 - Visualización en tiempo real del tráfico
@@ -238,11 +249,13 @@ print(f"Detecciones: {stats['bottleneck_detections']}")
 ## Logs
 
 Los logs se guardan en el directorio `logs/` con el formato:
+
 ```
 logs/simulation_YYYYMMDD_HHMMSS.log
 ```
 
 ### Niveles de Log
+
 - **INFO**: Información general del sistema
 - **WARNING**: Advertencias no críticas
 - **ERROR**: Errores que requieren atención
@@ -251,6 +264,7 @@ logs/simulation_YYYYMMDD_HHMMSS.log
 ## Troubleshooting
 
 ### Error: "SUMO no está instalado"
+
 ```bash
 # Verificar instalación
 which sumo
@@ -260,15 +274,17 @@ sumo --version
 ```
 
 ### Error: "No se pudo conectar con traffic-control"
+
 ```bash
 # Verificar variables de entorno
 echo $TRAFFIC_CONTROL_URL
 
-# Nota: El sistema actualmente imprime las peticiones en consola
-# Para conexión real, modificar services/traffic_control_client.py
+# Verificar que el servicio traffic-control esté ejecutándose en el puerto 8003
+curl http://localhost:8003/healthcheck
 ```
 
 ### Error: "Error en conexión traci"
+
 ```bash
 # Verificar que SUMO esté instalado correctamente
 sumo --version
@@ -280,6 +296,7 @@ sumo -c simulation/simulation.sumocfg --check-route
 ```
 
 ### Error: "Error generando red"
+
 ```bash
 # Verificar archivos de entrada
 ls -la simulation/
@@ -290,6 +307,7 @@ chmod +x simulation/
 ```
 
 ### Error: "Error en conexión traci"
+
 ```bash
 # Verificar puerto disponible
 netstat -tuln | grep 8813
@@ -349,23 +367,26 @@ Para preguntas o soporte, contactar al equipo de desarrollo.
 
 ---
 
-**Nota**: Este sistema imprime en consola las peticiones HTTP que haría a traffic-control. Para una implementación completa, modifica el cliente HTTP en `services/traffic_control_client.py` para realizar las peticiones reales.
+**Nota**: Este sistema realiza peticiones HTTP reales a traffic-control y mantiene logging en consola para debugging. Las peticiones se envían al endpoint `/process` del servicio traffic-control.
 
 ## Ejemplos de Uso Rápido
 
 ### Ejecución Básica
+
 ```bash
 # Descargar un archivo ZIP de simulación y ejecutar
 python run_simulation.py mi_simulacion.zip
 ```
 
 ### Visualización con GUI
+
 ```bash
 # Ejecutar con interfaz gráfica para análisis visual
 python run_simulation.py mi_simulacion.zip --gui
 ```
 
 ### Desarrollo y Testing
+
 ```bash
 # Mantener archivos extraídos para análisis posterior
 python run_simulation.py mi_simulacion.zip --keep-files --extract-dir ./debug_sim
