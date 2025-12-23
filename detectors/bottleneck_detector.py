@@ -2,16 +2,16 @@
 Detector de cuellos de botella para intersecciones con semáforos
 """
 
-import traci
-import numpy as np
-from typing import Dict, List, Tuple, Optional
-from dataclasses import dataclass
-from utils.logger import setup_logger
-from utils.descriptive_names import descriptive_names
-from config import BOTTLENECK_CONFIG
-from services.metrics_calculator import MetricsCalculator, TrafficMetrics
 import os
+from dataclasses import dataclass
 from datetime import datetime
+from typing import Dict, List, Optional
+
+import traci
+from config import BOTTLENECK_CONFIG
+from services.metrics_calculator import MetricsCalculator
+from utils.descriptive_names import descriptive_names
+from utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
@@ -141,7 +141,7 @@ class BottleneckDetector:
                 logger.warning(f"Error obteniendo datos de {edge_name} ({edge_id}): {e}")
         
         if total_vehicles == 0:
-            log_to_file(f"   Sin vehículos en la intersección")
+            log_to_file("   Sin vehículos en la intersección")
             return IntersectionData(
                 intersection_id=intersection_id,
                 edges=edges,
@@ -177,7 +177,7 @@ class BottleneckDetector:
             log_to_file(f"   DENSIDAD CALCULADA: {density:.2f} veh/km (promedio ponderado de {len(edges)} edges, total vehicles: {len(all_visible_vehicles)})")
         else:
             density = 0.0
-            log_to_file(f"   DENSIDAD: 0.0 (no edges or vehicles)")
+            log_to_file("   DENSIDAD: 0.0 (no edges or vehicles)")
         
         # Calcular cola (solo para detección interna)
         queue_length = self._calculate_queue_length(edges)

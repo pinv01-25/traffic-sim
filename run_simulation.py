@@ -4,19 +4,19 @@ Script principal para ejecutar la simulación de tráfico
 Acepta un archivo ZIP con los archivos de simulación SUMO
 """
 
-import sys
-import os
-import zipfile
-import tempfile
-import shutil
 import argparse
-from pathlib import Path
+import shutil
+import sys
+import tempfile
+import zipfile
 from datetime import datetime, timezone
+from pathlib import Path
 
 # Agregar el directorio raíz al path para importaciones
 sys.path.insert(0, str(Path(__file__).parent))
 
 from utils.logger import setup_logger
+
 
 def extract_simulation_zip(zip_path: str, extract_dir: str | None = None) -> str:
     """
@@ -84,12 +84,13 @@ def run_with_sumo_gui(simulation_dir: str) -> bool:
         True si la simulación se ejecutó correctamente, False en caso contrario
     """
     try:
-        import traci
-        import time
         import os
         import subprocess
         import threading
-        from queue import Queue, Empty
+        import time
+        from queue import Empty, Queue
+
+        import traci
         from detectors.bottleneck_detector import BottleneckDetector
         from services.traffic_control_client import TrafficControlClient
         from utils.descriptive_names import descriptive_names
@@ -188,7 +189,7 @@ def run_with_sumo_gui(simulation_dir: str) -> bool:
                 if (step - last_detection_step) >= detection_interval_steps:
                     detections = detector.detect_bottlenecks()
                     if detections:
-                        print(f"\nCUELLO DE BOTELLA DETECTADO")
+                        print("\nCUELLO DE BOTELLA DETECTADO")
                         print(f"Paso: {step} | Tiempo: {current_time:.0f}s")
                         batch_timestamp = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
                         sensors = []
@@ -198,7 +199,7 @@ def run_with_sumo_gui(simulation_dir: str) -> bool:
                             print(f"Intersección: {intersection_name}")
                             print(f"Calles: {', '.join([descriptive_names.get_edge_name(edge) for edge in controlled_streets])}")
                             print(f"Severidad: {detection.severity.upper()}")
-                            print(f"Métricas:")
+                            print("Métricas:")
                             print(f"   • Vehículos: {detection.metrics.get('vehicle_count', 0)}")
                             print(f"   • Velocidad promedio: {detection.metrics.get('average_speed', 0.0):.1f} m/s")
                             print(f"   • Densidad: {detection.metrics.get('density', 0.0):.2f} veh/km")
@@ -396,7 +397,7 @@ Ejemplos de uso:
     
     args = parser.parse_args()
     
-    logger = setup_logger("main")
+    setup_logger("main")
     
     # Extraer archivo ZIP
     try:

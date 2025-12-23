@@ -3,11 +3,12 @@ Utilidad para nombres descriptivos de calles e intersecciones
 Mapea IDs técnicos a nombres legibles para el logging
 """
 
-import traci
 import logging
-from typing import Dict, List, Optional
-from pathlib import Path
 import xml.etree.ElementTree as ET
+from pathlib import Path
+from typing import Dict, List
+
+import traci
 
 logger = logging.getLogger(__name__)
 

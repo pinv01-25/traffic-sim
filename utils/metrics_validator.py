@@ -3,8 +3,9 @@ Validador de métricas de tráfico para verificar que los valores sean realistas
 """
 
 import logging
-from typing import Dict, Any, List
 from dataclasses import dataclass
+from typing import Any, Dict, List
+
 from utils.descriptive_names import descriptive_names
 
 logger = logging.getLogger(__name__)

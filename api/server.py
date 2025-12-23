@@ -1,18 +1,19 @@
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-import os
-import sys
 import logging
-import requests
+import os
+import shutil
+import sys
+import tempfile
 import threading
 import time
-import tempfile
-import shutil
 import zipfile
-from pathlib import Path
-from typing import Dict, Any, Optional
 from datetime import datetime, timezone
 from enum import Enum
+from pathlib import Path
+from typing import Any, Dict, Optional
+
+import requests
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -341,7 +342,7 @@ async def start_simulation(simulation_config: dict):
         raise
     except Exception as e:
         logger.error(f"Error starting simulation: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 @app.get("/simulation/status")
 async def get_simulation_status(simulation_id: Optional[str] = None):
@@ -365,7 +366,7 @@ async def get_simulation_status(simulation_id: Optional[str] = None):
         raise
     except Exception as e:
         logger.error(f"Error getting simulation status: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 @app.post("/simulation/stop")
 async def stop_simulation(simulation_id: str):
@@ -380,7 +381,7 @@ async def stop_simulation(simulation_id: str):
         raise
     except Exception as e:
         logger.error(f"Error stopping simulation: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 @app.get("/simulations")
 async def list_simulations():
@@ -393,7 +394,7 @@ async def list_simulations():
         }
     except Exception as e:
         logger.error(f"Error listing simulations: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 if __name__ == "__main__":
     import uvicorn

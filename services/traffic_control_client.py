@@ -2,16 +2,15 @@
 Cliente HTTP para comunicación con traffic-control
 """
 
-import requests
+import re
 import time
-from typing import Dict, Any, Optional
 from dataclasses import dataclass
 from datetime import datetime, timezone
-import json
-import re
+from typing import Any, Dict
 
-from utils.logger import setup_logger
+import requests
 from config import TRAFFIC_CONTROL_CONFIG
+from utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 

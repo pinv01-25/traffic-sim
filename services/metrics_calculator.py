@@ -3,17 +3,15 @@ Calculador de métricas de tráfico para traffic-sim
 Implementa cálculos precisos de métricas críticas para traffic-sync
 """
 
-import traci
-from typing import Dict, List, Tuple, Optional
-from dataclasses import dataclass
-from datetime import datetime, timezone
 from collections import deque
-import time
+from dataclasses import dataclass
+from typing import Dict, List
 
+import traci
+from config import BOTTLENECK_CONFIG
+from utils.descriptive_names import descriptive_names
 from utils.logger import setup_logger
 from utils.metrics_validator import metrics_validator
-from utils.descriptive_names import descriptive_names
-from config import BOTTLENECK_CONFIG
 
 logger = setup_logger(__name__)
 
@@ -162,7 +160,7 @@ class MetricsCalculator:
         one_minute_ago = current_time - 60.0
         recent_entries = 0
         
-        for vehicle_id, entry_time in self.edge_vehicle_tracking[edge_id].items():
+        for _, entry_time in self.edge_vehicle_tracking[edge_id].items():
             if entry_time >= one_minute_ago:
                 recent_entries += 1
         

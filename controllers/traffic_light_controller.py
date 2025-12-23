@@ -2,14 +2,12 @@
 Controlador de semáforos para actualización dinámica de tiempos
 """
 
-import traci
-import json
-from typing import Dict, Any, Optional, List
 from dataclasses import dataclass
-from datetime import datetime
+from typing import Any, Dict, List
 
-from utils.logger import setup_logger
+import traci
 from config import TRAFFIC_LIGHT_CONFIG
+from utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
@@ -240,7 +238,7 @@ class TrafficLightController:
             states = []
             phase_count = traci.trafficlight.getPhaseNumber(traffic_light_id)
             
-            for i in range(phase_count):
+            for _ in range(phase_count):
                 state = traci.trafficlight.getRedYellowGreenState(traffic_light_id)
                 if state not in states:
                     states.append(state)

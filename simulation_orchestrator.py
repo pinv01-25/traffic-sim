@@ -3,25 +3,23 @@ Orquestador principal de la simulación de tráfico
 Coordina detección de cuellos de botella, comunicación con traffic-control y actualización de semáforos
 """
 
-import os
-import sys
-import subprocess
-import time
-import traci
 import json
+import subprocess
 import threading
-from queue import Queue, Empty
-from pathlib import Path
-from typing import Dict, Any, List, Optional
+import time
 from datetime import datetime, timezone
-from dataclasses import dataclass
+from pathlib import Path
+from queue import Empty, Queue
+from typing import Any, Dict, Optional
 
-from utils.logger import get_simulation_logger, Colors
-from utils.descriptive_names import descriptive_names
-from config import SIMULATION_CONFIG, BOTTLENECK_CONFIG
-from detectors.bottleneck_detector import BottleneckDetector, BottleneckDetection
-from services.traffic_control_client import TrafficControlClient, TrafficDataPayload
+import traci
+from config import BOTTLENECK_CONFIG, SIMULATION_CONFIG
 from controllers.traffic_light_controller import TrafficLightController
+from detectors.bottleneck_detector import BottleneckDetection, BottleneckDetector
+from services.traffic_control_client import TrafficControlClient, TrafficDataPayload
+from utils.descriptive_names import descriptive_names
+from utils.logger import Colors, get_simulation_logger
+
 
 class SimulationOrchestrator:
     """
