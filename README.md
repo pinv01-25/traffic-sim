@@ -16,9 +16,9 @@ Traffic-Sim es un sistema de simulación de tráfico urbano que utiliza SUMO (Si
 ```
 traffic-sim/
 ├── config.py                    # Configuración del sistema
-├── run_simulation.py           # Script principal de ejecución
+├── run_simulation.py            # Script principal de ejecución
 ├── simulation_orchestrator.py   # Orquestador principal
-├── requirements.txt             # Dependencias Python
+├── pyproject.toml               # Configuración de dependencias (uv)
 ├── utils/                       # Utilidades
 │   ├── logger.py               # Sistema de logging
 ├── detectors/                   # Detectores
@@ -81,10 +81,24 @@ git clone <repository-url>
 cd traffic-sim
 ```
 
-2. **Instalar dependencias Python:**
+2. **Instalar dependencias Python con uv:**
+
+Primero instala `uv` si aún no lo tienes:
 
 ```bash
-pip install -r requirements.txt
+pip install uv
+```
+
+Luego sincroniza las dependencias del proyecto:
+
+```bash
+uv sync
+```
+
+Si además quieres instalar las herramientas de desarrollo (como Ruff) y las optimizaciones opcionales:
+
+```bash
+uv sync --extra dev --extra speedups
 ```
 
 3. **Configurar variables de entorno:**
@@ -100,6 +114,18 @@ LOG_FILE=traffic_sim.log
 
 ```bash
 sumo --version
+```
+
+### Comandos útiles con uv y Ruff
+
+Si instalaste los extras de desarrollo (`uv sync --extra dev`), puedes usar Ruff para analizar y formatear el código:
+
+```bash
+# Análisis estático (lint)
+uv run ruff check .
+
+# Formatear código
+uv run ruff format .
 ```
 
 ## Configuración
