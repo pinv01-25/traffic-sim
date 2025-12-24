@@ -106,6 +106,9 @@ class TrafficControlClient:
         self.retry_delay = TRAFFIC_CONTROL_CONFIG["retry_delay"]
         self.session = requests.Session()
         
+        # Log la URL que se está usando para debug
+        logger.info(f"TrafficControlClient inicializado con base_url: {self.base_url}")
+        
         # Configurar headers por defecto
         self.session.headers.update({
             "Content-Type": "application/json",

@@ -6,7 +6,9 @@ import os
 
 from dotenv import load_dotenv
 
-load_dotenv()
+# Cargar .env pero no sobrescribir variables de entorno existentes
+# Esto permite que las variables de Docker Compose tengan prioridad
+load_dotenv(override=False)
 
 # Configuración de la simulación
 SIMULATION_CONFIG = {
@@ -27,8 +29,11 @@ BOTTLENECK_CONFIG = {
 }
 
 # Configuración de comunicación con traffic-control
+# Prioridad: CONTROL_URL > CONTROL_API_URL > TRAFFIC_CONTROL_URL > localhost
+# Leer directamente de os.environ para evitar problemas con load_dotenv
+control_url = os.environ.get("CONTROL_URL") or os.environ.get("CONTROL_API_URL") or os.environ.get("TRAFFIC_CONTROL_URL", "http://localhost:8003")
 TRAFFIC_CONTROL_CONFIG = {
-    "base_url": os.getenv("TRAFFIC_CONTROL_URL", "http://localhost:8003"),
+    "base_url": control_url,
     "timeout": 30,  # segundos
     "retry_attempts": 3,
     "retry_delay": 5,  # segundos
