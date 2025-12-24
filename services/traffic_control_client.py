@@ -149,13 +149,24 @@ class TrafficControlClient:
                 return response.json()
                 
             except requests.RequestException as e:
-                logger.warning(f"Intento {attempt + 1} falló: {e}")
+                # Intentar obtener detalles del error si es una respuesta HTTP
+                error_detail = str(e)
+                if hasattr(e, 'response') and e.response is not None:
+                    try:
+                        error_body = e.response.json()
+                        error_detail = f"{e} - {error_body}"
+                        logger.warning(f"Intento {attempt + 1} falló: {error_detail}")
+                    except (ValueError, KeyError):
+                        error_detail = f"{e} - Status: {e.response.status_code} - Body: {e.response.text[:200]}"
+                        logger.warning(f"Intento {attempt + 1} falló: {error_detail}")
+                else:
+                    logger.warning(f"Intento {attempt + 1} falló: {error_detail}")
                 
                 if attempt < self.retry_attempts - 1:
                     logger.info(f"Esperando {self.retry_delay} segundos antes del siguiente intento...")
                     time.sleep(self.retry_delay)
                 else:
-                    logger.error(f"Todos los intentos fallaron para {method} {url}")
+                    logger.error(f"Todos los intentos fallaron para {method} {url}: {error_detail}")
                     raise
     
     def health_check(self) -> bool:
@@ -193,6 +204,9 @@ class TrafficControlClient:
             
             # Convertir a diccionario
             data = payload.to_dict()
+            
+            # Log del payload para debug (solo una vez, no en cada reintento)
+            logger.debug(f"Payload a enviar: {data}")
             
             # Enviar a traffic-control
             response = self._make_request("POST", "/process", data)
