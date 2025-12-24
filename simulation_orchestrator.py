@@ -269,16 +269,17 @@ class SimulationOrchestrator:
             self._cleanup()
     
     def _should_stop_simulation(self) -> bool:
-        """Determina si la simulación debe continuar"""
+        """Determina si la simulación debe continuar (retorna True para continuar)"""
         try:
-            # Verificar si hay vehículos en el sistema
-            vehicle_count = traci.vehicle.getIDCount()
+            # Verificar si hay vehículos esperados (incluyendo los que aún no se han insertado)
+            # Esto es más confiable que getIDCount() que solo cuenta vehículos ya insertados
+            expected_vehicles = int(traci.simulation.getMinExpectedNumber())
             
             # Verificar tiempo de simulación
             current_time = float(traci.simulation.getTime())
             
-            # Continuar si hay vehículos y no se ha alcanzado el tiempo límite
-            return vehicle_count > 0 and current_time < self.end_time
+            # Continuar si hay vehículos esperados y no se ha alcanzado el tiempo límite
+            return expected_vehicles > 0 and current_time < self.end_time
             
         except Exception as e:
             self.logger.error(f"Error verificando estado de simulación: {e}")
