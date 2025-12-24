@@ -423,12 +423,13 @@ class SimulationOrchestrator:
                         self.logger.info("Worker thread terminado correctamente")
             
             # Verificar si traci está disponible y conectado
-            if 'traci' in globals() and hasattr(traci, 'isConnected'):
-                if traci.isConnected():
+            if 'traci' in globals():
+                try:
+                    # Intentar cerrar la conexión
                     traci.close()
-            elif 'traci' in globals():
-                # Si traci está disponible pero no tiene isConnected, cerrar directamente
-                traci.close()
+                except Exception:
+                    # Si falla, la conexión ya estaba cerrada o no existe
+                    pass
             self.logger.info("Recursos de simulación liberados")
         except Exception as e:
             self.logger.error(f"Error en limpieza: {e}")
@@ -436,8 +437,14 @@ class SimulationOrchestrator:
     def get_simulation_stats(self) -> Dict[str, Any]:
         """Obtiene estadísticas de la simulación"""
         try:
-            current_time = float(traci.simulation.getTime()) if traci.isConnected() else 0.0
-            vehicle_count = traci.vehicle.getIDCount() if traci.isConnected() else 0
+            # Verificar conexión intentando obtener el tiempo
+            try:
+                current_time = float(traci.simulation.getTime())
+                vehicle_count = traci.vehicle.getIDCount()
+            except (AttributeError, RuntimeError, traci.exceptions.FatalTraCIError):
+                # No conectado o error de conexión
+                current_time = 0.0
+                vehicle_count = 0
             
             # Obtener estadísticas de la cola de peticiones
             queue_size = self.request_queue.qsize() if hasattr(self, 'request_queue') else 0

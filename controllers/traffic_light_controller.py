@@ -61,23 +61,45 @@ class TrafficLightController:
             Programa actual del semáforo
         """
         try:
-            # Obtener fases actuales
+            # Obtener fases actuales usando getCompleteRedYellowGreenDefinition (SUMO 1.25.0+)
             phases = []
-            phase_count = traci.trafficlight.getPhaseNumber(traffic_light_id)
-            
-            for i in range(phase_count):
-                duration = traci.trafficlight.getPhaseDuration(traffic_light_id, i)
+            try:
+                # Intentar obtener el programa completo (método moderno)
+                program = traci.trafficlight.getCompleteRedYellowGreenDefinition(traffic_light_id)
+                if program and len(program) > 0:
+                    # Obtener el primer programa (normalmente hay uno)
+                    tl_program = program[0]
+                    for i, phase in enumerate(tl_program.phases):
+                        phase_obj = TrafficLightPhase(
+                            duration=int(phase.duration),
+                            state=phase.state,
+                            name=f"Phase_{i}"
+                        )
+                        phases.append(phase_obj)
+                else:
+                    # Fallback: usar getPhaseDuration con el número de fases del programa actual
+                    current_phase = traci.trafficlight.getPhase(traffic_light_id)
+                    # Obtener la duración de la fase actual
+                    duration = traci.trafficlight.getPhaseDuration(traffic_light_id)
+                    state = traci.trafficlight.getRedYellowGreenState(traffic_light_id)
+                    phases.append(TrafficLightPhase(
+                        duration=int(duration),
+                        state=state,
+                        name=f"Phase_{current_phase}"
+                    ))
+            except AttributeError:
+                # Fallback para versiones anteriores: usar getPhaseDuration
+                current_phase = traci.trafficlight.getPhase(traffic_light_id)
+                duration = traci.trafficlight.getPhaseDuration(traffic_light_id)
                 state = traci.trafficlight.getRedYellowGreenState(traffic_light_id)
-                
-                phase = TrafficLightPhase(
+                phases.append(TrafficLightPhase(
                     duration=int(duration),
                     state=state,
-                    name=f"Phase_{i}"
-                )
-                phases.append(phase)
+                    name=f"Phase_{current_phase}"
+                ))
             
             # Calcular ciclo total
-            cycle_length = sum(phase.duration for phase in phases)
+            cycle_length = sum(phase.duration for phase in phases) if phases else 60
             
             return TrafficLightProgram(
                 traffic_light_id=traffic_light_id,
@@ -236,14 +258,21 @@ class TrafficLightController:
         """
         try:
             states = []
-            phase_count = traci.trafficlight.getPhaseNumber(traffic_light_id)
+            # Usar getCompleteRedYellowGreenDefinition para obtener todas las fases
+            try:
+                program = traci.trafficlight.getCompleteRedYellowGreenDefinition(traffic_light_id)
+                if program and len(program) > 0:
+                    tl_program = program[0]
+                    for phase in tl_program.phases:
+                        if phase.state not in states:
+                            states.append(phase.state)
+            except (AttributeError, TypeError):
+                # Fallback: obtener el estado actual
+                current_state = traci.trafficlight.getRedYellowGreenState(traffic_light_id)
+                if current_state not in states:
+                    states.append(current_state)
             
-            for _ in range(phase_count):
-                state = traci.trafficlight.getRedYellowGreenState(traffic_light_id)
-                if state not in states:
-                    states.append(state)
-            
-            return states
+            return states if states else ["rrrrrrrrrrrrrrrr"]
             
         except Exception as e:
             logger.warning(f"Error obteniendo estados de {traffic_light_id}: {e}")
