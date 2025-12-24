@@ -56,12 +56,17 @@ class TrafficDataPayload:
             match = re.search(r"(\d+)", str(self.traffic_light_id))
             if match:
                 self.traffic_light_id = match.group(1)
-        # density: solo normalizar si es extremadamente alta (> 1000 veh/km)
+        # density: normalizar de veh/km a rango 0-1 (traffic-control espera valores entre 0 y 1)
+        # Dividir por 100 para convertir veh/km a escala 0-1 (100 veh/km = 1.0)
         if self.metrics and hasattr(self.metrics, 'density'):
             try:
-                if self.metrics.density > 1000:
-                    self.metrics.density = round(self.metrics.density / 100, 3)
-            except Exception:
+                original_density = self.metrics.density
+                # Normalizar: dividir por 100 y limitar a máximo 1.0
+                normalized_density = min(self.metrics.density / 100.0, 1.0)
+                self.metrics.density = round(normalized_density, 3)
+                logger.debug(f"Densidad normalizada: {original_density} veh/km -> {self.metrics.density}")
+            except Exception as e:
+                logger.warning(f"Error normalizando densidad: {e}")
                 pass
         # versión: forzar a 2.0
         self.version = "2.0"

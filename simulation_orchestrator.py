@@ -346,11 +346,15 @@ class SimulationOrchestrator:
             controlled_edges = self.bottleneck_detector.intersection_edges.get(detection.traffic_light_id, [])
             
             # Crear métricas
+            # Normalizar densidad a rango 0-1 (traffic-control espera valores entre 0 y 1)
+            raw_density = float(detection.metrics.get('density', 0.0))
+            normalized_density = min(raw_density / 100.0, 1.0) if raw_density > 1.0 else raw_density
+            
             metrics = {
                 'vehicles_per_minute': int(detection.metrics.get('vehicle_count', 0)),
                 'avg_speed_kmh': float(detection.metrics.get('average_speed', 0.0)),
                 'avg_circulation_time_sec': float(detection.metrics.get('avg_circulation_time_sec', 30.0)),
-                'density': float(detection.metrics.get('density', 0.0)),
+                'density': normalized_density,
                 'vehicle_stats': detection.metrics.get('vehicle_stats', {
                     'motorcycle': 0,
                     'car': int(detection.metrics.get('vehicle_count', 0)),
