@@ -305,6 +305,11 @@ async def health_check():
     """Health check endpoint"""
     return {"status": "healthy", "service": "sim"}
 
+@app.get("/healthcheck")
+async def healthcheck():
+    """Health check endpoint (alias for /health)"""
+    return {"status": "healthy", "service": "sim"}
+
 @app.post("/simulate")
 async def start_simulation(simulation_config: dict):
     """Start a traffic simulation"""
