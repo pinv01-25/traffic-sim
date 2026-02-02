@@ -73,7 +73,7 @@ def extract_simulation_zip(zip_path: str, extract_dir: str | None = None) -> str
     print("Archivos extraídos correctamente")
     return str(extract_dir)
 
-def run_with_sumo_gui(simulation_dir: str) -> bool:
+def run_with_sumo_gui(simulation_dir: str, green_time: float | None = None, cycle_time: float | None = None, sim_steps: int | None = None) -> bool:
     """
     Ejecuta la simulación con sumo-gui (interfaz gráfica)
     
@@ -163,12 +163,42 @@ def run_with_sumo_gui(simulation_dir: str) -> bool:
         
         config_file = os.path.join(simulation_dir, "simulation.sumocfg")
         print("Iniciando simulación...")
-        traci.start([
+        # Ensure SUMO output directory exists and instruct SUMO to write outputs
+        sim_output_dir = os.path.join(simulation_dir, "logs", "sumo_output")
+        os.makedirs(sim_output_dir, exist_ok=True)
+        traci_cmd = [
             "sumo-gui",
             "-c", config_file,
             "--no-step-log", "true",
-            "--time-to-teleport", "-1"
-        ])
+            "--time-to-teleport", "-1",
+            "--tripinfo-output", os.path.join(sim_output_dir, "tripinfo.xml"),
+            "--summary-output", os.path.join(sim_output_dir, "summary.xml"),
+            "--fcd-output", os.path.join(sim_output_dir, "fcd.xml")
+        ]
+        traci.start(traci_cmd)
+        # Apply signal timings if requested
+        try:
+            if green_time is not None and cycle_time is not None:
+                # safeguard
+                gt = float(green_time)
+                ct = float(cycle_time)
+                if gt < 0 or ct <= 0:
+                    print("Invalid green or cycle time; skipping signal adjustment")
+                else:
+                    red_time = max(ct - gt, 0.0)
+                    tls_list = traci.trafficlight.getIDList()
+                    print(f"Applying signal timings: green={gt}s cycle={ct}s red={red_time}s to {len(tls_list)} traffic lights")
+                    try:
+                        from utils.signal_utils import apply_timings_to_all_tls
+                        viz_dir = os.path.join(simulation_dir, 'logs', 'visualizations')
+                        os.makedirs(viz_dir, exist_ok=True)
+                        out_csv = os.path.join(viz_dir, 'tls_assigned_durations.csv')
+                        apply_timings_to_all_tls(gt, ct, out_csv=out_csv)
+                        print(f"TLS assigned durations written to: {out_csv}")
+                    except Exception as e:
+                        print(f"Error applying signal timings (utils): {e}")
+        except Exception as e:
+            print(f"Error applying signal timings: {e}")
         print("Simulación iniciada")
 
         detector = BottleneckDetector()
@@ -280,6 +310,10 @@ def run_with_sumo_gui(simulation_dir: str) -> bool:
                     last_detection_step = step
 
                 step += 1
+                # Auto-stop after configured number of steps
+                if sim_steps is not None and step >= int(sim_steps):
+                    print(f"Reached sim_steps={sim_steps}, stopping simulation")
+                    break
                 time.sleep(0.05)  # 50ms para no saturar
         except KeyboardInterrupt:
             print("\nSimulación interrumpida por el usuario")
@@ -297,12 +331,20 @@ def run_with_sumo_gui(simulation_dir: str) -> bool:
             
             traci.close()
             print("Simulación finalizada.")
+            # Generar visualizaciones aunque el usuario haya interrumpido
+            try:
+                from visualization import generate_visualizations
+                out_dir = str(Path(simulation_dir) / "logs" / "visualizations")
+                viz_dir = generate_visualizations(simulation_dir, out_dir=out_dir)
+                print(f"Visualizaciones guardadas en: {viz_dir}")
+            except Exception as e:
+                print(f"No se pudieron generar visualizaciones: {e}")
         return True
     except Exception as e:
         print(f"Error ejecutando SUMO-GUI: {e}")
         return False
 
-def run_with_sumo_headless(simulation_dir: str) -> bool:
+def run_with_sumo_headless(simulation_dir: str, green_time: float | None = None, cycle_time: float | None = None, sim_steps: int | None = None) -> bool:
     """
     Ejecuta la simulación con sumo (modo headless)
     
@@ -314,9 +356,9 @@ def run_with_sumo_headless(simulation_dir: str) -> bool:
     """
     try:
         from simulation_orchestrator import SimulationOrchestrator
-        
-        # Crear orquestador
-        orchestrator = SimulationOrchestrator(simulation_dir)
+
+        # Crear orquestador (pasar tiempos de semáforo y sim_steps if present)
+        orchestrator = SimulationOrchestrator(simulation_dir, green_time=green_time, cycle_time=cycle_time, sim_steps=sim_steps)
         
         # Configurar simulación
         if not orchestrator.setup_simulation():
@@ -341,6 +383,15 @@ def run_with_sumo_headless(simulation_dir: str) -> bool:
             for detection in stats['detection_history']:
                 print(f"  - {detection['intersection_id']}: {detection['severity']} (t={detection['timestamp']:.0f}s)")
         
+        # intentar generar visualizaciones si existen salidas de SUMO
+        try:
+            from visualization import generate_visualizations
+            out_dir = str(Path(simulation_dir) / "logs" / "visualizations")
+            viz_dir = generate_visualizations(simulation_dir, out_dir=out_dir)
+            print(f"Visualizaciones guardadas en: {viz_dir}")
+        except Exception as e:
+            print(f"No se pudieron generar visualizaciones: {e}")
+
         print()
         print("Simulación completada exitosamente")
         return True
@@ -383,6 +434,27 @@ Ejemplos de uso:
         action="store_true",
         help="Ejecutar con SUMO-GUI (interfaz gráfica)"
     )
+
+    parser.add_argument(
+        "--green-time",
+        type=float,
+        default=None,
+        help="Tiempo de verde en segundos a aplicar a todos los semáforos"
+    )
+
+    parser.add_argument(
+        "--cycle-time",
+        type=float,
+        default=None,
+        help="Tiempo de ciclo en segundos (verde+rojo) para ajustar semáforos"
+    )
+
+    parser.add_argument(
+        "--sim-steps",
+        type=int,
+        default=300,
+        help="Número de pasos de simulación antes de detenerse automáticamente (default: 300)"
+    )
     
     parser.add_argument(
         "--extract-dir",
@@ -393,6 +465,12 @@ Ejemplos de uso:
         "--keep-files",
         action="store_true",
         help="Mantener archivos extraídos después de la simulación"
+    )
+
+    parser.add_argument(
+        "--compare-with",
+        help="Ruta a otra ejecución (extract-dir) para comparar (A). Si no se especifica, y --extract-dir termina en _B, buscará sibling *_A.",
+        default=None,
     )
     
     args = parser.parse_args()
@@ -408,9 +486,19 @@ Ejemplos de uso:
     
     # Ejecutar según el modo seleccionado
     if args.gui:
-        success = run_with_sumo_gui(simulation_dir)
+        success = run_with_sumo_gui(
+            simulation_dir,
+            green_time=args.green_time,
+            cycle_time=args.cycle_time,
+            sim_steps=args.sim_steps,
+        )
     else:
-        success = run_with_sumo_headless(simulation_dir)
+        success = run_with_sumo_headless(
+            simulation_dir,
+            green_time=args.green_time,
+            cycle_time=args.cycle_time,
+            sim_steps=args.sim_steps,
+        )
     
     # Limpiar archivos temporales
     if not args.keep_files and args.extract_dir is None:
@@ -418,6 +506,34 @@ Ejemplos de uso:
             shutil.rmtree(simulation_dir)
         except Exception as e:
             print(f"Error limpiando archivos temporales: {e}")
+
+    # If user requested an A/B comparison, or implicit sibling exists, run comparison
+    try:
+        compare_with = args.compare_with
+        if compare_with is None and args.extract_dir:
+            # implicit detection: if extract dir endswith _B, look for sibling *_A
+            try:
+                p = Path(args.extract_dir)
+                name = p.name
+                if name.endswith('_B'):
+                    candidate = str(p.with_name(name[:-2] + '_A'))
+                    from pathlib import Path as _P
+                    if _P(candidate).exists():
+                        compare_with = candidate
+            except Exception:
+                compare_with = None
+
+        if compare_with:
+            try:
+                from visualization import generate_ab_test
+                out_dir_ab = str(Path(simulation_dir) / 'logs' / 'visualizations' / 'ab_test')
+                print(f"Running A/B comparison: A={compare_with}, B={simulation_dir}")
+                report = generate_ab_test(compare_with, simulation_dir, out_dir=out_dir_ab, labels=('A', 'B'))
+                print(f"A/B report written to: {report.get('csv')}, figures in: {report.get('out_dir')}")
+            except Exception as e:
+                print(f"Error running A/B comparison: {e}")
+    except Exception:
+        pass
     
     return success
 

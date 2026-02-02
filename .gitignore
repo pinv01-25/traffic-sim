@@ -175,3 +175,5 @@ cython_debug/
 
 logs/
 simulation/*
+# A/B test simulation outputs
+sim_*/

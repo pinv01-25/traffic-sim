@@ -27,8 +27,13 @@ class SimulationOrchestrator:
     Coordina todos los componentes del sistema
     """
     
-    def __init__(self, simulation_dir: str = "simulation"):
+    def __init__(self, simulation_dir: str = "simulation", green_time: float | None = None, cycle_time: float | None = None, sim_steps: int | None = None):
         self.simulation_dir = Path(simulation_dir)
+        # optional signal timing overrides
+        self.green_time = green_time
+        self.cycle_time = cycle_time
+        # optional auto-stop after number of simulation steps
+        self.sim_steps = int(sim_steps) if sim_steps is not None else None
         self.logger = get_simulation_logger()
         
         # Componentes del sistema
@@ -141,13 +146,43 @@ class SimulationOrchestrator:
                 self.logger.error(f"Archivo de configuración no encontrado: {config_file}")
                 return False
             
-            # Iniciar SUMO con TraCI
-            traci.start([
+            # Iniciar SUMO con TraCI y asegurar que produce salidas útiles
+            output_dir = str(self.simulation_dir / "logs" / "sumo_output")
+            import os
+            os.makedirs(output_dir, exist_ok=True)
+            traci_cmd = [
                 "sumo",
                 "-c", str(config_file),
                 "--no-step-log", "true",
-                "--time-to-teleport", "-1"
-            ])
+                "--time-to-teleport", "-1",
+                "--tripinfo-output", os.path.join(output_dir, "tripinfo.xml"),
+                "--summary-output", os.path.join(output_dir, "summary.xml"),
+                "--fcd-output", os.path.join(output_dir, "fcd.xml"),
+            ]
+            traci.start(traci_cmd)
+            # Apply signal timings if requested
+            try:
+                if hasattr(self, 'green_time') and self.green_time is not None and self.cycle_time is not None:
+                    gt = float(self.green_time)
+                    ct = float(self.cycle_time)
+                    if gt < 0 or ct <= 0:
+                        self.logger.warning("Invalid green or cycle time; skipping signal adjustment")
+                    else:
+                        red_time = max(ct - gt, 0.0)
+                        tls_list = traci.trafficlight.getIDList()
+                        self.logger.info(f"Applying signal timings: green={gt}s cycle={ct}s red={red_time}s to {len(tls_list)} traffic lights")
+                        try:
+                            from utils.signal_utils import apply_timings_to_all_tls
+                            viz_dir = str(self.simulation_dir / 'logs' / 'visualizations')
+                            import os as _os
+                            _os.makedirs(viz_dir, exist_ok=True)
+                            out_csv = _os.path.join(viz_dir, 'tls_assigned_durations.csv')
+                            apply_timings_to_all_tls(gt, ct, out_csv=out_csv)
+                            self.logger.info(f"TLS assigned durations written to: {out_csv}")
+                        except Exception as e:
+                            self.logger.error(f"Error applying signal timings (utils): {e}")
+            except Exception as e:
+                self.logger.error(f"Error applying signal timings: {e}")
             
             self.logger.info("Conexión TraCI establecida")
             return True
@@ -277,9 +312,14 @@ class SimulationOrchestrator:
             
             # Verificar tiempo de simulación
             current_time = float(traci.simulation.getTime())
-            
-            # Continuar si hay vehículos esperados y no se ha alcanzado el tiempo límite
-            return expected_vehicles > 0 and current_time < self.end_time
+            # Continue if vehicles expected, not reached time limit, and not reached sim_steps
+            cond = expected_vehicles > 0 and current_time < self.end_time
+            if not cond:
+                return False
+            if hasattr(self, 'sim_steps') and self.sim_steps is not None:
+                if self.current_step >= self.sim_steps:
+                    return False
+            return True
             
         except Exception as e:
             self.logger.error(f"Error verificando estado de simulación: {e}")
