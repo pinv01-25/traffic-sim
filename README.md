@@ -417,3 +417,124 @@ python run_simulation.py mi_simulacion.zip --gui
 # Mantener archivos extraídos para análisis posterior
 python run_simulation.py mi_simulacion.zip --keep-files --extract-dir ./debug_sim
 ```
+
+## Sistema de Visualización y Pruebas A/B
+
+El sistema incluye herramientas para ejecutar pruebas A/B comparando diferentes configuraciones de semáforos y generar visualizaciones detalladas.
+
+### Comando Completo Recomendado
+
+```bash
+uv run python run_ab.py sim.zip \
+  --green-time 30 \
+  --cycle-time 60 \
+  --sim-steps 500 \
+  --label-a "Baseline (Default)" \
+  --label-b "Optimized (30s Green)" \
+  --use-sumo-tools \
+  --keep-files
+```
+
+### Ejecución Rápida
+
+```bash
+# Prueba A/B básica
+uv run python run_ab.py sim.zip --green-time 30.0
+```
+
+Esto ejecuta:
+1. **Run A (Baseline)**: Simulación con tiempos de semáforo por defecto
+2. **Run B (Optimized)**: Simulación con `--green-time` personalizado
+3. **Análisis**: Genera 20+ gráficos comparativos + tests estadísticos
+
+### Opciones del CLI
+
+| Opción | Descripción | Default |
+|--------|-------------|---------|
+| `--green-time` | Duración de luz verde para run B (segundos) | 30.0 |
+| `--cycle-time` | Ciclo total del semáforo (segundos) | 60.0 |
+| `--sim-steps` | Pasos de simulación | 300 |
+| `--label-a` / `--label-b` | Etiquetas para los reportes | "Baseline"/"Optimized" |
+| `--gui` | Ejecutar con interfaz gráfica SUMO | - |
+| `--use-sumo-tools` | Incluir gráficos nativos de SUMO | - |
+| `--analyze-only` | Solo analizar (sin ejecutar simulaciones) | - |
+| `--output-dir` | Directorio de salida personalizado | `sim_B/logs/visualizations/ab_test` |
+| `--keep-files` | Mantener archivos extraídos después de la ejecución | - |
+
+### Ejemplos de Pruebas A/B
+
+```bash
+# Prueba básica
+uv run python run_ab.py sim.zip --green-time 25
+
+# Con etiquetas personalizadas
+uv run python run_ab.py sim.zip --green-time 30 --label-a "Original" --label-b "30s Green"
+
+# Más pasos de simulación
+uv run python run_ab.py sim.zip --green-time 35 --sim-steps 600
+
+# Incluir herramientas nativas SUMO
+uv run python run_ab.py sim.zip --green-time 30 --use-sumo-tools
+
+# Solo analizar ejecuciones existentes
+uv run python run_ab.py sim.zip --analyze-only --extract-base sim
+```
+
+### Gráficos Generados (20+)
+
+**Comparaciones de distribución:**
+- `duration_hist_cdf.png` - Histograma + CDF de tiempos de viaje
+- `duration_boxplot.png` - Boxplot comparativo
+- `travel_time_violin.png` - Violin plot de tiempos de viaje
+- `multi_metric_violin.png` - Violin plots múltiples métricas
+
+**Series temporales:**
+- `time_series_mean.png` - Media por intervalo de tiempo
+- `time_series_comparison.png` - Comparación temporal detallada
+- `congestion_timeline.png` - Timeline de congestión
+
+**Análisis de métricas:**
+- `metric_comparison_bars.png` - Barras comparativas de métricas
+- `efficiency_comparison.png` - Comparación de eficiencia
+- `percentile_comparison.png` - Comparación por percentiles
+- `improvement_summary.png` - Resumen de mejoras
+
+**Análisis específicos:**
+- `speed_distribution.png` - Distribución de velocidades
+- `waiting_time_analysis.png` - Análisis de tiempos de espera
+- `correlation_heatmap.png` - Matriz de correlación
+- `summary_comparison.png` - Comparación de métricas de summary.xml
+
+**FCD (Floating Car Data):**
+- `fcd_speed_heatmap.png` - Mapa de calor de velocidades
+- `fcd_comparison.png` - Comparación FCD entre runs
+
+### Tests Estadísticos
+
+El sistema calcula automáticamente:
+- **Permutation Test** - p-value para diferencia de medias
+- **Bootstrap CI** - Intervalo de confianza 95% para la diferencia
+- **Mann-Whitney U** - Test no paramétrico
+- **Cohen's d** - Tamaño del efecto
+
+### Estructura de Salida
+
+```
+sim_B/logs/visualizations/ab_test/
+├── *.png                 # Todos los gráficos
+├── ab_test_report.csv    # Reporte tabular
+└── ab_test_report.json   # Reporte completo con estadísticas
+```
+
+### Uso Programático
+
+```python
+from visualization import generate_ab_test, quick_compare
+
+# Generar todos los gráficos
+report = generate_ab_test('sim_A', 'sim_B', labels=('Control', 'Test'))
+
+# Solo estadísticas rápidas (sin gráficos)
+stats = quick_compare('sim_A', 'sim_B')
+print(f"Mejora: {stats['percent_improvement']:.1f}%")
+```
