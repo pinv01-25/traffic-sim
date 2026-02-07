@@ -2,17 +2,84 @@
 Cliente HTTP para comunicación con traffic-control
 """
 
+import random
 import re
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Dict
+from typing import Any, Dict, List, Optional
 
 import requests
 from config import TRAFFIC_CONTROL_CONFIG
 from utils.logger import setup_logger
 
 logger = setup_logger(__name__)
+
+
+# ============================================================================
+# Estructuras de datos para respuesta de optimización de clusters
+# ============================================================================
+
+@dataclass
+class TrafficLightOptimization:
+    """Optimización para un semáforo individual"""
+    traffic_light_id: str
+    green_time_sec: float
+    red_time_sec: float
+    apply_immediately: bool = True
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "TrafficLightOptimization":
+        return cls(
+            traffic_light_id=str(data.get("traffic_light_id", "")),
+            green_time_sec=float(data.get("green_time_sec", 30)),
+            red_time_sec=float(data.get("red_time_sec", 30)),
+            apply_immediately=bool(data.get("apply_immediately", True))
+        )
+
+
+@dataclass
+class ClusterOptimizationResponse:
+    """Respuesta de optimización para un cluster de semáforos"""
+    status: str
+    optimizations: List[TrafficLightOptimization] = field(default_factory=list)
+    cluster_id: Optional[str] = None
+    coordinated: bool = False
+    message: Optional[str] = None
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "ClusterOptimizationResponse":
+        optimizations = [
+            TrafficLightOptimization.from_dict(opt)
+            for opt in data.get("optimizations", [])
+        ]
+        cluster_info = data.get("cluster_info", {})
+        return cls(
+            status=data.get("status", "error"),
+            optimizations=optimizations,
+            cluster_id=cluster_info.get("cluster_id"),
+            coordinated=cluster_info.get("coordinated", False),
+            message=data.get("message")
+        )
+
+
+@dataclass
+class ClusterDataPayload:
+    """Payload con datos de múltiples semáforos para optimización de cluster"""
+    version: str = "2.0"
+    type: str = "cluster_data"
+    timestamp: str = ""
+    primary_traffic_light_id: str = ""  # El que detectó el cuello de botella
+    sensors: List[Dict[str, Any]] = field(default_factory=list)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "version": self.version,
+            "type": self.type,
+            "timestamp": self.timestamp,
+            "primary_traffic_light_id": self.primary_traffic_light_id,
+            "sensors": self.sensors
+        }
 
 @dataclass
 class TrafficMetrics:
@@ -319,4 +386,98 @@ class TrafficControlClient:
             )
         )
         
-        return payload 
+        return payload
+
+    def send_cluster_data(
+        self,
+        payload: ClusterDataPayload,
+        use_mock: bool = False
+    ) -> ClusterOptimizationResponse:
+        """
+        Envía datos de un cluster de semáforos para optimización coordinada.
+
+        Args:
+            payload: Datos del cluster con métricas de todos los semáforos
+            use_mock: Si True, usa el mock en lugar de la API real
+
+        Returns:
+            Respuesta con optimizaciones para cada semáforo del cluster
+        """
+        if use_mock:
+            return self._mock_cluster_optimization(payload)
+
+        try:
+            logger.info(f"Enviando datos de cluster (primario: {payload.primary_traffic_light_id})")
+            data = payload.to_dict()
+
+            # Enviar a traffic-control
+            response = self._make_request("POST", "/process-cluster", data)
+
+            return ClusterOptimizationResponse.from_dict(response)
+
+        except Exception as e:
+            logger.error(f"Error enviando datos de cluster: {e}")
+            # Fallback al mock si la API falla
+            logger.info("Usando mock como fallback")
+            return self._mock_cluster_optimization(payload)
+
+    def _mock_cluster_optimization(
+        self,
+        payload: ClusterDataPayload
+    ) -> ClusterOptimizationResponse:
+        """
+        Mock que simula la respuesta de la API de optimización.
+
+        Genera tiempos de semáforo basados en la densidad y velocidad
+        de cada sensor, simulando una optimización inteligente.
+        """
+        optimizations = []
+
+        for sensor in payload.sensors:
+            tl_id = sensor.get("traffic_light_id", "")
+            metrics = sensor.get("metrics", {})
+
+            # Extraer métricas
+            density = metrics.get("density", 0.5)  # Ya normalizada 0-1
+            avg_speed = metrics.get("avg_speed_kmh", 30.0)
+            vpm = metrics.get("vehicles_per_minute", 10)
+
+            # Algoritmo de optimización simple:
+            # - Alta densidad + baja velocidad = más tiempo de verde
+            # - Baja densidad + alta velocidad = menos tiempo de verde
+            congestion_score = density * 0.6 + (1 - min(avg_speed / 50.0, 1.0)) * 0.4
+
+            # Calcular tiempos (ciclo base de 60s)
+            base_cycle = 60.0
+            if congestion_score > 0.7:
+                # Alta congestión: más verde
+                green_time = base_cycle * 0.6 + random.uniform(-2, 2)
+            elif congestion_score > 0.4:
+                # Congestión media: balance
+                green_time = base_cycle * 0.5 + random.uniform(-2, 2)
+            else:
+                # Baja congestión: menos verde
+                green_time = base_cycle * 0.4 + random.uniform(-2, 2)
+
+            green_time = max(15, min(green_time, 45))  # Limitar entre 15-45s
+            red_time = base_cycle - green_time
+
+            optimizations.append(TrafficLightOptimization(
+                traffic_light_id=tl_id,
+                green_time_sec=round(green_time, 1),
+                red_time_sec=round(red_time, 1),
+                apply_immediately=True
+            ))
+
+            logger.debug(
+                f"Mock optimization for {tl_id}: "
+                f"congestion={congestion_score:.2f}, green={green_time:.1f}s"
+            )
+
+        return ClusterOptimizationResponse(
+            status="success",
+            optimizations=optimizations,
+            cluster_id=f"cluster_{payload.primary_traffic_light_id}",
+            coordinated=True,
+            message="Mock optimization applied"
+        ) 

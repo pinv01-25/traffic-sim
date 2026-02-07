@@ -16,7 +16,12 @@ import traci
 from config import BOTTLENECK_CONFIG, SIMULATION_CONFIG
 from controllers.traffic_light_controller import TrafficLightController
 from detectors.bottleneck_detector import BottleneckDetection, BottleneckDetector
-from services.traffic_control_client import TrafficControlClient, TrafficDataPayload
+from services.traffic_control_client import (
+    ClusterDataPayload,
+    ClusterOptimizationResponse,
+    TrafficControlClient,
+    TrafficDataPayload,
+)
 from utils.descriptive_names import descriptive_names
 from utils.logger import Colors, get_simulation_logger
 
@@ -27,7 +32,15 @@ class SimulationOrchestrator:
     Coordina todos los componentes del sistema
     """
     
-    def __init__(self, simulation_dir: str = "simulation", green_time: float | None = None, cycle_time: float | None = None, sim_steps: int | None = None):
+    def __init__(
+        self,
+        simulation_dir: str = "simulation",
+        green_time: float | None = None,
+        cycle_time: float | None = None,
+        sim_steps: int | None = None,
+        enable_dynamic_optimization: bool = False,
+        use_mock_api: bool = True
+    ):
         self.simulation_dir = Path(simulation_dir)
         # optional signal timing overrides
         self.green_time = green_time
@@ -35,6 +48,10 @@ class SimulationOrchestrator:
         # optional auto-stop after number of simulation steps
         self.sim_steps = int(sim_steps) if sim_steps is not None else None
         self.logger = get_simulation_logger()
+
+        # Configuración de optimización dinámica de clusters
+        self.enable_dynamic_optimization = enable_dynamic_optimization
+        self.use_mock_api = use_mock_api  # True = usar mock, False = usar API real
         
         # Componentes del sistema
         self.bottleneck_detector = None
@@ -369,16 +386,63 @@ class SimulationOrchestrator:
     def _process_bottleneck_detection(self, detection: BottleneckDetection, current_time: float):
         """Procesa una detección de cuello de botella (versión no bloqueante)"""
         try:
-            # Crear payload para traffic-control
-            payload = self._create_traffic_payload(detection, current_time)
-            
-            # En lugar de enviar directamente, agregar a la cola para procesamiento asíncrono
-            self.request_queue.put((payload, detection, current_time))
-            
-            self.logger.info(f"Petición agregada a cola para semáforo {detection.traffic_light_id}")
-            
+            if self.enable_dynamic_optimization:
+                # Modo cluster: obtener semáforos cercanos y optimizar juntos
+                self._process_cluster_optimization(detection, current_time)
+            else:
+                # Modo legacy: enviar solo datos del semáforo con cuello de botella
+                payload = self._create_traffic_payload(detection, current_time)
+                self.request_queue.put((payload, detection, current_time))
+                self.logger.info(f"Petición agregada a cola para semáforo {detection.traffic_light_id}")
+
         except Exception as e:
             self.logger.error(f"Error procesando detección: {e}")
+
+    def _process_cluster_optimization(self, detection: BottleneckDetection, current_time: float):
+        """
+        Procesa optimización de cluster: obtiene semáforos cercanos,
+        envía datos a la API y aplica optimizaciones inmediatamente.
+        """
+        try:
+            primary_tl_id = detection.traffic_light_id
+
+            # Obtener semáforos cercanos
+            nearby_tls = self._get_nearby_traffic_lights(primary_tl_id)
+            self.logger.info(f"Cluster de {len(nearby_tls)} semáforos para optimización")
+
+            # Crear payload con datos de todo el cluster
+            cluster_payload = self._create_cluster_payload(primary_tl_id, nearby_tls, current_time)
+
+            # Mostrar payload en consola
+            print(f"\n{Colors.CYAN}{Colors.BOLD}PAYLOAD DE CLUSTER A TRAFFIC-CONTROL{Colors.END}")
+            print(f"{Colors.CYAN}Semáforo primario: {primary_tl_id}{Colors.END}")
+            print(f"{Colors.CYAN}Semáforos en cluster: {nearby_tls}{Colors.END}")
+            print(f"{Colors.CYAN}{'='*50}{Colors.END}")
+            print(json.dumps(cluster_payload.to_dict(), indent=2, ensure_ascii=False))
+            print(f"{Colors.CYAN}{'='*50}{Colors.END}\n")
+
+            # Enviar a la API (o mock)
+            response = self.traffic_control_client.send_cluster_data(
+                cluster_payload,
+                use_mock=self.use_mock_api
+            )
+
+            # Aplicar optimizaciones inmediatamente
+            self._apply_cluster_optimization(response)
+
+            # Guardar en historial
+            with self._history_lock:
+                self.bottleneck_history.append({
+                    "timestamp": current_time,
+                    "intersection_id": detection.intersection_id,
+                    "severity": detection.severity,
+                    "metrics": detection.metrics,
+                    "cluster_size": len(nearby_tls),
+                    "optimizations_applied": len(response.optimizations) if response.status == "success" else 0
+                })
+
+        except Exception as e:
+            self.logger.error(f"Error en optimización de cluster: {e}")
     
     def _create_traffic_payload(self, detection: BottleneckDetection, current_time: float) -> TrafficDataPayload:
         """Crea el payload para traffic-control"""
@@ -431,13 +495,165 @@ class SimulationOrchestrator:
             return None
     
     def _apply_traffic_optimization(self, optimization_data: Dict[str, Any]):
-        """Aplica optimización de tráfico"""
+        """Aplica optimización de tráfico para un solo semáforo (legacy)"""
         try:
-            # Implementar lógica de optimización aquí
-            self.logger.info("Aplicando optimización de tráfico")
-            # TODO: Implementar optimización real
+            green_time = optimization_data.get("green_time_sec")
+            red_time = optimization_data.get("red_time_sec")
+
+            if green_time and red_time:
+                # Aplicar usando TrafficLightController
+                # (requiere conocer el tl_id, que debería venir en optimization_data)
+                tl_id = optimization_data.get("traffic_light_id")
+                if tl_id:
+                    success = self.traffic_light_controller.update_traffic_light(
+                        tl_id, {"optimization": optimization_data}
+                    )
+                    if success:
+                        self.logger.info(f"Optimización aplicada a {tl_id}: green={green_time}s, red={red_time}s")
+                    else:
+                        self.logger.warning(f"No se pudo aplicar optimización a {tl_id}")
         except Exception as e:
             self.logger.error(f"Error aplicando optimización: {e}")
+
+    def _get_nearby_traffic_lights(self, primary_tl_id: str, max_distance: float = 200.0) -> list:
+        """
+        Obtiene los semáforos cercanos al semáforo primario.
+
+        Args:
+            primary_tl_id: ID del semáforo con cuello de botella
+            max_distance: Distancia máxima en metros para considerar "cercano"
+
+        Returns:
+            Lista de IDs de semáforos cercanos (incluyendo el primario)
+        """
+        try:
+            all_tls = list(traci.trafficlight.getIDList())
+
+            # Si solo hay pocos semáforos, devolver todos
+            if len(all_tls) <= 4:
+                return all_tls
+
+            # Obtener posición del semáforo primario
+            try:
+                primary_pos = traci.junction.getPosition(primary_tl_id)
+            except traci.exceptions.TraCIException:
+                # Si no se puede obtener posición, devolver solo el primario
+                return [primary_tl_id]
+
+            nearby = [primary_tl_id]
+
+            for tl_id in all_tls:
+                if tl_id == primary_tl_id:
+                    continue
+                try:
+                    tl_pos = traci.junction.getPosition(tl_id)
+                    # Calcular distancia euclidiana
+                    distance = ((primary_pos[0] - tl_pos[0]) ** 2 +
+                               (primary_pos[1] - tl_pos[1]) ** 2) ** 0.5
+                    if distance <= max_distance:
+                        nearby.append(tl_id)
+                except traci.exceptions.TraCIException:
+                    continue
+
+            self.logger.debug(f"Semáforos cercanos a {primary_tl_id}: {nearby}")
+            return nearby
+
+        except Exception as e:
+            self.logger.error(f"Error obteniendo semáforos cercanos: {e}")
+            return [primary_tl_id]
+
+    def _create_cluster_payload(
+        self,
+        primary_tl_id: str,
+        nearby_tls: list,
+        current_time: float
+    ) -> ClusterDataPayload:
+        """
+        Crea un payload con datos de todos los semáforos del cluster.
+
+        Args:
+            primary_tl_id: ID del semáforo que detectó el cuello de botella
+            nearby_tls: Lista de IDs de semáforos cercanos
+            current_time: Tiempo actual de simulación
+
+        Returns:
+            ClusterDataPayload con métricas de todos los semáforos
+        """
+        sensors = []
+
+        for tl_id in nearby_tls:
+            # Obtener datos de intersección
+            intersection_data = self.bottleneck_detector.get_intersection_data(tl_id)
+
+            if intersection_data:
+                # Normalizar densidad a 0-1
+                raw_density = intersection_data.density
+                normalized_density = min(raw_density / 100.0, 1.0)
+
+                sensor_data = {
+                    "traffic_light_id": tl_id,
+                    "controlled_edges": self.bottleneck_detector.intersection_edges.get(tl_id, []),
+                    "metrics": {
+                        "vehicles_per_minute": intersection_data.vehicle_count,
+                        "avg_speed_kmh": intersection_data.average_speed,
+                        "avg_circulation_time_sec": intersection_data.avg_circulation_time,
+                        "density": normalized_density
+                    },
+                    "vehicle_stats": intersection_data.vehicle_stats
+                }
+                sensors.append(sensor_data)
+
+        return ClusterDataPayload(
+            timestamp=datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
+            primary_traffic_light_id=primary_tl_id,
+            sensors=sensors
+        )
+
+    def _apply_cluster_optimization(self, response: ClusterOptimizationResponse):
+        """
+        Aplica las optimizaciones recibidas para todo el cluster de semáforos.
+
+        Args:
+            response: Respuesta con optimizaciones para cada semáforo
+        """
+        if response.status != "success":
+            self.logger.warning(f"Optimización de cluster fallida: {response.message}")
+            return
+
+        applied_count = 0
+
+        for opt in response.optimizations:
+            if not opt.apply_immediately:
+                continue
+
+            try:
+                # Usar TrafficLightController para aplicar cambios
+                success = self.traffic_light_controller.update_traffic_light(
+                    opt.traffic_light_id,
+                    {
+                        "optimization": {
+                            "green_time_sec": opt.green_time_sec,
+                            "red_time_sec": opt.red_time_sec
+                        }
+                    }
+                )
+
+                if success:
+                    applied_count += 1
+                    self.logger.info(
+                        f"Optimización aplicada a {opt.traffic_light_id}: "
+                        f"green={opt.green_time_sec}s, red={opt.red_time_sec}s"
+                    )
+
+            except Exception as e:
+                self.logger.error(f"Error aplicando optimización a {opt.traffic_light_id}: {e}")
+
+        if applied_count > 0:
+            print(f"\n{Colors.GREEN}{Colors.BOLD}OPTIMIZACIÓN DE CLUSTER APLICADA{Colors.END}")
+            print(f"{Colors.GREEN}Semáforos actualizados: {applied_count}/{len(response.optimizations)}{Colors.END}")
+            if response.cluster_id:
+                print(f"{Colors.GREEN}Cluster ID: {response.cluster_id}{Colors.END}")
+            print(f"{Colors.GREEN}{'='*50}{Colors.END}\n")
     
     def _pause_simulation(self):
         """Pausa la simulación"""

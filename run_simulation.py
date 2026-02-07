@@ -73,13 +73,22 @@ def extract_simulation_zip(zip_path: str, extract_dir: str | None = None) -> str
     print("Archivos extraídos correctamente")
     return str(extract_dir)
 
-def run_with_sumo_gui(simulation_dir: str, green_time: float | None = None, cycle_time: float | None = None, sim_steps: int | None = None) -> bool:
+def run_with_sumo_gui(
+    simulation_dir: str,
+    green_time: float | None = None,
+    cycle_time: float | None = None,
+    sim_steps: int | None = None,
+    enable_dynamic_optimization: bool = False,
+    use_mock_api: bool = True
+) -> bool:
     """
     Ejecuta la simulación con sumo-gui (interfaz gráfica)
-    
+
     Args:
         simulation_dir: Directorio con archivos de simulación
-        
+        enable_dynamic_optimization: Habilitar optimización dinámica de clusters
+        use_mock_api: Usar mock en lugar de API real
+
     Returns:
         True si la simulación se ejecutó correctamente, False en caso contrario
     """
@@ -91,9 +100,17 @@ def run_with_sumo_gui(simulation_dir: str, green_time: float | None = None, cycl
         from queue import Empty, Queue
 
         import traci
+        from controllers.traffic_light_controller import TrafficLightController
         from detectors.bottleneck_detector import BottleneckDetector
-        from services.traffic_control_client import TrafficControlClient
+        from services.traffic_control_client import (
+            ClusterDataPayload,
+            TrafficControlClient,
+        )
         from utils.descriptive_names import descriptive_names
+
+        if enable_dynamic_optimization:
+            mode = "mock" if use_mock_api else "API real"
+            print(f"Optimización dinámica de clusters HABILITADA (modo: {mode})")
         
         # Configuración para threading
         traffic_control_client = TrafficControlClient()
@@ -202,10 +219,91 @@ def run_with_sumo_gui(simulation_dir: str, green_time: float | None = None, cycl
         print("Simulación iniciada")
 
         detector = BottleneckDetector()
+        tl_controller = TrafficLightController() if enable_dynamic_optimization else None
         last_detection_step = 0
         from config import BOTTLENECK_CONFIG
         detection_interval_steps = BOTTLENECK_CONFIG["detection_interval"]  # pasos entre detecciones
         step = 0
+
+        def get_nearby_traffic_lights(primary_tl_id: str, max_distance: float = 200.0) -> list:
+            """Obtiene semáforos cercanos al primario"""
+            all_tls = list(traci.trafficlight.getIDList())
+            if len(all_tls) <= 4:
+                return all_tls
+            try:
+                primary_pos = traci.junction.getPosition(primary_tl_id)
+            except Exception:
+                return [primary_tl_id]
+            nearby = [primary_tl_id]
+            for tl_id in all_tls:
+                if tl_id == primary_tl_id:
+                    continue
+                try:
+                    tl_pos = traci.junction.getPosition(tl_id)
+                    distance = ((primary_pos[0] - tl_pos[0]) ** 2 + (primary_pos[1] - tl_pos[1]) ** 2) ** 0.5
+                    if distance <= max_distance:
+                        nearby.append(tl_id)
+                except Exception:
+                    continue
+            return nearby
+
+        def process_cluster_optimization(primary_tl_id: str, detection, current_time: float):
+            """Procesa optimización de cluster y aplica cambios"""
+            nearby_tls = get_nearby_traffic_lights(primary_tl_id)
+            print(f"\nCluster de {len(nearby_tls)} semáforos para optimización")
+
+            # Crear payload con datos del cluster
+            sensors = []
+            for tl_id in nearby_tls:
+                intersection_data = detector.get_intersection_data(tl_id)
+                if intersection_data:
+                    raw_density = intersection_data.density
+                    normalized_density = min(raw_density / 100.0, 1.0)
+                    sensor_data = {
+                        "traffic_light_id": tl_id,
+                        "controlled_edges": detector.intersection_edges.get(tl_id, []),
+                        "metrics": {
+                            "vehicles_per_minute": intersection_data.vehicle_count,
+                            "avg_speed_kmh": intersection_data.average_speed,
+                            "avg_circulation_time_sec": intersection_data.avg_circulation_time,
+                            "density": normalized_density
+                        },
+                        "vehicle_stats": intersection_data.vehicle_stats
+                    }
+                    sensors.append(sensor_data)
+
+            cluster_payload = ClusterDataPayload(
+                timestamp=datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
+                primary_traffic_light_id=primary_tl_id,
+                sensors=sensors
+            )
+
+            import json as _json
+            print(f"\n========== CLUSTER PAYLOAD ==========")
+            print(f"Semáforo primario: {primary_tl_id}")
+            print(f"Semáforos en cluster: {nearby_tls}")
+            print(_json.dumps(cluster_payload.to_dict(), indent=2, ensure_ascii=False))
+            print("======================================\n")
+
+            # Enviar a API o mock
+            response = traffic_control_client.send_cluster_data(cluster_payload, use_mock=use_mock_api)
+
+            # Aplicar optimizaciones
+            if response.status == "success" and tl_controller:
+                applied = 0
+                for opt in response.optimizations:
+                    if opt.apply_immediately:
+                        success = tl_controller.update_traffic_light(
+                            opt.traffic_light_id,
+                            {"optimization": {"green_time_sec": opt.green_time_sec, "red_time_sec": opt.red_time_sec}}
+                        )
+                        if success:
+                            applied += 1
+                            print(f"Optimización aplicada a {opt.traffic_light_id}: green={opt.green_time_sec}s")
+                if applied > 0:
+                    print(f"\n*** OPTIMIZACIÓN DE CLUSTER APLICADA: {applied} semáforos ***")
+                    print(f"*** Cluster ID: {response.cluster_id} ***\n")
+
         try:
             # type: ignore
             while int(traci.simulation.getMinExpectedNumber()) > 0:
@@ -221,8 +319,7 @@ def run_with_sumo_gui(simulation_dir: str, green_time: float | None = None, cycl
                     if detections:
                         print("\nCUELLO DE BOTELLA DETECTADO")
                         print(f"Paso: {step} | Tiempo: {current_time:.0f}s")
-                        batch_timestamp = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
-                        sensors = []
+
                         for detection in detections:
                             intersection_name = descriptive_names.get_intersection_name(detection.intersection_id)
                             controlled_streets = detector.intersection_edges.get(detection.intersection_id, [])
@@ -234,76 +331,38 @@ def run_with_sumo_gui(simulation_dir: str, green_time: float | None = None, cycl
                             print(f"   • Velocidad promedio: {detection.metrics.get('average_speed', 0.0):.1f} m/s")
                             print(f"   • Densidad: {detection.metrics.get('density', 0.0):.2f} veh/km")
                             print(f"   • Cola: {detection.metrics.get('queue_length', 0)} vehículos")
-                            print(f"Tiempo: {current_time:.0f}s")
                             print("=" * 50)
-                            
-                            controlled_edges = detector.intersection_edges.get(detection.intersection_id, [])
-                            # Crear métricas para el payload
-                            vehicle_count = int(detection.metrics.get('vehicle_count', 0))
-                            average_speed = float(detection.metrics.get('average_speed', 0.0))
-                            density = float(detection.metrics.get('density', 0.0))
-                            
-                            # Calcular vehicles_per_minute correctamente (vehículos por minuto)
-                            vehicles_per_minute = int(vehicle_count * 60 / 60)  # Corregido: dividir por 60, no 3600
-                            
-                            # Obtener avg_circulation_time_sec del detector
-                            avg_circulation_time_sec = float(detection.metrics.get('avg_circulation_time_sec', 30.0))
-                            
-                            metrics = {
-                                'vehicles_per_minute': vehicles_per_minute,
-                                'avg_speed_kmh': average_speed,
-                                'avg_circulation_time_sec': avg_circulation_time_sec,
-                                'density': density,
-                                'vehicle_stats': detection.metrics.get('vehicle_stats', {
-                                    'motorcycle': 0,
-                                    'car': vehicle_count,
-                                    'bus': 0,
-                                    'truck': 0
-                                })
-                            }
-                            
-                            # Crear el sensor individual directamente
-                            # Normalizar densidad a rango 0-1 (traffic-control espera valores entre 0 y 1)
-                            normalized_density = min(metrics['density'] / 100.0, 1.0) if metrics['density'] > 1.0 else metrics['density']
-                            
-                            sensor_data = {
-                                "traffic_light_id": detection.traffic_light_id,
-                                "controlled_edges": controlled_edges,
-                                "metrics": {
-                                    "vehicles_per_minute": metrics['vehicles_per_minute'],
-                                    "avg_speed_kmh": metrics['avg_speed_kmh'],
-                                    "avg_circulation_time_sec": metrics['avg_circulation_time_sec'],
-                                    "density": normalized_density
-                                },
-                                "vehicle_stats": {
-                                    "motorcycle": metrics['vehicle_stats'].get('motorcycle', 0),
-                                    "car": metrics['vehicle_stats'].get('car', 0),
-                                    "bus": metrics['vehicle_stats'].get('bus', 0),
-                                    "truck": metrics['vehicle_stats'].get('truck', 0)
+
+                            # Usar optimización de clusters si está habilitada
+                            if enable_dynamic_optimization:
+                                process_cluster_optimization(detection.traffic_light_id, detection, current_time)
+                            else:
+                                # Modo legacy: enviar a cola HTTP
+                                controlled_edges = detector.intersection_edges.get(detection.intersection_id, [])
+                                v_count = int(detection.metrics.get('vehicle_count', 0))
+                                normalized_density = min(detection.metrics.get('density', 0.0) / 100.0, 1.0)
+
+                                sensor_data = {
+                                    "traffic_light_id": detection.traffic_light_id,
+                                    "controlled_edges": controlled_edges,
+                                    "metrics": {
+                                        "vehicles_per_minute": v_count,
+                                        "avg_speed_kmh": float(detection.metrics.get('average_speed', 0.0)),
+                                        "avg_circulation_time_sec": float(detection.metrics.get('avg_circulation_time_sec', 30.0)),
+                                        "density": normalized_density
+                                    },
+                                    "vehicle_stats": detection.metrics.get('vehicle_stats', {"motorcycle": 0, "car": v_count, "bus": 0, "truck": 0})
                                 }
-                            }
-                            sensors.append(sensor_data)
-                        # Construir batch
-                        batch_payload = {
-                            "version": "2.0",
-                            "type": "data",
-                            "timestamp": batch_timestamp,
-                            "traffic_light_id": detections[0].traffic_light_id if detections else "",
-                            "sensors": sensors
-                        }
-                        import json as _json
-                        print("\n========== BATCH PAYLOAD A TRAFFIC-CONTROL ==========")
-                        print(_json.dumps(batch_payload, indent=2, ensure_ascii=False))
-                        print("====================================================\n")
-                        
-                        # ENVIAR A TRAFFIC-CONTROL (versión no bloqueante)
-                        try:
-                            print("Enviando payload a traffic-control...")
-                            # Agregar a la cola para procesamiento asíncrono
-                            request_queue.put(batch_payload)
-                            print("Petición agregada a cola para procesamiento asíncrono")
-                        except Exception as e:
-                            print(f"❌ Error agregando petición a cola: {e}")
+
+                                batch_payload = {
+                                    "version": "2.0",
+                                    "type": "data",
+                                    "timestamp": datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
+                                    "traffic_light_id": detection.traffic_light_id,
+                                    "sensors": [sensor_data]
+                                }
+                                request_queue.put(batch_payload)
+                                print("Petición agregada a cola para procesamiento asíncrono")
                     else:
                         # Mensaje pequeño cada 15 pasos cuando no hay detecciones
                         print(f"Paso {step} | Tiempo {current_time:.0f}s | Vehículos {vehicle_count} | Sin cuellos de botella")
@@ -344,21 +403,41 @@ def run_with_sumo_gui(simulation_dir: str, green_time: float | None = None, cycl
         print(f"Error ejecutando SUMO-GUI: {e}")
         return False
 
-def run_with_sumo_headless(simulation_dir: str, green_time: float | None = None, cycle_time: float | None = None, sim_steps: int | None = None) -> bool:
+def run_with_sumo_headless(
+    simulation_dir: str,
+    green_time: float | None = None,
+    cycle_time: float | None = None,
+    sim_steps: int | None = None,
+    enable_dynamic_optimization: bool = False,
+    use_mock_api: bool = True
+) -> bool:
     """
     Ejecuta la simulación con sumo (modo headless)
-    
+
     Args:
         simulation_dir: Directorio con archivos de simulación
-        
+        enable_dynamic_optimization: Habilitar optimización dinámica de clusters
+        use_mock_api: Usar mock en lugar de API real
+
     Returns:
         True si la simulación se ejecutó correctamente, False en caso contrario
     """
     try:
         from simulation_orchestrator import SimulationOrchestrator
 
-        # Crear orquestador (pasar tiempos de semáforo y sim_steps if present)
-        orchestrator = SimulationOrchestrator(simulation_dir, green_time=green_time, cycle_time=cycle_time, sim_steps=sim_steps)
+        # Crear orquestador
+        orchestrator = SimulationOrchestrator(
+            simulation_dir,
+            green_time=green_time,
+            cycle_time=cycle_time,
+            sim_steps=sim_steps,
+            enable_dynamic_optimization=enable_dynamic_optimization,
+            use_mock_api=use_mock_api
+        )
+
+        if enable_dynamic_optimization:
+            mode = "mock" if use_mock_api else "API real"
+            print(f"Optimización dinámica de clusters HABILITADA (modo: {mode})")
         
         # Configurar simulación
         if not orchestrator.setup_simulation():
@@ -472,6 +551,18 @@ Ejemplos de uso:
         help="Ruta a otra ejecución (extract-dir) para comparar (A). Si no se especifica, y --extract-dir termina en _B, buscará sibling *_A.",
         default=None,
     )
+
+    parser.add_argument(
+        "--dynamic-optimization",
+        action="store_true",
+        help="Habilitar optimización dinámica de clusters de semáforos durante la simulación"
+    )
+
+    parser.add_argument(
+        "--use-real-api",
+        action="store_true",
+        help="Usar API real de traffic-control en lugar del mock (requiere --dynamic-optimization)"
+    )
     
     args = parser.parse_args()
     
@@ -491,6 +582,8 @@ Ejemplos de uso:
             green_time=args.green_time,
             cycle_time=args.cycle_time,
             sim_steps=args.sim_steps,
+            enable_dynamic_optimization=args.dynamic_optimization,
+            use_mock_api=not args.use_real_api,
         )
     else:
         success = run_with_sumo_headless(
@@ -498,6 +591,8 @@ Ejemplos de uso:
             green_time=args.green_time,
             cycle_time=args.cycle_time,
             sim_steps=args.sim_steps,
+            enable_dynamic_optimization=args.dynamic_optimization,
+            use_mock_api=not args.use_real_api,
         )
     
     # Limpiar archivos temporales
