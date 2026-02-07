@@ -12,6 +12,16 @@ from config import BOTTLENECK_CONFIG
 from utils.descriptive_names import descriptive_names
 from utils.logger import setup_logger
 from utils.metrics_validator import metrics_validator
+from utils.traci_helpers import (
+    get_edge_length_from_lanes,
+    get_edge_vehicles,
+    get_vehicle_lane_id,
+    get_vehicle_lane_position,
+    get_vehicle_speed,
+    get_vehicle_type,
+    get_vehicle_waiting_time,
+    safe_float,
+)
 
 logger = setup_logger(__name__)
 
@@ -48,74 +58,39 @@ class MetricsCalculator:
         
     def get_visible_vehicles(self, edge_id: str) -> List[str]:
         """
-        Obtiene vehículos visibles en el rango especificado desde el semáforo
-        
+        Obtiene vehículos visibles en el rango especificado desde el semáforo.
+
         Args:
             edge_id: ID del edge a analizar
-            
+
         Returns:
             Lista de IDs de vehículos visibles
         """
-        # Obtener nombre descriptivo al inicio para evitar errores de scope
-        edge_name = descriptive_names.get_edge_name(edge_id)
-        
         visible_vehicles = []
         try:
-            # Obtener longitud del edge usando getLastStepLength
-            edge_length = traci.edge.getLastStepLength(edge_id)
-            
-            # Robustecer: asegurar que edge_length sea float
-            if isinstance(edge_length, (list, tuple)):
-                edge_length = float(edge_length[0]) if edge_length else 0.0
-            else:
-                try:
-                    edge_length = float(edge_length)
-                except Exception:
-                    edge_length = 0.0
-            
-            if edge_length == 0.0:
-                edge_length = 100.0  # valor por defecto
-            
+            # Usar get_edge_length_from_lanes que usa traci.lane.getLength() correcto
+            edge_length = get_edge_length_from_lanes(edge_id)
+
             # Obtener todos los vehículos en el edge
-            vehicles = traci.edge.getLastStepVehicleIDs(edge_id)
-            if isinstance(vehicles, (list, tuple)):
-                vehicles = list(vehicles)
-            else:
-                vehicles = [vehicles] if vehicles else []
-            
+            vehicles = get_edge_vehicles(edge_id)
+
             for v_id in vehicles:
-                try:
-                    # Verificar que el vehículo está en el edge correcto
-                    v_lane = traci.vehicle.getLaneID(v_id)
-                    if isinstance(v_lane, (list, tuple)):
-                        v_lane = str(v_lane[0]) if v_lane else ""
-                    else:
-                        v_lane = str(v_lane)
-                    
-                    if not v_lane.startswith(edge_id):
-                        continue
-                    
-                    # Obtener posición del vehículo
-                    pos = traci.vehicle.getLanePosition(v_id)
-                    if isinstance(pos, (list, tuple)):
-                        pos = float(pos[0]) if pos else 0.0
-                    else:
-                        try:
-                            pos = float(pos)
-                        except Exception:
-                            pos = 0.0
-                    
-                    # Verificar si está en el rango visible (desde el final del edge hacia atrás)
-                    if (edge_length - pos) <= self.visible_range:
-                        visible_vehicles.append(v_id)
-                        
-                except Exception as e:
-                    logger.warning(f"Error procesando vehículo {v_id}: {e}")
+                # Verificar que el vehículo está en el edge correcto
+                v_lane = get_vehicle_lane_id(v_id)
+                if not v_lane.startswith(edge_id):
                     continue
-                    
+
+                # Obtener posición del vehículo
+                pos = get_vehicle_lane_position(v_id)
+
+                # Verificar si está en el rango visible (desde el final del edge hacia atrás)
+                if (edge_length - pos) <= self.visible_range:
+                    visible_vehicles.append(v_id)
+
         except Exception as e:
+            edge_name = descriptive_names.get_edge_name(edge_id)
             logger.error(f"Error obteniendo vehículos visibles en {edge_name} ({edge_id}): {e}")
-            
+
         return visible_vehicles
     
     def track_vehicle_entry(self, edge_id: str, vehicle_id: str, current_time: float):
@@ -141,290 +116,174 @@ class MetricsCalculator:
     
     def calculate_vehicles_per_minute(self, edge_id: str, current_time: float) -> int:
         """
-        Calcula la tasa de vehículos por minuto basándose en entradas reales
-        
+        Calcula la tasa de vehículos por minuto basándose en entradas reales.
+
         Args:
             edge_id: ID del edge
             current_time: Tiempo actual de simulación
-            
+
         Returns:
             Número de vehículos por minuto
         """
-        # Obtener nombre descriptivo al inicio para evitar errores de scope
-        edge_name = descriptive_names.get_edge_name(edge_id)
-        
         if edge_id not in self.edge_vehicle_tracking:
             return 0
-        
+
         # Contar vehículos que entraron en el último minuto (60 segundos)
         one_minute_ago = current_time - 60.0
-        recent_entries = 0
-        
-        for _, entry_time in self.edge_vehicle_tracking[edge_id].items():
-            if entry_time >= one_minute_ago:
-                recent_entries += 1
-        
-        # CORRECCIÓN: Mejorar estimación cuando no hay entradas recientes
+        recent_entries = sum(
+            1 for entry_time in self.edge_vehicle_tracking[edge_id].values()
+            if entry_time >= one_minute_ago
+        )
+
+        # Si no hay entradas recientes, estimar basándose en vehículos visibles
         if recent_entries == 0:
             current_vehicles = len(self.get_visible_vehicles(edge_id))
-            # Estimación más realista: asumir que los vehículos actuales representan
-            # el flujo del último minuto, pero con un factor de corrección
             if current_vehicles > 0:
-                # Factor de corrección: en tráfico urbano, los vehículos visibles
-                # representan aproximadamente 1/3 del flujo por minuto
-                estimated_vpm = max(1, int(current_vehicles * 3))
-                return estimated_vpm
-            else:
-                return 0
-        
-        # CORRECCIÓN: Limitar VPM a valores realistas
-        # En tráfico urbano, raramente se superan 100 vehículos por minuto por carril
-        if recent_entries > 100:
-            recent_entries = 100
-            logger.warning(f"VPM muy alto para {edge_name} ({edge_id}), limitado a 100")
-        
-        return recent_entries
+                # Factor de corrección: vehículos visibles representan ~1/3 del flujo
+                return max(1, current_vehicles * 3)
+            return 0
+
+        # Limitar VPM a valores realistas (máximo 100 por carril)
+        return min(recent_entries, 100)
     
     def calculate_avg_speed_kmh(self, visible_vehicles: List[str]) -> float:
         """
-        Calcula la velocidad promedio en km/h de los vehículos visibles
-        
+        Calcula la velocidad promedio en km/h de los vehículos visibles.
+
         Args:
             visible_vehicles: Lista de IDs de vehículos visibles
-            
+
         Returns:
             Velocidad promedio en km/h
         """
         if not visible_vehicles:
             return 0.0
-        
+
         total_speed = 0.0
         valid_vehicles = 0
-        stopped_vehicles = 0
-        
+
         for v_id in visible_vehicles:
-            try:
-                speed = traci.vehicle.getSpeed(v_id)
-                
-                # Robustecer: asegurar que speed sea float
-                if isinstance(speed, (list, tuple)):
-                    speed = float(speed[0]) if speed else 0.0
-                else:
-                    try:
-                        speed = float(speed)
-                    except Exception:
-                        speed = 0.0
-                
-                # CORRECCIÓN: Manejar mejor vehículos detenidos
-                if speed < 0.1:  # Menos de 0.1 m/s = prácticamente detenido
-                    stopped_vehicles += 1
-                    # No incluir en el promedio si está completamente detenido
-                    continue
-                
-                if speed >= 0:  # Solo vehículos con velocidad válida
-                    total_speed += speed
-                    valid_vehicles += 1
-                    
-            except Exception as e:
-                logger.warning(f"Error obteniendo velocidad de {v_id}: {e}")
-                continue
-        
-        # CORRECCIÓN: Si todos los vehículos están detenidos, retornar 0
+            speed = get_vehicle_speed(v_id)
+            # Ignorar vehículos prácticamente detenidos (< 0.1 m/s)
+            if speed >= 0.1:
+                total_speed += speed
+                valid_vehicles += 1
+
         if valid_vehicles == 0:
-            if stopped_vehicles > 0:
-                return 0.0
-            else:
-                return 0.0
-        
+            return 0.0
+
         # Convertir de m/s a km/h
-        avg_speed_mps = total_speed / valid_vehicles
-        avg_speed_kmh = avg_speed_mps * 3.6
-        
-        # CORRECCIÓN: Velocidades mínimas realistas para tráfico urbano
-        # Si la velocidad es muy baja pero hay vehículos en movimiento, usar mínimo realista
-        if avg_speed_kmh < 5.0 and valid_vehicles > 0:
-            avg_speed_kmh = 5.0  # Mínimo 5 km/h para vehículos en movimiento
-        
-        return round(avg_speed_kmh, 2)
+        avg_speed_kmh = (total_speed / valid_vehicles) * 3.6
+
+        # Mínimo 5 km/h para vehículos en movimiento
+        return round(max(avg_speed_kmh, 5.0), 2)
     
     def calculate_avg_circulation_time_sec(self, visible_vehicles: List[str]) -> float:
         """
-        Calcula el tiempo promedio de circulación (espera) en segundos
-        
+        Calcula el tiempo promedio de circulación (espera) en segundos.
+
         Args:
             visible_vehicles: Lista de IDs de vehículos visibles
-            
+
         Returns:
             Tiempo promedio de circulación en segundos
         """
         if not visible_vehicles:
             return 0.0
-        
-        total_waiting_time = 0.0
-        valid_vehicles = 0
-        
-        for v_id in visible_vehicles:
-            try:
-                waiting_time = traci.vehicle.getWaitingTime(v_id)
-                
-                # Robustecer: asegurar que waiting_time sea float
-                if isinstance(waiting_time, (list, tuple)):
-                    waiting_time = float(waiting_time[0]) if waiting_time else 0.0
-                else:
-                    try:
-                        waiting_time = float(waiting_time)
-                    except Exception:
-                        waiting_time = 0.0
-                
-                if waiting_time >= 0:  # Solo vehículos con tiempo de espera válido
-                    total_waiting_time += waiting_time
-                    valid_vehicles += 1
-                    
-            except Exception as e:
-                logger.warning(f"Error obteniendo tiempo de espera de {v_id}: {e}")
-                continue
-        
-        if valid_vehicles == 0:
-            return 0.0
-        
-        avg_circulation_time = total_waiting_time / valid_vehicles
-        return round(avg_circulation_time, 2)
+
+        total_waiting_time = sum(
+            get_vehicle_waiting_time(v_id) for v_id in visible_vehicles
+        )
+
+        return round(total_waiting_time / len(visible_vehicles), 2)
     
     def calculate_density(self, visible_vehicles: List[str], edge_id: str) -> float:
         """
-        Calcula la densidad de vehículos por kilómetro en el rango visible
-        
+        Calcula la densidad de vehículos por kilómetro en el rango visible.
+
         Args:
             visible_vehicles: Lista de IDs de vehículos visibles
-            edge_id: ID del edge para obtener longitud
-            
+            edge_id: ID del edge (usado solo para logging)
+
         Returns:
             Densidad en vehículos por kilómetro
         """
         vehicle_count = len(visible_vehicles)
-        
         if vehicle_count == 0:
             return 0.0
-        
-        try:
-            # Obtener nombre descriptivo al inicio para evitar errores de scope
-            edge_name = descriptive_names.get_edge_name(edge_id)
-            
-            # CORRECCIÓN CRÍTICA: La densidad debe calcularse SOLO sobre el rango visible
-            # No sobre toda la longitud del edge, sino sobre los 60m visibles desde el semáforo
-            visible_length_km = self.visible_range / 1000.0  # 60m = 0.06km
-            
-            if visible_length_km <= 0:
-                return 0.0
-            
-            density = vehicle_count / visible_length_km
-            
-            # CORRECCIÓN: Limitar densidad máxima a valores realistas
-            # En tráfico urbano, densidades > 200 veh/km son extremas
-            if density > 200.0:
-                density = 200.0
-                logger.warning(f"Densidad calculada muy alta para {edge_name} ({edge_id}), limitada a 200 veh/km")
-            
 
-            
-            return round(density, 2)
-            
-        except Exception as e:
-            edge_name = descriptive_names.get_edge_name(edge_id)
-            logger.error(f"Error calculando densidad para {edge_name} ({edge_id}): {e}")
+        # La densidad se calcula sobre el rango visible (60m = 0.06km)
+        visible_length_km = self.visible_range / 1000.0
+        if visible_length_km <= 0:
             return 0.0
+
+        density = vehicle_count / visible_length_km
+
+        # Limitar a máximo 200 veh/km (valor extremo para tráfico urbano)
+        return round(min(density, 200.0), 2)
     
     def calculate_metrics(self, edge_id: str, current_time: float) -> TrafficMetrics:
         """
-        Calcula todas las métricas para un edge específico
-        
+        Calcula todas las métricas para un edge específico.
+
         Args:
             edge_id: ID del edge
             current_time: Tiempo actual de simulación
-            
+
         Returns:
             Objeto TrafficMetrics con todas las métricas calculadas
         """
-        # Obtener nombre descriptivo al inicio para evitar errores de scope
-        edge_name = descriptive_names.get_edge_name(edge_id)
-        
         # Obtener vehículos visibles
         visible_vehicles = self.get_visible_vehicles(edge_id)
-        
+
         # Trackear entradas de vehículos
         for v_id in visible_vehicles:
             self.track_vehicle_entry(edge_id, v_id, current_time)
-        
+
         # Calcular métricas
-        vehicles_per_minute = self.calculate_vehicles_per_minute(edge_id, current_time)
-        avg_speed_kmh = self.calculate_avg_speed_kmh(visible_vehicles)
-        avg_circulation_time_sec = self.calculate_avg_circulation_time_sec(visible_vehicles)
-        density = self.calculate_density(visible_vehicles, edge_id)
         vehicle_count = len(visible_vehicles)
-        vehicle_stats = self.classify_vehicles_by_type(visible_vehicles)
-        
-        # Crear objeto de métricas
         metrics = TrafficMetrics(
-            vehicles_per_minute=vehicles_per_minute,
-            avg_speed_kmh=avg_speed_kmh,
-            avg_circulation_time_sec=avg_circulation_time_sec,
-            density=density,
+            vehicles_per_minute=self.calculate_vehicles_per_minute(edge_id, current_time),
+            avg_speed_kmh=self.calculate_avg_speed_kmh(visible_vehicles),
+            avg_circulation_time_sec=self.calculate_avg_circulation_time_sec(visible_vehicles),
+            density=self.calculate_density(visible_vehicles, edge_id),
             vehicle_count=vehicle_count,
-            vehicle_stats=vehicle_stats,
+            vehicle_stats=self.classify_vehicles_by_type(visible_vehicles),
             timestamp=current_time
         )
-        
-        # VALIDACIÓN AUTOMÁTICA: Verificar que las métricas sean realistas
+
+        # Validar métricas solo si hay vehículos o errores
         metrics_dict = {
-            "vehicles_per_minute": vehicles_per_minute,
-            "avg_speed_kmh": avg_speed_kmh,
-            "avg_circulation_time_sec": avg_circulation_time_sec,
-            "density": density,
+            "vehicles_per_minute": metrics.vehicles_per_minute,
+            "avg_speed_kmh": metrics.avg_speed_kmh,
+            "avg_circulation_time_sec": metrics.avg_circulation_time_sec,
+            "density": metrics.density,
             "vehicle_count": vehicle_count
         }
-        
         validation_result = metrics_validator.validate_metrics(metrics_dict, edge_id)
-        
-        # CORRECCIÓN: Solo mostrar warnings si hay vehículos o errores críticos
+
         if vehicle_count > 0 or not validation_result.is_valid:
             metrics_validator.log_validation_result(validation_result, edge_id)
-        
-        # Si hay errores críticos, registrar y ajustar
-        if not validation_result.is_valid:
-            logger.error(f"Métricas inválidas calculadas para {edge_name} ({edge_id})")
-            for error in validation_result.errors:
-                logger.error(f"   Error: {error}")
-        
+
         return metrics
     
     def classify_vehicles_by_type(self, visible_vehicles: List[str]) -> Dict[str, int]:
         """
         Clasifica los vehículos visibles por tipo de vehículo.
-        
+
         Args:
             visible_vehicles: Lista de IDs de vehículos visibles.
-            
+
         Returns:
-            Un diccionario con el tipo de vehículo como clave y el número de vehículos
-            de ese tipo como valor.
+            Diccionario con tipo de vehículo como clave y cantidad como valor.
         """
         vehicle_stats: Dict[str, int] = {}
-        
+
         for v_id in visible_vehicles:
-            try:
-                # Usar getTypeID() para obtener el tipo exacto definido en routes.rou.xml
-                vehicle_type = traci.vehicle.getTypeID(v_id)
-                if isinstance(vehicle_type, (list, tuple)):
-                    vehicle_type = str(vehicle_type[0]) if vehicle_type else ""
-                else:
-                    vehicle_type = str(vehicle_type)
-                
-                if vehicle_type:
-                    vehicle_stats[vehicle_type] = vehicle_stats.get(vehicle_type, 0) + 1
-            except Exception as e:
-                logger.warning(f"Error clasificando vehículo {v_id} por tipo: {e}")
-                continue
-            
+            vehicle_type = get_vehicle_type(v_id)
+            if vehicle_type:
+                vehicle_stats[vehicle_type] = vehicle_stats.get(vehicle_type, 0) + 1
+
         return vehicle_stats
     
     def cleanup_old_tracking(self, current_time: float):

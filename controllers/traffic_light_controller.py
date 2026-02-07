@@ -280,47 +280,51 @@ class TrafficLightController:
     
     def _apply_program(self, traffic_light_id: str, program: TrafficLightProgram):
         """
-        Aplica un programa a un semáforo
-        
+        Aplica un programa a un semáforo usando setCompleteRedYellowGreenDefinition.
+
         Args:
             traffic_light_id: ID del semáforo
             program: Programa a aplicar
         """
         try:
-            # Crear definición de programa para traci
-            program_definition = []
-            
+            # Obtener definición actual para preservar metadatos
+            current_defs = traci.trafficlight.getCompleteRedYellowGreenDefinition(traffic_light_id)
+
+            if current_defs and len(current_defs) > 0:
+                current_logic = current_defs[0]
+                program_id = getattr(current_logic, 'programID', '0')
+                logic_type = getattr(current_logic, 'type', 0)
+                sub_params = getattr(current_logic, 'subParameter', {})
+            else:
+                program_id = '0'
+                logic_type = 0
+                sub_params = {}
+
+            # Construir nuevas fases
+            new_phases = []
             for phase in program.phases:
-                program_definition.append((phase.duration, phase.state))
-            
-            # Aplicar programa
-            traci.trafficlight.setProgram(traffic_light_id, "optimized")
-            traci.trafficlight.setPhaseDefinition(traffic_light_id, program_definition)
-            
+                new_phase = traci.trafficlight.Phase(
+                    duration=float(phase.duration),
+                    state=phase.state,
+                    minDur=float(phase.duration),
+                    maxDur=float(phase.duration)
+                )
+                new_phases.append(new_phase)
+
+            # Crear y aplicar nueva lógica
+            new_logic = traci.trafficlight.Logic(
+                programID=program_id,
+                type=logic_type,
+                currentPhaseIndex=0,
+                phases=tuple(new_phases),
+                subParameter=sub_params
+            )
+
+            traci.trafficlight.setCompleteRedYellowGreenDefinition(traffic_light_id, new_logic)
             logger.info(f"Programa aplicado a {traffic_light_id}: {len(program.phases)} fases")
-            
+
         except Exception as e:
             logger.error(f"Error aplicando programa a {traffic_light_id}: {e}")
-            # Fallback: usar método más simple
-            self._apply_simple_program(traffic_light_id, program)
-    
-    def _apply_simple_program(self, traffic_light_id: str, program: TrafficLightProgram):
-        """
-        Método alternativo para aplicar programa (más simple)
-        
-        Args:
-            traffic_light_id: ID del semáforo
-            program: Programa a aplicar
-        """
-        try:
-            # Usar método más básico de traci
-            for i, phase in enumerate(program.phases):
-                traci.trafficlight.setPhaseDuration(traffic_light_id, i, phase.duration)
-            
-            logger.info(f"Programa simple aplicado a {traffic_light_id}")
-            
-        except Exception as e:
-            logger.error(f"Error aplicando programa simple a {traffic_light_id}: {e}")
     
     def get_traffic_light_status(self, traffic_light_id: str) -> Dict[str, Any]:
         """

@@ -53,12 +53,13 @@ class SimulationOrchestrator:
         self.step_length = SIMULATION_CONFIG["step_length"]
         self.detection_interval = BOTTLENECK_CONFIG["detection_interval"]
         
-        # Nuevos atributos para threading
+        # Atributos para threading
         self.request_queue = Queue()
         self.response_queue = Queue()
         self.worker_thread = None
         self.worker_running = False
-        
+        self._history_lock = threading.Lock()  # Lock para acceso thread-safe al historial
+
         self.logger.info("Orquestador de simulación inicializado")
     
     def setup_simulation(self) -> bool:
@@ -236,7 +237,7 @@ class SimulationOrchestrator:
                         self.logger.warning("Error enviando datos a traffic-control")
                     
                     # Guardar en historial (thread-safe)
-                    with threading.Lock():
+                    with self._history_lock:
                         self.bottleneck_history.append({
                             "timestamp": current_time,
                             "intersection_id": detection.intersection_id,
@@ -384,17 +385,13 @@ class SimulationOrchestrator:
         try:
             # Obtener edges controlados
             controlled_edges = self.bottleneck_detector.intersection_edges.get(detection.traffic_light_id, [])
-            
-            # Crear métricas
-            # Normalizar densidad a rango 0-1 (traffic-control espera valores entre 0 y 1)
-            raw_density = float(detection.metrics.get('density', 0.0))
-            normalized_density = min(raw_density / 100.0, 1.0) if raw_density > 1.0 else raw_density
-            
+
+            # Crear métricas (la normalización de densidad se hace en TrafficDataPayload.normalize())
             metrics = {
                 'vehicles_per_minute': int(detection.metrics.get('vehicle_count', 0)),
                 'avg_speed_kmh': float(detection.metrics.get('average_speed', 0.0)),
                 'avg_circulation_time_sec': float(detection.metrics.get('avg_circulation_time_sec', 30.0)),
-                'density': normalized_density,
+                'density': float(detection.metrics.get('density', 0.0)),
                 'vehicle_stats': detection.metrics.get('vehicle_stats', {
                     'motorcycle': 0,
                     'car': int(detection.metrics.get('vehicle_count', 0)),
@@ -493,14 +490,19 @@ class SimulationOrchestrator:
             
             # Obtener estadísticas de la cola de peticiones
             queue_size = self.request_queue.qsize() if hasattr(self, 'request_queue') else 0
-            
+
+            # Acceso thread-safe al historial
+            with self._history_lock:
+                history_len = len(self.bottleneck_history)
+                history_copy = list(self.bottleneck_history)
+
             return {
                 "current_time": current_time,
                 "vehicle_count": vehicle_count,
-                "bottleneck_detections": len(self.bottleneck_history),
-                "detection_history": self.bottleneck_history,
+                "bottleneck_detections": history_len,
+                "detection_history": history_copy,
                 "pending_requests": queue_size,
-                "worker_thread_alive": self.worker_thread.is_alive() if hasattr(self, 'worker_thread') else False
+                "worker_thread_alive": self.worker_thread.is_alive() if hasattr(self, 'worker_thread') and self.worker_thread else False
             }
         except Exception as e:
             self.logger.error(f"Error obteniendo estadísticas: {e}")

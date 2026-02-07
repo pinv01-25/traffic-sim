@@ -12,6 +12,7 @@ from config import BOTTLENECK_CONFIG
 from services.metrics_calculator import MetricsCalculator
 from utils.descriptive_names import descriptive_names
 from utils.logger import setup_logger
+from utils.traci_helpers import get_edge_vehicles, get_vehicle_speed, safe_float
 
 logger = setup_logger(__name__)
 
@@ -22,7 +23,7 @@ os.makedirs("logs", exist_ok=True)
 def log_to_file(message: str):
     """Escribe mensaje al archivo de log con timestamp"""
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    with open(LOG_FILE, "w") as f:  # 'w' para sobrescribir cada vez
+    with open(LOG_FILE, "a") as f:  # 'a' para append (no perder logs anteriores)
         f.write(f"[{timestamp}] {message}\n")
 
 @dataclass
@@ -204,26 +205,16 @@ class BottleneckDetector:
 
 
     def _calculate_queue_length(self, edges: List[str]) -> int:
+        """Calcula la longitud de cola (vehículos con velocidad < 1 m/s)."""
         queue_length = 0
         for edge_id in edges:
             try:
-                # Obtener nombre descriptivo al inicio para evitar errores de scope
-                edge_name = descriptive_names.get_edge_name(edge_id)
-                
-                vehicles = traci.edge.getLastStepVehicleIDs(edge_id)
+                vehicles = get_edge_vehicles(edge_id)
                 for vehicle_id in vehicles:
-                    speed = traci.vehicle.getSpeed(vehicle_id)
-                    # Robustecer: asegurar que speed sea float
-                    if isinstance(speed, (list, tuple)):
-                        speed = float(speed[0]) if speed else 0.0
-                    else:
-                        try:
-                            speed = float(speed)
-                        except Exception:
-                            speed = 0.0
-                    if speed < 1.0:
+                    if get_vehicle_speed(vehicle_id) < 1.0:
                         queue_length += 1
             except Exception as e:
+                edge_name = descriptive_names.get_edge_name(edge_id)
                 logger.warning(f"Error calculando cola en {edge_name} ({edge_id}): {e}")
         return queue_length
 
@@ -304,15 +295,24 @@ class BottleneckDetector:
         )
 
     def _check_detection_duration(self, intersection_id: str, severity: str) -> bool:
-        if intersection_id not in self.detection_history:
+        """
+        Verifica si ha pasado suficiente tiempo desde la última detección con misma severidad.
+
+        Returns:
+            True si se puede registrar nueva detección, False si es muy pronto.
+        """
+        history = self.detection_history.get(intersection_id)
+        if not history:
             return True
-        history = self.detection_history[intersection_id]
-        current_time = float(traci.simulation.getTime())
+
+        current_time = safe_float(traci.simulation.getTime())
         min_duration = BOTTLENECK_CONFIG["min_detection_duration"]
+
+        # Buscar última detección con misma severidad
         for detection in reversed(history):
             if detection.severity == severity:
-                time_diff = current_time - float(detection.timestamp)
-                return time_diff >= min_duration
+                return (current_time - detection.timestamp) >= min_duration
+
         return True
 
     def get_intersection_status(self, intersection_id: str) -> Dict:
