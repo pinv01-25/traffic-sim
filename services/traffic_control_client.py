@@ -2,7 +2,6 @@
 Cliente HTTP para comunicación con traffic-control
 """
 
-import random
 import re
 import time
 from dataclasses import dataclass, field
@@ -22,63 +21,128 @@ logger = setup_logger(__name__)
 
 @dataclass
 class TrafficLightOptimization:
-    """Optimización para un semáforo individual"""
+    """Optimización para un semáforo individual dentro de un cluster"""
     traffic_light_id: str
     green_time_sec: float
     red_time_sec: float
-    apply_immediately: bool = True
+    cluster_sensors: List[str] = field(default_factory=list)
+    original_congestion: int = 0
+    optimized_congestion: int = 0
+    original_category: str = ""
+    optimized_category: str = ""
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "TrafficLightOptimization":
+        optimization = data.get("optimization", {})
+        impact = data.get("impact", {})
         return cls(
             traffic_light_id=str(data.get("traffic_light_id", "")),
-            green_time_sec=float(data.get("green_time_sec", 30)),
-            red_time_sec=float(data.get("red_time_sec", 30)),
-            apply_immediately=bool(data.get("apply_immediately", True))
+            green_time_sec=float(optimization.get("green_time_sec", 30)),
+            red_time_sec=float(optimization.get("red_time_sec", 30)),
+            cluster_sensors=data.get("cluster_sensors", []),
+            original_congestion=int(impact.get("original_congestion", 0)),
+            optimized_congestion=int(impact.get("optimized_congestion", 0)),
+            original_category=str(impact.get("original_category", "")),
+            optimized_category=str(impact.get("optimized_category", "")),
         )
 
 
 @dataclass
 class ClusterOptimizationResponse:
-    """Respuesta de optimización para un cluster de semáforos"""
+    """Respuesta de optimización para un cluster de semáforos.
+
+    Parsea la respuesta de traffic-control que incluye el OptimizationBatch
+    generado por traffic-sync (fuzzy + clustering + PSO).
+    """
     status: str
     optimizations: List[TrafficLightOptimization] = field(default_factory=list)
     cluster_id: Optional[str] = None
-    coordinated: bool = False
     message: Optional[str] = None
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "ClusterOptimizationResponse":
-        optimizations = [
-            TrafficLightOptimization.from_dict(opt)
-            for opt in data.get("optimizations", [])
-        ]
-        cluster_info = data.get("cluster_info", {})
+    def from_api_response(cls, data: Dict[str, Any]) -> "ClusterOptimizationResponse":
+        """Parsea la respuesta del endpoint /process de traffic-control.
+
+        La respuesta incluye un campo 'optimization' con el OptimizationBatch
+        que traffic-sync generó (contiene optimizations con cluster_sensors).
+        """
+        status = data.get("status", "error")
+        optimization_batch = data.get("optimization", {})
+
+        optimizations = []
+        raw_optimizations = optimization_batch.get("optimizations", [])
+
+        for opt in raw_optimizations:
+            optimizations.append(TrafficLightOptimization.from_dict(opt))
+
         return cls(
-            status=data.get("status", "error"),
+            status=status,
             optimizations=optimizations,
-            cluster_id=cluster_info.get("cluster_id"),
-            coordinated=cluster_info.get("coordinated", False),
-            message=data.get("message")
+            cluster_id=optimization_batch.get("traffic_light_id"),
+            message=data.get("message", ""),
         )
 
 
 @dataclass
-class ClusterDataPayload:
-    """Payload con datos de múltiples semáforos para optimización de cluster"""
-    version: str = "2.0"
-    type: str = "cluster_data"
+class RawSimulationPayload:
+    """Raw payload for the /ingest endpoint. No normalization at all.
+
+    traffic-control handles all formatting (ID normalization, density
+    conversion, vehicle_stats padding, version assignment).
+    """
     timestamp: str = ""
-    primary_traffic_light_id: str = ""  # El que detectó el cuello de botella
+    source_id: str = ""  # Primary traffic light raw SUMO ID
     sensors: List[Dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
+        """Convert to dict for HTTP transmission. No normalization."""
+        return {
+            "timestamp": self.timestamp,
+            "source_id": self.source_id,
+            "sensors": self.sensors,
+        }
+
+
+@dataclass
+class ClusterDataPayload:
+    """Payload con datos de múltiples semáforos para optimización de cluster.
+
+    Genera un formato compatible con TrafficData de traffic-control:
+    type="data", traffic_light_id (digits-only), sensors con IDs normalizados.
+    """
+    version: str = "2.0"
+    type: str = "data"
+    timestamp: str = ""
+    traffic_light_id: str = ""  # ID primario (el que detectó el cuello de botella)
+    sensors: List[Dict[str, Any]] = field(default_factory=list)
+
+    @staticmethod
+    def _normalize_id(raw_id: str) -> str:
+        """Extrae solo los dígitos de un ID de semáforo."""
+        match = re.search(r"(\d+)", str(raw_id))
+        return match.group(1) if match else raw_id
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convierte a dict compatible con TrafficData de traffic-control."""
+        normalized_primary = self._normalize_id(self.traffic_light_id)
+
+        normalized_sensors = []
+        for sensor in self.sensors:
+            s = dict(sensor)
+            s["traffic_light_id"] = self._normalize_id(s.get("traffic_light_id", ""))
+            # Normalizar densidad a 0-1 si viene en veh/km
+            metrics = s.get("metrics", {})
+            density = metrics.get("density", 0.0)
+            if density > 1.0:
+                metrics["density"] = min(density / 100.0, 1.0)
+            normalized_sensors.append(s)
+
         return {
             "version": self.version,
             "type": self.type,
             "timestamp": self.timestamp,
-            "primary_traffic_light_id": self.primary_traffic_light_id,
-            "sensors": self.sensors
+            "traffic_light_id": normalized_primary,
+            "sensors": normalized_sensors,
         }
 
 @dataclass
@@ -388,96 +452,44 @@ class TrafficControlClient:
         
         return payload
 
-    def send_cluster_data(
-        self,
-        payload: ClusterDataPayload,
-        use_mock: bool = False
-    ) -> ClusterOptimizationResponse:
+    def send_raw_data(self, payload: RawSimulationPayload) -> ClusterOptimizationResponse:
         """
-        Envía datos de un cluster de semáforos para optimización coordinada.
+        Envía datos crudos de simulación a traffic-control /ingest.
+
+        No se realiza ninguna normalización — traffic-control se encarga de:
+        - Normalización de IDs (extraer dígitos)
+        - Normalización de densidad (veh/km → 0-1)
+        - Relleno de vehicle_stats (asegurar 4 claves)
+        - Asignación de versión
 
         Args:
-            payload: Datos del cluster con métricas de todos los semáforos
-            use_mock: Si True, usa el mock en lugar de la API real
+            payload: Datos crudos de simulación SUMO
 
         Returns:
             Respuesta con optimizaciones para cada semáforo del cluster
         """
-        if use_mock:
-            return self._mock_cluster_optimization(payload)
-
         try:
-            logger.info(f"Enviando datos de cluster (primario: {payload.primary_traffic_light_id})")
+            logger.info(f"Enviando datos crudos a /ingest (fuente: {payload.source_id})")
             data = payload.to_dict()
+            response = self._make_request("POST", "/ingest", data)
+            return ClusterOptimizationResponse.from_api_response(response)
+        except Exception as e:
+            logger.error(f"Error enviando datos crudos: {e}")
+            raise
 
-            # Enviar a traffic-control
-            response = self._make_request("POST", "/process-cluster", data)
+    def send_cluster_data(self, payload: ClusterDataPayload) -> ClusterOptimizationResponse:
+        """
+        [DEPRECATED] Use send_raw_data() instead.
 
-            return ClusterOptimizationResponse.from_dict(response)
-
+        Envía datos de un cluster de semáforos a traffic-control /process.
+        """
+        try:
+            logger.info(f"Enviando datos de cluster (primario: {payload.traffic_light_id})")
+            data = payload.to_dict()
+            response = self._make_request("POST", "/process", data)
+            return ClusterOptimizationResponse.from_api_response(response)
         except Exception as e:
             logger.error(f"Error enviando datos de cluster: {e}")
-            # Fallback al mock si la API falla
-            logger.info("Usando mock como fallback")
-            return self._mock_cluster_optimization(payload)
+            raise
 
-    def _mock_cluster_optimization(
-        self,
-        payload: ClusterDataPayload
-    ) -> ClusterOptimizationResponse:
-        """
-        Mock que simula la respuesta de la API de optimización.
-
-        Genera tiempos de semáforo basados en la densidad y velocidad
-        de cada sensor, simulando una optimización inteligente.
-        """
-        optimizations = []
-
-        for sensor in payload.sensors:
-            tl_id = sensor.get("traffic_light_id", "")
-            metrics = sensor.get("metrics", {})
-
-            # Extraer métricas
-            density = metrics.get("density", 0.5)  # Ya normalizada 0-1
-            avg_speed = metrics.get("avg_speed_kmh", 30.0)
-            vpm = metrics.get("vehicles_per_minute", 10)
-
-            # Algoritmo de optimización simple:
-            # - Alta densidad + baja velocidad = más tiempo de verde
-            # - Baja densidad + alta velocidad = menos tiempo de verde
-            congestion_score = density * 0.6 + (1 - min(avg_speed / 50.0, 1.0)) * 0.4
-
-            # Calcular tiempos (ciclo base de 60s)
-            base_cycle = 60.0
-            if congestion_score > 0.7:
-                # Alta congestión: más verde
-                green_time = base_cycle * 0.6 + random.uniform(-2, 2)
-            elif congestion_score > 0.4:
-                # Congestión media: balance
-                green_time = base_cycle * 0.5 + random.uniform(-2, 2)
-            else:
-                # Baja congestión: menos verde
-                green_time = base_cycle * 0.4 + random.uniform(-2, 2)
-
-            green_time = max(15, min(green_time, 45))  # Limitar entre 15-45s
-            red_time = base_cycle - green_time
-
-            optimizations.append(TrafficLightOptimization(
-                traffic_light_id=tl_id,
-                green_time_sec=round(green_time, 1),
-                red_time_sec=round(red_time, 1),
-                apply_immediately=True
-            ))
-
-            logger.debug(
-                f"Mock optimization for {tl_id}: "
-                f"congestion={congestion_score:.2f}, green={green_time:.1f}s"
-            )
-
-        return ClusterOptimizationResponse(
-            status="success",
-            optimizations=optimizations,
-            cluster_id=f"cluster_{payload.primary_traffic_light_id}",
-            coordinated=True,
-            message="Mock optimization applied"
-        ) 
+ 

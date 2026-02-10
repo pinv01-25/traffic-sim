@@ -79,7 +79,6 @@ def run_with_sumo_gui(
     cycle_time: float | None = None,
     sim_steps: int | None = None,
     enable_dynamic_optimization: bool = False,
-    use_mock_api: bool = True
 ) -> bool:
     """
     Ejecuta la simulación con sumo-gui (interfaz gráfica)
@@ -87,13 +86,13 @@ def run_with_sumo_gui(
     Args:
         simulation_dir: Directorio con archivos de simulación
         enable_dynamic_optimization: Habilitar optimización dinámica de clusters
-        use_mock_api: Usar mock en lugar de API real
 
     Returns:
         True si la simulación se ejecutó correctamente, False en caso contrario
     """
     try:
         import os
+        import re
         import subprocess
         import threading
         import time
@@ -103,14 +102,13 @@ def run_with_sumo_gui(
         from controllers.traffic_light_controller import TrafficLightController
         from detectors.bottleneck_detector import BottleneckDetector
         from services.traffic_control_client import (
-            ClusterDataPayload,
+            RawSimulationPayload,
             TrafficControlClient,
         )
         from utils.descriptive_names import descriptive_names
 
         if enable_dynamic_optimization:
-            mode = "mock" if use_mock_api else "API real"
-            print(f"Optimización dinámica de clusters HABILITADA (modo: {mode})")
+            print("Optimización dinámica de clusters HABILITADA (API real)")
         
         # Configuración para threading
         traffic_control_client = TrafficControlClient()
@@ -119,37 +117,32 @@ def run_with_sumo_gui(
         worker_thread = None
         
         def http_worker():
-            """Worker thread que procesa peticiones HTTP en segundo plano"""
+            """Worker thread que procesa peticiones HTTP en segundo plano (envía a /ingest)"""
             while worker_running:
                 try:
-                    # Obtener petición de la cola (con timeout para poder salir)
                     try:
-                        batch_payload = request_queue.get(timeout=1.0)
+                        raw_payload_dict = request_queue.get(timeout=1.0)
                     except Empty:
-                        continue  # Continuar el loop si no hay peticiones
-                    
+                        continue
+
                     try:
-                        # Enviar petición HTTP (esto es lo que antes bloqueaba)
-                        response = traffic_control_client.send_traffic_data_batch(batch_payload)
-                        
-                        # Procesar respuesta
+                        response = traffic_control_client._make_request("POST", "/ingest", raw_payload_dict)
+
                         if response and response.get("status") == "success":
-                            print("✅ Payload enviado exitosamente a traffic-control")
+                            print("Payload enviado exitosamente a traffic-control /ingest")
                             print(f"Respuesta: {response.get('message', 'Sin mensaje')}")
                         else:
-                            print("❌ Error enviando payload a traffic-control")
+                            print("Error enviando payload a traffic-control")
                             print(f"Respuesta: {response}")
-                    
+
                     except Exception as e:
-                        print(f"❌ Error enviando a traffic-control: {e}")
-                    
+                        print(f"Error enviando a traffic-control: {e}")
+
                     finally:
-                        # Marcar la tarea como completada
                         request_queue.task_done()
-                        
+
                 except Exception as e:
                     print(f"Error en worker thread: {e}")
-                    # Continuar procesando otras peticiones
         
         # Iniciar worker thread
         worker_thread = threading.Thread(
@@ -248,58 +241,65 @@ def run_with_sumo_gui(
             return nearby
 
         def process_cluster_optimization(primary_tl_id: str, detection, current_time: float):
-            """Procesa optimización de cluster y aplica cambios"""
+            """Procesa optimización de cluster enviando datos crudos a traffic-control /ingest"""
             nearby_tls = get_nearby_traffic_lights(primary_tl_id)
             print(f"\nCluster de {len(nearby_tls)} semáforos para optimización")
 
-            # Crear payload con datos del cluster
+            # Crear payload crudo (sin normalización — traffic-control se encarga)
             sensors = []
             for tl_id in nearby_tls:
                 intersection_data = detector.get_intersection_data(tl_id)
                 if intersection_data:
-                    raw_density = intersection_data.density
-                    normalized_density = min(raw_density / 100.0, 1.0)
                     sensor_data = {
-                        "traffic_light_id": tl_id,
+                        "traffic_light_id": tl_id,  # ID SUMO crudo
                         "controlled_edges": detector.intersection_edges.get(tl_id, []),
                         "metrics": {
                             "vehicles_per_minute": intersection_data.vehicle_count,
                             "avg_speed_kmh": intersection_data.average_speed,
                             "avg_circulation_time_sec": intersection_data.avg_circulation_time,
-                            "density": normalized_density
+                            "density": intersection_data.density,  # veh/km crudo
                         },
-                        "vehicle_stats": intersection_data.vehicle_stats
+                        "vehicle_stats": intersection_data.vehicle_stats or None,
                     }
                     sensors.append(sensor_data)
 
-            cluster_payload = ClusterDataPayload(
+            raw_payload = RawSimulationPayload(
                 timestamp=datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
-                primary_traffic_light_id=primary_tl_id,
-                sensors=sensors
+                source_id=primary_tl_id,
+                sensors=sensors,
             )
 
             import json as _json
-            print(f"\n========== CLUSTER PAYLOAD ==========")
+            print(f"\n========== CLUSTER PAYLOAD (raw → /ingest) ==========")
             print(f"Semáforo primario: {primary_tl_id}")
             print(f"Semáforos en cluster: {nearby_tls}")
-            print(_json.dumps(cluster_payload.to_dict(), indent=2, ensure_ascii=False))
+            print(_json.dumps(raw_payload.to_dict(), indent=2, ensure_ascii=False))
             print("======================================\n")
 
-            # Enviar a API o mock
-            response = traffic_control_client.send_cluster_data(cluster_payload, use_mock=use_mock_api)
+            # Enviar datos crudos a traffic-control /ingest
+            response = traffic_control_client.send_raw_data(raw_payload)
 
-            # Aplicar optimizaciones
+            # Aplicar optimizaciones usando cluster_sensors
             if response.status == "success" and tl_controller:
+                # Mapear IDs normalizados a IDs SUMO
+                sumo_tls_list = list(traci.trafficlight.getIDList())
+                norm_to_sumo = {}
+                for tid in sumo_tls_list:
+                    match = re.search(r"(\d+)", str(tid))
+                    norm_to_sumo[match.group(1) if match else tid] = tid
+
                 applied = 0
                 for opt in response.optimizations:
-                    if opt.apply_immediately:
+                    target_ids = opt.cluster_sensors if opt.cluster_sensors else [opt.traffic_light_id]
+                    for norm_id in target_ids:
+                        sumo_id = norm_to_sumo.get(norm_id, norm_id)
                         success = tl_controller.update_traffic_light(
-                            opt.traffic_light_id,
+                            sumo_id,
                             {"optimization": {"green_time_sec": opt.green_time_sec, "red_time_sec": opt.red_time_sec}}
                         )
                         if success:
                             applied += 1
-                            print(f"Optimización aplicada a {opt.traffic_light_id}: green={opt.green_time_sec}s")
+                            print(f"Optimización aplicada a {sumo_id}: green={opt.green_time_sec}s, red={opt.red_time_sec}s")
                 if applied > 0:
                     print(f"\n*** OPTIMIZACIÓN DE CLUSTER APLICADA: {applied} semáforos ***")
                     print(f"*** Cluster ID: {response.cluster_id} ***\n")
@@ -337,32 +337,26 @@ def run_with_sumo_gui(
                             if enable_dynamic_optimization:
                                 process_cluster_optimization(detection.traffic_light_id, detection, current_time)
                             else:
-                                # Modo legacy: enviar a cola HTTP
+                                # Modo legacy: enviar datos crudos a cola HTTP → /ingest
                                 controlled_edges = detector.intersection_edges.get(detection.intersection_id, [])
-                                v_count = int(detection.metrics.get('vehicle_count', 0))
-                                normalized_density = min(detection.metrics.get('density', 0.0) / 100.0, 1.0)
-
                                 sensor_data = {
-                                    "traffic_light_id": detection.traffic_light_id,
+                                    "traffic_light_id": detection.traffic_light_id,  # ID SUMO crudo
                                     "controlled_edges": controlled_edges,
                                     "metrics": {
-                                        "vehicles_per_minute": v_count,
+                                        "vehicles_per_minute": int(detection.metrics.get('vehicle_count', 0)),
                                         "avg_speed_kmh": float(detection.metrics.get('average_speed', 0.0)),
                                         "avg_circulation_time_sec": float(detection.metrics.get('avg_circulation_time_sec', 30.0)),
-                                        "density": normalized_density
+                                        "density": float(detection.metrics.get('density', 0.0)),  # veh/km crudo
                                     },
-                                    "vehicle_stats": detection.metrics.get('vehicle_stats', {"motorcycle": 0, "car": v_count, "bus": 0, "truck": 0})
+                                    "vehicle_stats": detection.metrics.get('vehicle_stats', None),
                                 }
-
-                                batch_payload = {
-                                    "version": "2.0",
-                                    "type": "data",
-                                    "timestamp": datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
-                                    "traffic_light_id": detection.traffic_light_id,
-                                    "sensors": [sensor_data]
-                                }
-                                request_queue.put(batch_payload)
-                                print("Petición agregada a cola para procesamiento asíncrono")
+                                raw_payload = RawSimulationPayload(
+                                    timestamp=datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
+                                    source_id=detection.traffic_light_id,
+                                    sensors=[sensor_data],
+                                )
+                                request_queue.put(raw_payload.to_dict())
+                                print("Petición agregada a cola para procesamiento asíncrono (/ingest)")
                     else:
                         # Mensaje pequeño cada 15 pasos cuando no hay detecciones
                         print(f"Paso {step} | Tiempo {current_time:.0f}s | Vehículos {vehicle_count} | Sin cuellos de botella")
@@ -409,7 +403,6 @@ def run_with_sumo_headless(
     cycle_time: float | None = None,
     sim_steps: int | None = None,
     enable_dynamic_optimization: bool = False,
-    use_mock_api: bool = True
 ) -> bool:
     """
     Ejecuta la simulación con sumo (modo headless)
@@ -417,7 +410,6 @@ def run_with_sumo_headless(
     Args:
         simulation_dir: Directorio con archivos de simulación
         enable_dynamic_optimization: Habilitar optimización dinámica de clusters
-        use_mock_api: Usar mock en lugar de API real
 
     Returns:
         True si la simulación se ejecutó correctamente, False en caso contrario
@@ -432,12 +424,10 @@ def run_with_sumo_headless(
             cycle_time=cycle_time,
             sim_steps=sim_steps,
             enable_dynamic_optimization=enable_dynamic_optimization,
-            use_mock_api=use_mock_api
         )
 
         if enable_dynamic_optimization:
-            mode = "mock" if use_mock_api else "API real"
-            print(f"Optimización dinámica de clusters HABILITADA (modo: {mode})")
+            print("Optimización dinámica de clusters HABILITADA (API real)")
         
         # Configurar simulación
         if not orchestrator.setup_simulation():
@@ -558,23 +548,17 @@ Ejemplos de uso:
         help="Habilitar optimización dinámica de clusters de semáforos durante la simulación"
     )
 
-    parser.add_argument(
-        "--use-real-api",
-        action="store_true",
-        help="Usar API real de traffic-control en lugar del mock (requiere --dynamic-optimization)"
-    )
-    
     args = parser.parse_args()
-    
+
     setup_logger("main")
-    
+
     # Extraer archivo ZIP
     try:
         simulation_dir = extract_simulation_zip(args.zip_file, args.extract_dir)
     except Exception as e:
         print(f"Error extrayendo ZIP: {e}")
         return False
-    
+
     # Ejecutar según el modo seleccionado
     if args.gui:
         success = run_with_sumo_gui(
@@ -583,7 +567,6 @@ Ejemplos de uso:
             cycle_time=args.cycle_time,
             sim_steps=args.sim_steps,
             enable_dynamic_optimization=args.dynamic_optimization,
-            use_mock_api=not args.use_real_api,
         )
     else:
         success = run_with_sumo_headless(
@@ -592,7 +575,6 @@ Ejemplos de uso:
             cycle_time=args.cycle_time,
             sim_steps=args.sim_steps,
             enable_dynamic_optimization=args.dynamic_optimization,
-            use_mock_api=not args.use_real_api,
         )
     
     # Limpiar archivos temporales

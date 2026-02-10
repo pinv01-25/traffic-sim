@@ -3,12 +3,16 @@
 
 This script executes two simulation runs:
   - A (Baseline): Original traffic light timings
-  - B (Optimized): Modified timings via --green-time parameter
+  - B (Optimized): Modified timings via --green-time or --dynamic-optimization
 
 Then generates comprehensive comparison visualizations and statistical analysis.
 
 Usage:
+    # Static green time mode:
     uv run python run_ab.py sim.zip --green-time 30.0
+
+    # Dynamic optimization mode (uses traffic-control/traffic-sync pipeline):
+    uv run python run_ab.py sim.zip --dynamic-optimization
 
     # With custom labels
     uv run python run_ab.py sim.zip --green-time 25 --label-a "Default" --label-b "25s Green"
@@ -54,6 +58,12 @@ Examples:
   # Basic A/B test with 30s green time
   uv run python run_ab.py sim.zip --green-time 30.0
 
+  # Dynamic optimization (baseline vs traffic-control/traffic-sync pipeline)
+  uv run python run_ab.py sim.zip --dynamic-optimization
+
+  # Dynamic optimization with custom labels
+  uv run python run_ab.py sim.zip --dynamic-optimization --label-b "Dynamic Opt"
+
   # Custom simulation steps
   uv run python run_ab.py sim.zip --green-time 25 --sim-steps 600
 
@@ -74,6 +84,9 @@ Examples:
     # Simulation parameters
     parser.add_argument('--green-time', type=float, default=30.0,
                         help='Green light duration for optimized run B (seconds)')
+    parser.add_argument('--dynamic-optimization', action='store_true',
+                        help='Use dynamic optimization via traffic-control/traffic-sync '
+                             'for run B instead of static --green-time')
     parser.add_argument('--cycle-time', type=float, default=60.0,
                         help='Total traffic light cycle time (seconds)')
     parser.add_argument('--sim-steps', type=int, default=300,
@@ -122,7 +135,18 @@ Examples:
 
     extract_a = f"{args.extract_base}_A"
     extract_b = f"{args.extract_base}_B"
-    labels = (args.label_a, args.label_b)
+
+    # Determine mode and default labels
+    use_dynamic = args.dynamic_optimization
+    if use_dynamic:
+        default_label_b = "Dynamic Optimization"
+        b_config_desc = "dynamic-optimization (traffic-control/traffic-sync)"
+    else:
+        default_label_b = "Optimized"
+        b_config_desc = f"green-time={args.green_time}s, cycle-time={args.cycle_time}s"
+
+    label_b = args.label_b if args.label_b != "Optimized" else default_label_b
+    labels = (args.label_a, label_b)
 
     if not args.analyze_only:
         # Build command arguments for each run
@@ -134,7 +158,11 @@ Examples:
             common_args.append('--keep-files')
 
         extra_a = common_args.copy()
-        extra_b = common_args + ["--green-time", str(args.green_time)]
+
+        if use_dynamic:
+            extra_b = common_args + ["--dynamic-optimization"]
+        else:
+            extra_b = common_args + ["--green-time", str(args.green_time)]
 
         # Run A (Baseline)
         print(f"\n{'#'*60}")
@@ -152,7 +180,7 @@ Examples:
         print(f"\n{'#'*60}")
         print(f"# STARTING OPTIMIZED RUN B")
         print(f"# Extract dir: {extract_b}")
-        print(f"# Configuration: green-time={args.green_time}s, cycle-time={args.cycle_time}s")
+        print(f"# Configuration: {b_config_desc}")
         print(f"{'#'*60}")
 
         rc = _run_instance(args.python, str(runner), args.zip_file, extract_b, extra_b)

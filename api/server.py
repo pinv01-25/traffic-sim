@@ -215,8 +215,11 @@ class SimulationManager:
             sys.path.insert(0, str(Path(__file__).parent.parent))
             from simulation_orchestrator import SimulationOrchestrator
             
-            # Create and setup orchestrator
-            orchestrator = SimulationOrchestrator(simulation_dir)
+            # Create and setup orchestrator with dynamic cluster optimization enabled
+            orchestrator = SimulationOrchestrator(
+                simulation_dir,
+                enable_dynamic_optimization=True,
+            )
             sim["orchestrator"] = orchestrator
             
             if not orchestrator.setup_simulation():

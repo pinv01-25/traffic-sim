@@ -4,6 +4,7 @@ Coordina detección de cuellos de botella, comunicación con traffic-control y a
 """
 
 import json
+import re
 import subprocess
 import threading
 import time
@@ -17,8 +18,8 @@ from config import BOTTLENECK_CONFIG, SIMULATION_CONFIG
 from controllers.traffic_light_controller import TrafficLightController
 from detectors.bottleneck_detector import BottleneckDetection, BottleneckDetector
 from services.traffic_control_client import (
-    ClusterDataPayload,
     ClusterOptimizationResponse,
+    RawSimulationPayload,
     TrafficControlClient,
     TrafficDataPayload,
 )
@@ -39,7 +40,6 @@ class SimulationOrchestrator:
         cycle_time: float | None = None,
         sim_steps: int | None = None,
         enable_dynamic_optimization: bool = False,
-        use_mock_api: bool = True
     ):
         self.simulation_dir = Path(simulation_dir)
         # optional signal timing overrides
@@ -51,7 +51,6 @@ class SimulationOrchestrator:
 
         # Configuración de optimización dinámica de clusters
         self.enable_dynamic_optimization = enable_dynamic_optimization
-        self.use_mock_api = use_mock_api  # True = usar mock, False = usar API real
         
         # Componentes del sistema
         self.bottleneck_detector = None
@@ -238,20 +237,23 @@ class SimulationOrchestrator:
                 payload, detection, current_time = request_data
                 
                 try:
-                    # Enviar petición HTTP (esto es lo que antes bloqueaba)
-                    response = self.traffic_control_client.send_traffic_data(payload)
-                    
+                    # Enviar datos crudos a /ingest (traffic-control normaliza)
+                    response = self.traffic_control_client.send_raw_data(payload)
+
                     # Procesar respuesta
-                    if response and response.get("status") == "success":
-                        self.logger.info("Datos enviados exitosamente a traffic-control")
-                        
-                        # Procesar optimización si está disponible
-                        optimization_data = self._extract_optimization_data(response)
-                        if optimization_data:
-                            # Aplicar optimización en el thread principal
-                            self._apply_traffic_optimization(optimization_data)
+                    if response.status == "success":
+                        self.logger.info("Datos enviados exitosamente a traffic-control /ingest")
+
+                        # Aplicar optimizaciones si hay
+                        if response.optimizations:
+                            for opt in response.optimizations:
+                                self._apply_traffic_optimization({
+                                    "traffic_light_id": opt.traffic_light_id,
+                                    "green_time_sec": opt.green_time_sec,
+                                    "red_time_sec": opt.red_time_sec,
+                                })
                     else:
-                        self.logger.warning("Error enviando datos a traffic-control")
+                        self.logger.warning(f"Error en respuesta de traffic-control: {response.message}")
                     
                     # Guardar en historial (thread-safe)
                     with self._history_lock:
@@ -401,7 +403,8 @@ class SimulationOrchestrator:
     def _process_cluster_optimization(self, detection: BottleneckDetection, current_time: float):
         """
         Procesa optimización de cluster: obtiene semáforos cercanos,
-        envía datos a la API y aplica optimizaciones inmediatamente.
+        envía datos a traffic-control /process (flujo normal:
+        storage → traffic-sync → storage) y aplica optimizaciones.
         """
         try:
             primary_tl_id = detection.traffic_light_id
@@ -410,25 +413,22 @@ class SimulationOrchestrator:
             nearby_tls = self._get_nearby_traffic_lights(primary_tl_id)
             self.logger.info(f"Cluster de {len(nearby_tls)} semáforos para optimización")
 
-            # Crear payload con datos de todo el cluster
-            cluster_payload = self._create_cluster_payload(primary_tl_id, nearby_tls, current_time)
+            # Crear payload crudo con datos de todo el cluster (sin normalización)
+            raw_payload = self._create_raw_cluster_payload(primary_tl_id, nearby_tls, current_time)
 
             # Mostrar payload en consola
-            print(f"\n{Colors.CYAN}{Colors.BOLD}PAYLOAD DE CLUSTER A TRAFFIC-CONTROL{Colors.END}")
+            print(f"\n{Colors.CYAN}{Colors.BOLD}PAYLOAD DE CLUSTER A TRAFFIC-CONTROL (/ingest){Colors.END}")
             print(f"{Colors.CYAN}Semáforo primario: {primary_tl_id}{Colors.END}")
             print(f"{Colors.CYAN}Semáforos en cluster: {nearby_tls}{Colors.END}")
             print(f"{Colors.CYAN}{'='*50}{Colors.END}")
-            print(json.dumps(cluster_payload.to_dict(), indent=2, ensure_ascii=False))
+            print(json.dumps(raw_payload.to_dict(), indent=2, ensure_ascii=False))
             print(f"{Colors.CYAN}{'='*50}{Colors.END}\n")
 
-            # Enviar a la API (o mock)
-            response = self.traffic_control_client.send_cluster_data(
-                cluster_payload,
-                use_mock=self.use_mock_api
-            )
+            # Enviar datos crudos a traffic-control /ingest (normalización en traffic-control)
+            response = self.traffic_control_client.send_raw_data(raw_payload)
 
-            # Aplicar optimizaciones inmediatamente
-            self._apply_cluster_optimization(response)
+            # Aplicar optimizaciones recibidas
+            self._apply_cluster_optimization(response, nearby_tls)
 
             # Guardar en historial
             with self._history_lock:
@@ -444,42 +444,36 @@ class SimulationOrchestrator:
         except Exception as e:
             self.logger.error(f"Error en optimización de cluster: {e}")
     
-    def _create_traffic_payload(self, detection: BottleneckDetection, current_time: float) -> TrafficDataPayload:
-        """Crea el payload para traffic-control"""
+    def _create_traffic_payload(self, detection: BottleneckDetection, current_time: float) -> RawSimulationPayload:
+        """Crea el payload crudo para traffic-control /ingest (modo legacy single-sensor)"""
         try:
-            # Obtener edges controlados
             controlled_edges = self.bottleneck_detector.intersection_edges.get(detection.traffic_light_id, [])
 
-            # Crear métricas (la normalización de densidad se hace en TrafficDataPayload.normalize())
-            metrics = {
-                'vehicles_per_minute': int(detection.metrics.get('vehicle_count', 0)),
-                'avg_speed_kmh': float(detection.metrics.get('average_speed', 0.0)),
-                'avg_circulation_time_sec': float(detection.metrics.get('avg_circulation_time_sec', 30.0)),
-                'density': float(detection.metrics.get('density', 0.0)),
-                'vehicle_stats': detection.metrics.get('vehicle_stats', {
-                    'motorcycle': 0,
-                    'car': int(detection.metrics.get('vehicle_count', 0)),
-                    'bus': 0,
-                    'truck': 0
-                })
+            sensor_data = {
+                "traffic_light_id": detection.traffic_light_id,  # ID SUMO crudo
+                "controlled_edges": controlled_edges,
+                "metrics": {
+                    "vehicles_per_minute": int(detection.metrics.get('vehicle_count', 0)),
+                    "avg_speed_kmh": float(detection.metrics.get('average_speed', 0.0)),
+                    "avg_circulation_time_sec": float(detection.metrics.get('avg_circulation_time_sec', 30.0)),
+                    "density": float(detection.metrics.get('density', 0.0)),  # veh/km crudo
+                },
+                "vehicle_stats": detection.metrics.get('vehicle_stats', None),
             }
-            
-            # Crear payload
-            payload = self.traffic_control_client.create_traffic_payload(
-                traffic_light_id=detection.traffic_light_id,
-                controlled_edges=controlled_edges,
-                metrics=metrics,
-                timestamp=datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+
+            payload = RawSimulationPayload(
+                timestamp=datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
+                source_id=detection.traffic_light_id,
+                sensors=[sensor_data],
             )
-            
-            # Imprimir en consola el payload que se enviará
-            print(f"\n{Colors.CYAN}{Colors.BOLD}PAYLOAD A TRAFFIC-CONTROL{Colors.END}")
+
+            print(f"\n{Colors.CYAN}{Colors.BOLD}PAYLOAD A TRAFFIC-CONTROL (/ingest){Colors.END}")
             print(f"{Colors.CYAN}{'='*50}{Colors.END}")
             print(json.dumps(payload.to_dict(), indent=2, ensure_ascii=False))
             print(f"{Colors.CYAN}{'='*50}{Colors.END}\n")
-            
+
             return payload
-            
+
         except Exception as e:
             self.logger.error(f"Error creando payload: {e}")
             raise
@@ -562,97 +556,123 @@ class SimulationOrchestrator:
             self.logger.error(f"Error obteniendo semáforos cercanos: {e}")
             return [primary_tl_id]
 
-    def _create_cluster_payload(
+    def _create_raw_cluster_payload(
         self,
         primary_tl_id: str,
         nearby_tls: list,
-        current_time: float
-    ) -> ClusterDataPayload:
+        current_time: float,
+    ) -> RawSimulationPayload:
         """
-        Crea un payload con datos de todos los semáforos del cluster.
+        Crea un payload crudo con datos de todos los semáforos del cluster.
+
+        No realiza ninguna normalización — traffic-control se encarga de:
+        - Normalización de IDs (extraer dígitos de IDs SUMO)
+        - Normalización de densidad (veh/km → 0-1)
+        - Relleno de vehicle_stats (asegurar 4 claves)
+        - Asignación de versión
 
         Args:
-            primary_tl_id: ID del semáforo que detectó el cuello de botella
-            nearby_tls: Lista de IDs de semáforos cercanos
+            primary_tl_id: ID del semáforo que detectó el cuello de botella (ID SUMO crudo)
+            nearby_tls: Lista de IDs de semáforos cercanos (IDs SUMO crudos)
             current_time: Tiempo actual de simulación
 
         Returns:
-            ClusterDataPayload con métricas de todos los semáforos
+            RawSimulationPayload con datos crudos de SUMO
         """
         sensors = []
 
         for tl_id in nearby_tls:
-            # Obtener datos de intersección
             intersection_data = self.bottleneck_detector.get_intersection_data(tl_id)
 
             if intersection_data:
-                # Normalizar densidad a 0-1
-                raw_density = intersection_data.density
-                normalized_density = min(raw_density / 100.0, 1.0)
-
                 sensor_data = {
-                    "traffic_light_id": tl_id,
+                    "traffic_light_id": tl_id,  # ID SUMO crudo, sin normalizar
                     "controlled_edges": self.bottleneck_detector.intersection_edges.get(tl_id, []),
                     "metrics": {
                         "vehicles_per_minute": intersection_data.vehicle_count,
                         "avg_speed_kmh": intersection_data.average_speed,
                         "avg_circulation_time_sec": intersection_data.avg_circulation_time,
-                        "density": normalized_density
+                        "density": intersection_data.density,  # veh/km crudo, sin normalizar
                     },
-                    "vehicle_stats": intersection_data.vehicle_stats
+                    "vehicle_stats": intersection_data.vehicle_stats or None,
                 }
                 sensors.append(sensor_data)
 
-        return ClusterDataPayload(
+        return RawSimulationPayload(
             timestamp=datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
-            primary_traffic_light_id=primary_tl_id,
-            sensors=sensors
+            source_id=primary_tl_id,  # ID SUMO crudo
+            sensors=sensors,
         )
 
-    def _apply_cluster_optimization(self, response: ClusterOptimizationResponse):
+    def _apply_cluster_optimization(
+        self,
+        response: ClusterOptimizationResponse,
+        nearby_tls: list | None = None,
+    ):
         """
-        Aplica las optimizaciones recibidas para todo el cluster de semáforos.
+        Aplica las optimizaciones recibidas de traffic-sync (vía traffic-control)
+        a los semáforos del cluster en SUMO.
+
+        Cada optimización de traffic-sync agrupa semáforos por cluster_sensors.
+        Se aplica el mismo green/red time a todos los semáforos de cada cluster.
 
         Args:
-            response: Respuesta con optimizaciones para cada semáforo
+            response: Respuesta con optimizaciones por cluster
+            nearby_tls: Lista original de IDs de semáforos (IDs SUMO originales)
         """
         if response.status != "success":
             self.logger.warning(f"Optimización de cluster fallida: {response.message}")
             return
 
+        # Mapear IDs normalizados a IDs originales de SUMO
+        sumo_tls = list(traci.trafficlight.getIDList())
+        normalized_to_sumo = {}
+        for tl_id in sumo_tls:
+            match = re.search(r"(\d+)", str(tl_id))
+            normalized = match.group(1) if match else tl_id
+            normalized_to_sumo[normalized] = tl_id
+
         applied_count = 0
 
         for opt in response.optimizations:
-            if not opt.apply_immediately:
-                continue
+            # Obtener todos los semáforos de este cluster
+            target_tl_ids = opt.cluster_sensors if opt.cluster_sensors else [opt.traffic_light_id]
 
-            try:
-                # Usar TrafficLightController para aplicar cambios
-                success = self.traffic_light_controller.update_traffic_light(
-                    opt.traffic_light_id,
-                    {
-                        "optimization": {
-                            "green_time_sec": opt.green_time_sec,
-                            "red_time_sec": opt.red_time_sec
-                        }
-                    }
-                )
+            for normalized_id in target_tl_ids:
+                # Resolver ID normalizado a ID SUMO original
+                sumo_id = normalized_to_sumo.get(normalized_id, normalized_id)
 
-                if success:
-                    applied_count += 1
-                    self.logger.info(
-                        f"Optimización aplicada a {opt.traffic_light_id}: "
-                        f"green={opt.green_time_sec}s, red={opt.red_time_sec}s"
+                try:
+                    success = self.traffic_light_controller.update_traffic_light(
+                        sumo_id,
+                        {
+                            "optimization": {
+                                "green_time_sec": opt.green_time_sec,
+                                "red_time_sec": opt.red_time_sec,
+                            }
+                        },
                     )
 
-            except Exception as e:
-                self.logger.error(f"Error aplicando optimización a {opt.traffic_light_id}: {e}")
+                    if success:
+                        applied_count += 1
+                        self.logger.info(
+                            f"Optimización aplicada a {sumo_id} (norm:{normalized_id}): "
+                            f"green={opt.green_time_sec}s, red={opt.red_time_sec}s "
+                            f"[cluster: {opt.cluster_sensors}]"
+                        )
+
+                except Exception as e:
+                    self.logger.error(f"Error aplicando optimización a {sumo_id}: {e}")
 
         if applied_count > 0:
             print(f"\n{Colors.GREEN}{Colors.BOLD}OPTIMIZACIÓN DE CLUSTER APLICADA{Colors.END}")
-            print(f"{Colors.GREEN}Semáforos actualizados: {applied_count}/{len(response.optimizations)}{Colors.END}")
-            if response.cluster_id:
-                print(f"{Colors.GREEN}Cluster ID: {response.cluster_id}{Colors.END}")
+            print(f"{Colors.GREEN}Semáforos actualizados: {applied_count}{Colors.END}")
+            for opt in response.optimizations:
+                print(
+                    f"{Colors.GREEN}  Cluster {opt.cluster_sensors}: "
+                    f"green={opt.green_time_sec}s, red={opt.red_time_sec}s "
+                    f"({opt.original_category} → {opt.optimized_category}){Colors.END}"
+                )
             print(f"{Colors.GREEN}{'='*50}{Colors.END}\n")
     
     def _pause_simulation(self):
