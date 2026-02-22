@@ -61,6 +61,7 @@ from .ab_test import (
     bootstrap_ci_diff,
     mann_whitney_test,
     cohens_d,
+    analyze_incomplete_trips,
 )
 
 from .sumo_tools import (

@@ -1,179 +1,107 @@
 # Traffic-Sim: Simulador de Tráfico Inteligente
 
-Traffic-Sim es un sistema de simulación de tráfico urbano que utiliza SUMO (Simulation of Urban MObility) para detectar cuellos de botella en tiempo real y optimizar dinámicamente los semáforos mediante comunicación con el servicio traffic-control.
+Traffic-Sim es un sistema de simulación de tráfico urbano que utiliza SUMO (Simulation of Urban MObility) para detectar cuellos de botella en tiempo real y optimizar dinámicamente los semáforos mediante comunicación con el servicio `traffic-control`.
 
 ## Características
 
-- **Detección automática de cuellos de botella**: Analiza densidad de vehículos, velocidad promedio y longitud de colas
-- **Comunicación síncrona con traffic-control**: Envía datos de tráfico y recibe optimizaciones de semáforos (con logging en consola para debugging)
-- **Control dinámico de semáforos**: Actualiza tiempos de semáforos en tiempo real
-- **Pipeline completo**: Desde detección hasta aplicación de optimizaciones
-- **Logging robusto**: Sistema completo de logs para monitoreo y debugging
-- **Dos modos de ejecución**: GUI (interfaz gráfica) y Headless (consola)
+- **Detección automática de cuellos de botella** — analiza densidad, velocidad y longitud de colas
+- **Comunicación con traffic-control** — envía datos crudos a `/ingest` y recibe optimizaciones
+- **Control dinámico de semáforos** — actualiza tiempos en tiempo real vía TraCI
+- **Dos modos de ejecución** — GUI (interfaz gráfica) y Headless (consola)
+- **Reproducibilidad con seeds** — control del comportamiento estocástico de conductores
+- **Pipeline A/B completo** — 24 gráficos + tests estadísticos + análisis de viajes incompletos
+- **Experimento multi-seed** — cuantifica variabilidad entre runs para validar significancia
+- **Comparador Webster (sim_C)** — baseline fixed-time óptimo teórico para benchmarking
+
+---
 
 ## Arquitectura
 
 ```
 traffic-sim/
-├── config.py                    # Configuración del sistema
-├── run_simulation.py            # Script principal de ejecución
-├── simulation_orchestrator.py   # Orquestador principal
-├── pyproject.toml               # Configuración de dependencias (uv)
-├── utils/                       # Utilidades
-│   ├── logger.py               # Sistema de logging
-├── detectors/                   # Detectores
-│   ├── bottleneck_detector.py  # Detector de cuellos de botella
-├── services/                    # Servicios externos
-│   ├── traffic_control_client.py # Cliente HTTP para traffic-control
-├── controllers/                 # Controladores
-│   ├── traffic_light_controller.py # Controlador de semáforos
-└── simulation/                  # Archivos de simulación SUMO
-    ├── edges.edg.xml
-    ├── nodes.nod.xml
-    ├── routes.rou.xml
-    ├── simulation.sumocfg
-    └── traffic_lights.add.xml
+├── run_simulation.py               # Entry point principal (CLI)
+├── simulation_orchestrator.py      # Orquestador: TraCI + detección + HTTP
+├── config.py                       # Configuración centralizada
+├── visualization/                  # Pipeline de visualización y análisis A/B
+│   ├── __init__.py                 # Exports: generate_ab_test, analyze_incomplete_trips, ...
+│   ├── ab_test.py                  # compare_runs(), estadísticas, viajes incompletos
+│   ├── parsers.py                  # parse_tripinfo(), parse_fcd(), parse_summary(), ...
+│   ├── plots.py                    # Todas las funciones de plotting
+│   └── sumo_tools.py               # Wrappers de herramientas nativas SUMO
+├── scripts/                        # Análisis académicos y experimentos adicionales
+│   ├── run_multiseed.py            # Experimento multi-seed (reproducibilidad)
+│   ├── aggregate_seeds.py          # Agrega resultados multi-seed + violin plots
+│   ├── generate_webster_timing.py  # Genera sim_C con tiempos Webster óptimos
+│   ├── run_sim_c.py                # Ejecuta sim_C headless
+│   ├── compare_three_runs.py       # Comparación 3-way: A vs B vs C
+│   └── _sim_utils.py               # Auto-detección de directorios de simulación
+├── detectors/
+│   └── bottleneck_detector.py
+├── controllers/
+│   └── traffic_light_controller.py
+├── services/
+│   └── traffic_control_client.py
+└── utils/
+    ├── logger.py
+    └── signal_utils.py
 ```
 
-## Pipeline de Funcionamiento
-
-1. **Inicia la simulación** con SUMO y traci
-2. **Entran los autos** según las rutas definidas
-3. **Se detecta un cuello de botella** en una intersección con semáforo
-4. **Se envía información** de la calle (vehículos, velocidad, densidad)
-5. **Se pausa momentáneamente** la simulación mientras se reciben datos
-6. **Se actualizan los tiempos** de los semáforos
-7. **Se continúa la simulación** hasta detectar otro cuello de botella
-8. **Se termina** cuando no hay autos o se alcanza el tiempo límite
+---
 
 ## Requisitos
-
-### Software
 
 - Python ≥ 3.10
 - SUMO ≥ 1.8.0
 
 ### Instalación de SUMO
 
-#### Ubuntu/Debian:
-
 ```bash
-sudo apt-get update
-sudo apt-get install sumo sumo-tools sumo-gui sumo-doc
-```
+# Ubuntu/Debian
+sudo apt-get install sumo sumo-tools sumo-gui
 
-#### macOS:
-
-```bash
+# macOS
 brew install sumo
 ```
 
-#### Windows:
-
-Descargar desde [SUMO Downloads](https://sumo.dlr.de/docs/Downloads.php)
-
-## Instalación
-
-1. **Clonar el repositorio:**
-
-```bash
-git clone <repository-url>
-cd traffic-sim
-```
-
-2. **Instalar dependencias Python con uv:**
-
-Primero instala `uv` si aún no lo tienes:
+### Instalación de dependencias Python
 
 ```bash
 pip install uv
-```
-
-Luego sincroniza las dependencias del proyecto:
-
-```bash
 uv sync
 ```
 
-Si además quieres instalar las herramientas de desarrollo (como Ruff) y las optimizaciones opcionales:
-
-```bash
-uv sync --extra dev --extra speedups
-```
-
-3. **Configurar variables de entorno:**
-   Crear archivo `.env` en la raíz del proyecto:
-
-```env
-TRAFFIC_CONTROL_URL=http://localhost:8003
-LOG_LEVEL=INFO
-LOG_FILE=traffic_sim.log
-```
-
-4. **Verificar instalación de SUMO:**
-
-```bash
-sumo --version
-```
-
-### Comandos útiles con uv y Ruff
-
-Si instalaste los extras de desarrollo (`uv sync --extra dev`), puedes usar Ruff para analizar y formatear el código:
-
-```bash
-# Análisis estático (lint)
-uv run ruff check .
-
-# Formatear código
-uv run ruff format .
-```
-
-## Configuración
-
-### Archivo config.py
-
-El archivo `config.py` contiene todas las configuraciones del sistema:
-
-```python
-# Configuración de detección de cuellos de botella
-BOTTLENECK_CONFIG = {
-    "density_threshold": 50.0,  # vehículos por kilómetro
-    "speed_threshold": 5.0,     # metros por segundo (18 km/h)
-    "queue_length_threshold": 10, # número de vehículos en cola
-    "detection_interval": 30,   # segundos entre detecciones
-    "min_detection_duration": 10, # segundos mínimos para confirmar
-}
-
-# Configuración de comunicación con traffic-control
-TRAFFIC_CONTROL_CONFIG = {
-    "base_url": "http://localhost:8003",
-    "timeout": 30,              # segundos
-    "retry_attempts": 3,
-    "retry_delay": 5,           # segundos
-}
-```
+---
 
 ## Uso
 
-### Ejecución Básica con Archivo ZIP
+### Ejecución básica
 
 ```bash
-# Modo headless (por defecto) - detección de cuellos de botella
-python run_simulation.py simulation.zip
+# Headless (por defecto)
+uv run python run_simulation.py simulation.zip
 
-# Modo GUI (interfaz gráfica SUMO)
-python run_simulation.py simulation.zip --gui
+# Con interfaz gráfica
+uv run python run_simulation.py simulation.zip --gui
 
-# Extraer a directorio específico
-python run_simulation.py simulation.zip --extract-dir ./mi_simulacion
+# Con semilla fija (reproducibilidad)
+uv run python run_simulation.py simulation.zip --seed 42
 
-# Mantener archivos extraídos
-python run_simulation.py simulation.zip --keep-files
+# Limitar pasos de simulación
+uv run python run_simulation.py simulation.zip --sim-steps 2000
+
+# Optimización dinámica de semáforos (requiere traffic-control corriendo)
+uv run python run_simulation.py simulation.zip --dynamic-optimization
 ```
 
-### Estructura del Archivo ZIP
+### Parámetro `--seed`
 
-El archivo ZIP debe contener los siguientes archivos SUMO:
+`--seed N` controla la estocasticidad del comportamiento de los conductores (gap acceptance, cambio de carril, variabilidad por `sigma`). Las rutas están prefijadas en `routes.rou.xml`; el seed solo afecta cómo los conductores las recorren.
+
+```bash
+uv run python run_simulation.py sim.zip --seed 42 --sim-steps 3600
+```
+
+### Estructura del ZIP
 
 ```
 simulation.zip
@@ -181,360 +109,216 @@ simulation.zip
 ├── nodes.nod.xml
 ├── routes.rou.xml
 ├── simulation.sumocfg
-└── traffic_lights.add.xml (opcional)
+└── traffic_lights.add.xml
 ```
-
-### Modos de Ejecución
-
-#### Modo Headless (Por defecto)
-
-- Detecta cuellos de botella automáticamente
-- Envía datos a traffic-control (simulado)
-- Actualiza semáforos dinámicamente
-- Muestra estadísticas en consola
-- **Teleporting deshabilitado** para detección realista de cuellos de botella
-- Ideal para ejecuciones automatizadas y análisis de datos
-
-#### Modo GUI
-
-- Abre la interfaz gráfica de SUMO
-- Controla el avance de la simulación desde Python
-- Visualización en tiempo real del tráfico
-- Debug output en consola con detección de cuellos de botella
-- **Teleporting deshabilitado** para simulación realista
-- Útil para debugging y análisis visual
-
-### Ejecución con Configuración Personalizada
-
-```python
-from simulation_orchestrator import SimulationOrchestrator
-
-# Crear orquestador con directorio personalizado
-orchestrator = SimulationOrchestrator("mi_simulacion")
-
-# Configurar y ejecutar
-if orchestrator.setup_simulation():
-    orchestrator.run_simulation()
-```
-
-### Monitoreo en Tiempo Real
-
-```python
-# Obtener estadísticas de la simulación
-stats = orchestrator.get_simulation_stats()
-print(f"Tiempo: {stats['current_time']}s")
-print(f"Vehículos: {stats['vehicle_count']}")
-print(f"Detecciones: {stats['bottleneck_detections']}")
-```
-
-## Formato de Datos
-
-### Payload para traffic-control
-
-```json
-{
-  "version": "1.0",
-  "type": "data",
-  "timestamp": "2025-01-27T15:30:00",
-  "traffic_light_id": "TL-105",
-  "controlled_edges": ["E1", "E2"],
-  "metrics": {
-    "vehicles_per_minute": 42,
-    "avg_speed_kmh": 39.1,
-    "avg_circulation_time_sec": 31.8,
-    "density": 0.82
-  },
-  "vehicle_stats": {
-    "motorcycle": 4,
-    "car": 17,
-    "bus": 0,
-    "truck": 1
-  }
-}
-```
-
-### Respuesta de traffic-control
-
-```json
-{
-  "status": "success",
-  "message": "Data processed and optimized successfully",
-  "optimization": {
-    "green_time_sec": 45,
-    "red_time_sec": 35
-  },
-  "impact": {
-    "original_congestion": 75,
-    "optimized_congestion": 45,
-    "original_category": "high",
-    "optimized_category": "medium"
-  }
-}
-```
-
-## Logs
-
-Los logs se guardan en el directorio `logs/` con el formato:
-
-```
-logs/simulation_YYYYMMDD_HHMMSS.log
-```
-
-### Niveles de Log
-
-- **INFO**: Información general del sistema
-- **WARNING**: Advertencias no críticas
-- **ERROR**: Errores que requieren atención
-- **DEBUG**: Información detallada para debugging
-
-## Troubleshooting
-
-### Error: "SUMO no está instalado"
-
-```bash
-# Verificar instalación
-which sumo
-sumo --version
-
-# Si no está instalado, seguir instrucciones de instalación
-```
-
-### Error: "No se pudo conectar con traffic-control"
-
-```bash
-# Verificar variables de entorno
-echo $TRAFFIC_CONTROL_URL
-
-# Verificar que el servicio traffic-control esté ejecutándose en el puerto 8003
-curl http://localhost:8003/healthcheck
-```
-
-### Error: "Error en conexión traci"
-
-```bash
-# Verificar que SUMO esté instalado correctamente
-sumo --version
-
-# Verificar que el archivo de configuración sea válido
-sumo -c simulation/simulation.sumocfg --check-route
-
-# En modo GUI, asegurarse de que no haya otra instancia ejecutándose
-```
-
-### Error: "Error generando red"
-
-```bash
-# Verificar archivos de entrada
-ls -la simulation/
-# Debe contener: edges.edg.xml, nodes.nod.xml, routes.rou.xml, simulation.sumocfg
-
-# Verificar permisos
-chmod +x simulation/
-```
-
-### Error: "Error en conexión traci"
-
-```bash
-# Verificar puerto disponible
-netstat -tuln | grep 8813
-
-# Cambiar puerto en configuración si es necesario
-```
-
-## Desarrollo
-
-### Estructura de Archivos de Simulación
-
-Los archivos en `simulation/` deben seguir el formato SUMO:
-
-- **edges.edg.xml**: Definición de calles
-- **nodes.nod.xml**: Definición de intersecciones
-- **routes.rou.xml**: Rutas de vehículos
-- **simulation.sumocfg**: Configuración de simulación
-- **traffic_lights.add.xml**: Configuración de semáforos
-
-### Agregar Nuevos Detectores
-
-```python
-from detectors.bottleneck_detector import BottleneckDetector
-
-class MiDetector(BottleneckDetector):
-    def detect_bottlenecks(self):
-        # Implementar lógica personalizada
-        pass
-```
-
-### Personalizar Controlador de Semáforos
-
-```python
-from controllers.traffic_light_controller import TrafficLightController
-
-class MiControlador(TrafficLightController):
-    def update_traffic_light(self, traffic_light_id, optimization_data):
-        # Implementar lógica personalizada
-        pass
-```
-
-## Contribución
-
-1. Fork el proyecto
-2. Crear una rama para tu feature (`git checkout -b feature/AmazingFeature`)
-3. Commit tus cambios (`git commit -m 'Add some AmazingFeature'`)
-4. Push a la rama (`git push origin feature/AmazingFeature`)
-5. Abrir un Pull Request
-
-## Licencia
-
-Este proyecto está bajo la Licencia MIT. Ver el archivo `LICENSE` para más detalles.
-
-## Contacto
-
-Para preguntas o soporte, contactar al equipo de desarrollo.
 
 ---
 
-**Nota**: Este sistema realiza peticiones HTTP reales a traffic-control y mantiene logging en consola para debugging. Las peticiones se envían al endpoint `/process` del servicio traffic-control.
+## Pipeline A/B
 
-## Ejemplos de Uso Rápido
+Compara dos corridas (A = control, B = optimizada con IA) y genera 24 gráficos + reportes estadísticos automáticamente.
 
-### Ejecución Básica
+### Uso programático
 
-```bash
-# Descargar un archivo ZIP de simulación y ejecutar
-python run_simulation.py mi_simulacion.zip
+```python
+from visualization import generate_ab_test
+
+report = generate_ab_test('sim_A', 'sim_B', labels=('Control', 'IA'))
+print(report['statistical_results']['percent_improvement'])
 ```
 
-### Visualización con GUI
+### Uso desde `run_simulation.py`
 
 ```bash
-# Ejecutar con interfaz gráfica para análisis visual
-python run_simulation.py mi_simulacion.zip --gui
+# Correr sim_B y comparar automáticamente con sim_A
+uv run python run_simulation.py sim_B.zip --extract-dir sim_B --compare-with sim_A
 ```
 
-### Desarrollo y Testing
+### Auto-detección de directorios
 
-```bash
-# Mantener archivos extraídos para análisis posterior
-python run_simulation.py mi_simulacion.zip --keep-files --extract-dir ./debug_sim
-```
+Los scripts detectan automáticamente los directorios de simulación sin necesidad de argumentos. Buscan en el directorio de trabajo actual en este orden:
 
-## Sistema de Visualización y Pruebas A/B
+1. `sim_A/`, `sim_B/`, `sim_C/` (nombres convencionales)
+2. Cualquier directorio que termine en `_A`, `_B`, `_C` (ej. `ab_run_A`, `test_B`)
 
-El sistema incluye herramientas para ejecutar pruebas A/B comparando diferentes configuraciones de semáforos y generar visualizaciones detalladas.
+Esto permite usar cualquier nombre de directorio siempre que siga la convención de sufijo.
 
-### Comando Completo Recomendado
+### Gráficos generados (24 archivos)
 
-```bash
-uv run python run_ab.py sim.zip \
-  --green-time 30 \
-  --cycle-time 60 \
-  --sim-steps 500 \
-  --label-a "Baseline (Default)" \
-  --label-b "Optimized (30s Green)" \
-  --use-sumo-tools \
-  --keep-files
-```
+Guardados en `sim_B/logs/visualizations/ab_test/`:
 
-### Ejecución Rápida
+| # | Archivo | Contenido |
+|---|---|---|
+| 01 | `01_duration_hist_cdf.png` | Histograma + CDF de duración de viajes |
+| 02 | `02_duration_boxplot.png` | Boxplot comparativo de duración |
+| 03 | `03_duration_violin.png` | Violin plot de tiempos de viaje |
+| 04 | `04_timeloss_violin.png` | Violin plot de tiempo perdido |
+| 05 | `05_multi_metric_violin.png` | Violin de duration, timeLoss, waitingTime, departDelay |
+| 06 | `06_metric_comparison_bars.png` | Barras comparativas de métricas |
+| 07 | `07_duration_time_series.png` | Serie temporal de duración |
+| 08 | `08_timeloss_time_series.png` | Serie temporal de tiempo perdido |
+| 09–10 | `09/10_*.png` | Congestión y métricas de summary.xml |
+| 11 | `11_efficiency_comparison.png` | Eficiencia temporal |
+| 12 | `12_speed_distribution.png` | Distribución de velocidades |
+| 13 | `13_waiting_time_analysis.png` | Análisis de tiempos de espera |
+| 14 | `14_percentile_comparison.png` | Comparación por percentiles |
+| 15–16 | `15/16_correlation_heatmap_A/B.png` | Matrices de correlación |
+| 17 | `17_fcd_comparison.png` | Comparación FCD (Floating Car Data) |
+| 18 | `18_improvement_summary.png` | Resumen de mejoras |
+| 19–20 | `19/20_time_series_mean_A/B.png` | Serie temporal individual por run |
+| **21** | **`21_incomplete_histogram.png`** | **Histograma: completados vs incompletos** |
+| **22** | **`22_incomplete_cdf.png`** | **CDF: completados vs incompletos** |
+| **23** | **`23_incomplete_boxplot.png`** | **Boxplot: completados vs incompletos** |
+| **24** | **`24_incomplete_scatter.png`** | **Scatter: depart time vs time_in_network** |
 
-```bash
-# Prueba A/B básica
-uv run python run_ab.py sim.zip --green-time 30.0
-```
+Los gráficos **21–24** analizan los **viajes incompletos** de sim_A: vehículos que entraron a la red (aparecen en `fcd.xml`) pero no completaron su ruta (ausentes en `tripinfo.xml`). Cuantifican cuántos viajes son excluidos del análisis A/B y por qué, detectando posible sesgo de selección en las métricas reportadas.
 
-Esto ejecuta:
-1. **Run A (Baseline)**: Simulación con tiempos de semáforo por defecto
-2. **Run B (Optimized)**: Simulación con `--green-time` personalizado
-3. **Análisis**: Genera 20+ gráficos comparativos + tests estadísticos
+### Tests estadísticos (automáticos)
 
-### Opciones del CLI
+- **Permutation test** — p-value para diferencia de medias
+- **Bootstrap CI 95%** — intervalo de confianza para la diferencia
+- **Mann-Whitney U** — test no paramétrico
+- **Cohen's d** — tamaño del efecto
 
-| Opción | Descripción | Default |
-|--------|-------------|---------|
-| `--green-time` | Duración de luz verde para run B (segundos) | 30.0 |
-| `--cycle-time` | Ciclo total del semáforo (segundos) | 60.0 |
-| `--sim-steps` | Pasos de simulación | 300 |
-| `--label-a` / `--label-b` | Etiquetas para los reportes | "Baseline"/"Optimized" |
-| `--gui` | Ejecutar con interfaz gráfica SUMO | - |
-| `--use-sumo-tools` | Incluir gráficos nativos de SUMO | - |
-| `--analyze-only` | Solo analizar (sin ejecutar simulaciones) | - |
-| `--output-dir` | Directorio de salida personalizado | `sim_B/logs/visualizations/ab_test` |
-| `--keep-files` | Mantener archivos extraídos después de la ejecución | - |
-
-### Ejemplos de Pruebas A/B
-
-```bash
-# Prueba básica
-uv run python run_ab.py sim.zip --green-time 25
-
-# Con etiquetas personalizadas
-uv run python run_ab.py sim.zip --green-time 30 --label-a "Original" --label-b "30s Green"
-
-# Más pasos de simulación
-uv run python run_ab.py sim.zip --green-time 35 --sim-steps 600
-
-# Incluir herramientas nativas SUMO
-uv run python run_ab.py sim.zip --green-time 30 --use-sumo-tools
-
-# Solo analizar ejecuciones existentes
-uv run python run_ab.py sim.zip --analyze-only --extract-base sim
-```
-
-### Gráficos Generados (20+)
-
-**Comparaciones de distribución:**
-- `duration_hist_cdf.png` - Histograma + CDF de tiempos de viaje
-- `duration_boxplot.png` - Boxplot comparativo
-- `travel_time_violin.png` - Violin plot de tiempos de viaje
-- `multi_metric_violin.png` - Violin plots múltiples métricas
-
-**Series temporales:**
-- `time_series_mean.png` - Media por intervalo de tiempo
-- `time_series_comparison.png` - Comparación temporal detallada
-- `congestion_timeline.png` - Timeline de congestión
-
-**Análisis de métricas:**
-- `metric_comparison_bars.png` - Barras comparativas de métricas
-- `efficiency_comparison.png` - Comparación de eficiencia
-- `percentile_comparison.png` - Comparación por percentiles
-- `improvement_summary.png` - Resumen de mejoras
-
-**Análisis específicos:**
-- `speed_distribution.png` - Distribución de velocidades
-- `waiting_time_analysis.png` - Análisis de tiempos de espera
-- `correlation_heatmap.png` - Matriz de correlación
-- `summary_comparison.png` - Comparación de métricas de summary.xml
-
-**FCD (Floating Car Data):**
-- `fcd_speed_heatmap.png` - Mapa de calor de velocidades
-- `fcd_comparison.png` - Comparación FCD entre runs
-
-### Tests Estadísticos
-
-El sistema calcula automáticamente:
-- **Permutation Test** - p-value para diferencia de medias
-- **Bootstrap CI** - Intervalo de confianza 95% para la diferencia
-- **Mann-Whitney U** - Test no paramétrico
-- **Cohen's d** - Tamaño del efecto
-
-### Estructura de Salida
+### Reportes
 
 ```
 sim_B/logs/visualizations/ab_test/
-├── *.png                 # Todos los gráficos
-├── ab_test_report.csv    # Reporte tabular
-└── ab_test_report.json   # Reporte completo con estadísticas
+├── ab_summary.csv          # Tabla de métricas y tests
+├── ab_report.json          # Reporte completo con estadísticas
+└── incomplete_trips.csv    # Detalle de viajes incompletos en sim_A
 ```
 
-### Uso Programático
+---
+
+## Experimento Multi-Seed
+
+Repite el test A/B con múltiples seeds para cuantificar si el efecto observado es reproducible o un artefacto de una sola corrida. Aborda la limitación académica de resultados basados en un único seed.
+
+```bash
+# Ejecutar 5 seeds (crea results/seed_N/sim_{A,B}/tripinfo.xml)
+uv run python scripts/run_multiseed.py --seeds 42 123 456 789 1337 --sim-steps 2000
+
+# Agregar resultados y generar violin plots
+uv run python scripts/aggregate_seeds.py --results-dir results/
+```
+
+### Qué genera `aggregate_seeds.py`
+
+- `diag_multiseed_effect.png` — violin de duration/waitingTime/timeLoss por seed (A vs B)
+- `diag_multiseed_improvement.png` — scatter de mejora% por seed
+- `multiseed_stats_by_seed.csv` — mean ± std por (seed, condición)
+- `multiseed_improvement.csv` — Δ% A→B por seed
+- Wilcoxon signed-rank: ¿la mejora es consistente entre seeds?
+
+### Opciones de `run_multiseed.py`
+
+```bash
+uv run python scripts/run_multiseed.py \
+  --seeds 42 123 456 789 1337 \
+  --sim-steps 2000 \
+  --out results/ \
+  --dynamic-optimization   # Habilitar IA en sim_B (requiere traffic-control)
+```
+
+---
+
+## Comparador Webster (sim_C)
+
+Genera un tercer baseline usando la **fórmula de Webster** para calcular tiempos de semáforo óptimos teóricos a partir de los volúmenes de tráfico reales. Permite responder si la IA supera al mejor fixed-time posible, no solo al naïf.
+
+### Fórmula de Webster
+
+```
+C₀ = (1.5·L + 5) / (1 − Y)
+gᵢ = (C₀ − L) · yᵢ / Y
+
+L  = tiempo perdido total = n_fases_verdes × 4 s
+yᵢ = volumen_crítico_fase_i / 1800 (veh/h/carril)
+Y  = Σ yᵢ
+```
+
+### Workflow completo
+
+```bash
+# 1. Calcular tiempos Webster y crear sim_C/ (copia de sim_A con traffic_lights.add.xml nuevo)
+uv run python scripts/generate_webster_timing.py
+
+# 2. Ejecutar sim_C headless
+uv run python scripts/run_sim_c.py --sim-steps 3600
+
+# 3. Comparación 3-way: A (fixed-time naïf) vs B (IA) vs C (Webster óptimo)
+uv run python scripts/compare_three_runs.py
+```
+
+### Qué genera `compare_three_runs.py`
+
+- `diag_three_way.png` — boxplot de duration, waitingTime, timeLoss para las 3 condiciones
+- `three_way_summary.csv` — mean, std, Δ% vs A, p-value Mann-Whitney (A-B, A-C, B-C)
+
+---
+
+## Uso Programático
 
 ```python
-from visualization import generate_ab_test, quick_compare
+from visualization import generate_ab_test, analyze_incomplete_trips, quick_compare
+from visualization.parsers import parse_tripinfo
+from simulation_orchestrator import SimulationOrchestrator
 
-# Generar todos los gráficos
-report = generate_ab_test('sim_A', 'sim_B', labels=('Control', 'Test'))
+# Pipeline A/B completo (24 gráficos + reportes)
+report = generate_ab_test('sim_A', 'sim_B', labels=('Control', 'IA'))
 
 # Solo estadísticas rápidas (sin gráficos)
 stats = quick_compare('sim_A', 'sim_B')
 print(f"Mejora: {stats['percent_improvement']:.1f}%")
+
+# Solo análisis de viajes incompletos
+df_trip = parse_tripinfo('sim_A/logs/sumo_output/tripinfo.xml')
+analyze_incomplete_trips('sim_A', df_trip, out_dir='out/', label='A')
+
+# SimulationOrchestrator con seed fijo
+orch = SimulationOrchestrator('sim_A', sim_steps=2000, seed=42)
+if orch.setup_simulation():
+    orch.run_simulation()
 ```
+
+---
+
+## Configuración
+
+```python
+# config.py
+BOTTLENECK_CONFIG = {
+    "density_threshold": 50.0,    # vehículos/km
+    "speed_threshold": 5.0,       # m/s (18 km/h)
+    "queue_length_threshold": 10,
+    "detection_interval": 30,     # pasos entre detecciones
+}
+
+TRAFFIC_CONTROL_CONFIG = {
+    "base_url": "http://localhost:8003",
+    "timeout": 30,
+}
+```
+
+Variables de entorno (`.env`):
+
+```env
+TRAFFIC_CONTROL_URL=http://localhost:8003
+LOG_LEVEL=INFO
+```
+
+---
+
+## Troubleshooting
+
+**SUMO no encontrado**
+```bash
+which sumo && sumo --version
+```
+
+**traffic-control no disponible** — los errores HTTP son esperados al correr localmente sin Docker. La simulación continúa en modo fixed-time sin interrupciones.
+
+**FCD muy grande** — `parse_fcd()` acepta `sample_rate=N` para leer solo cada N timesteps. El análisis de viajes incompletos usa streaming sin cargar todo en memoria.
+
+**Directorio de simulación no encontrado** — los scripts buscan `sim_A/` y `sim_B/` en el directorio actual. Si usas nombres distintos, asegúrate de que terminen en `_A` y `_B` (ej. `mi_exp_A`, `mi_exp_B`).

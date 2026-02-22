@@ -40,6 +40,7 @@ class SimulationOrchestrator:
         cycle_time: float | None = None,
         sim_steps: int | None = None,
         enable_dynamic_optimization: bool = False,
+        seed: int | None = None,
     ):
         self.simulation_dir = Path(simulation_dir)
         # optional signal timing overrides
@@ -47,6 +48,8 @@ class SimulationOrchestrator:
         self.cycle_time = cycle_time
         # optional auto-stop after number of simulation steps
         self.sim_steps = int(sim_steps) if sim_steps is not None else None
+        # optional SUMO random seed
+        self.seed = seed
         self.logger = get_simulation_logger()
 
         # Configuración de optimización dinámica de clusters
@@ -176,6 +179,8 @@ class SimulationOrchestrator:
                 "--summary-output", os.path.join(output_dir, "summary.xml"),
                 "--fcd-output", os.path.join(output_dir, "fcd.xml"),
             ]
+            if self.seed is not None:
+                traci_cmd.extend(["--seed", str(self.seed)])
             traci.start(traci_cmd)
             # Apply signal timings if requested
             try:

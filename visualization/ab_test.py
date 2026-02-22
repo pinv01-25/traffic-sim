@@ -47,6 +47,269 @@ def _find_file(run_dir: str, filename: str) -> Optional[Path]:
     return None
 
 
+# =============================================================================
+# INCOMPLETE TRIPS ANALYSIS
+# =============================================================================
+
+def _get_last_fcd_times(run_dir: str) -> Dict[str, float]:
+    """Stream fcd.xml and return the last observed timestep per vehicle ID."""
+    import xml.etree.ElementTree as ET
+    p = _find_file(run_dir, 'fcd.xml')
+    if p is None:
+        return {}
+    last_time: Dict[str, float] = {}
+    current_time = 0.0
+    for _event, elem in ET.iterparse(str(p), events=['end']):
+        if elem.tag == 'timestep':
+            current_time = float(elem.get('time', 0.0))
+        elif elem.tag == 'vehicle':
+            vid = elem.get('id')
+            if vid:
+                last_time[vid] = current_time
+            elem.clear()
+    return last_time
+
+
+def _get_depart_times(run_dir: str) -> Dict[str, float]:
+    """Parse routes.rou.xml and return vehicle depart times."""
+    import xml.etree.ElementTree as ET
+    p = _find_file(run_dir, 'routes.rou.xml')
+    if p is None:
+        # also look in parent of logs/sumo_output
+        p = Path(run_dir) / 'routes.rou.xml'
+        if not p.exists():
+            return {}
+    depart: Dict[str, float] = {}
+    for _event, elem in ET.iterparse(str(p)):
+        if elem.tag == 'vehicle':
+            vid = elem.get('id')
+            d = elem.get('depart')
+            if vid and d is not None:
+                try:
+                    depart[vid] = float(d)
+                except ValueError:
+                    pass
+            elem.clear()
+    return depart
+
+
+def _compute_incomplete_trips(run_dir: str, df_trip: pd.DataFrame) -> pd.DataFrame:
+    """
+    Identify vehicles present in FCD but absent in tripinfo (incomplete trips).
+
+    Returns DataFrame with columns:
+        id, last_fcd_time, depart, time_in_network
+    """
+    last_fcd = _get_last_fcd_times(run_dir)
+    if not last_fcd:
+        return pd.DataFrame()
+
+    completed_ids = set(df_trip['id'].tolist()) if not df_trip.empty else set()
+    incomplete_ids = set(last_fcd.keys()) - completed_ids
+
+    if not incomplete_ids:
+        return pd.DataFrame()
+
+    depart_times = _get_depart_times(run_dir)
+
+    rows = []
+    for vid in incomplete_ids:
+        last_t = last_fcd[vid]
+        depart = depart_times.get(vid)
+        rows.append({
+            'id': vid,
+            'last_fcd_time': last_t,
+            'depart': depart if depart is not None else float('nan'),
+            'time_in_network': (last_t - depart) if depart is not None else float('nan'),
+        })
+    return pd.DataFrame(rows).sort_values('time_in_network').reset_index(drop=True)
+
+
+def _plot_incomplete_histogram(
+    completed_dur: np.ndarray,
+    time_in_network: np.ndarray,
+    out_dir: str,
+    label: str,
+    filename: str = '21_incomplete_histogram.png',
+) -> None:
+    """Histogram: duration of completed trips vs time_in_network of incomplete ones."""
+    import matplotlib.pyplot as plt
+
+    fig, ax = plt.subplots(figsize=(9, 5))
+    p99_c = float(np.percentile(completed_dur, 99)) if len(completed_dur) else 1
+    p99_i = float(np.percentile(time_in_network, 99)) if len(time_in_network) else 1
+    ax.hist(np.clip(completed_dur, 0, p99_c), bins=30, alpha=0.55,
+            color='steelblue', density=True,
+            label=f'Completados — {label} (n={len(completed_dur)})')
+    if len(time_in_network):
+        ax.hist(np.clip(time_in_network, 0, p99_i), bins=20, alpha=0.55,
+                color='tomato', density=True,
+                label=f'Incompletos time_in_network (n={len(time_in_network)})')
+        ax.axvline(float(np.mean(time_in_network)), color='tomato', ls='--', lw=1.5,
+                   label=f'μ incompletos={np.mean(time_in_network):.0f}s')
+    ax.axvline(float(np.mean(completed_dur)), color='steelblue', ls='--', lw=1.5,
+               label=f'μ completados={np.mean(completed_dur):.0f}s')
+    ax.set_xlabel('Tiempo en red (s)')
+    ax.set_ylabel('Densidad')
+    ax.set_title(f'Distribución de tiempos — viajes incompletos vs completados\n({label})')
+    ax.legend(fontsize=9)
+    ax.grid(True, alpha=0.25)
+    fig.tight_layout()
+    fig.savefig(os.path.join(out_dir, filename), dpi=150, bbox_inches='tight')
+    plt.close(fig)
+
+
+def _plot_incomplete_cdf(
+    completed_dur: np.ndarray,
+    time_in_network: np.ndarray,
+    out_dir: str,
+    label: str,
+    filename: str = '22_incomplete_cdf.png',
+) -> None:
+    """CDF: completed duration vs incomplete time_in_network."""
+    import matplotlib.pyplot as plt
+
+    fig, ax = plt.subplots(figsize=(9, 5))
+    for data, color, lbl in [
+        (np.sort(completed_dur), 'steelblue', f'Completados (duration)'),
+        (np.sort(time_in_network), 'tomato', f'Incompletos (time_in_network)'),
+    ]:
+        if len(data):
+            cdf = np.arange(1, len(data) + 1) / len(data)
+            ax.plot(data, cdf, color=color, lw=2, label=lbl)
+    ax.set_xlabel('Tiempo (s)')
+    ax.set_ylabel('CDF')
+    ax.set_title(f'Función de distribución acumulada — incompletos vs completados\n({label})')
+    ax.legend(fontsize=9)
+    ax.grid(True, alpha=0.25)
+    fig.tight_layout()
+    fig.savefig(os.path.join(out_dir, filename), dpi=150, bbox_inches='tight')
+    plt.close(fig)
+
+
+def _plot_incomplete_boxplot(
+    completed_dur: np.ndarray,
+    time_in_network: np.ndarray,
+    out_dir: str,
+    label: str,
+    filename: str = '23_incomplete_boxplot.png',
+) -> None:
+    """Box plot: completed duration vs incomplete time_in_network."""
+    import matplotlib.pyplot as plt
+
+    fig, ax = plt.subplots(figsize=(7, 6))
+    data_list = [d for d in [completed_dur, time_in_network] if len(d) > 0]
+    tick_labels = ['Completados\n(duration)', 'Incompletos\n(time_in_network)'][:len(data_list)]
+    bp = ax.boxplot(data_list, tick_labels=tick_labels, patch_artist=True,
+                    showfliers=True,
+                    flierprops={'marker': '.', 'markersize': 3, 'alpha': 0.4})
+    colors = ['steelblue', 'tomato']
+    for patch, color in zip(bp['boxes'], colors):
+        patch.set_facecolor(color)
+        patch.set_alpha(0.65)
+    for i, data in enumerate(data_list, 1):
+        ax.scatter([i], [np.mean(data)], marker='D', color=colors[i - 1],
+                   s=50, zorder=5, edgecolors='white', linewidths=0.8)
+        ax.text(i, np.mean(data) * 1.02, f'μ={np.mean(data):.0f}s',
+                ha='center', va='bottom', fontsize=8)
+    ax.set_ylabel('Tiempo (s)')
+    ax.set_title(f'Box plot comparativo — viajes incompletos vs completados\n({label})')
+    ax.grid(True, alpha=0.25, axis='y')
+    fig.tight_layout()
+    fig.savefig(os.path.join(out_dir, filename), dpi=150, bbox_inches='tight')
+    plt.close(fig)
+
+
+def _plot_incomplete_scatter(
+    df_incomplete: pd.DataFrame,
+    completed_dur: np.ndarray,
+    out_dir: str,
+    label: str,
+    filename: str = '24_incomplete_scatter.png',
+) -> None:
+    """Scatter: depart time vs time_in_network for incomplete trips."""
+    import matplotlib.pyplot as plt
+
+    fig, ax = plt.subplots(figsize=(9, 5))
+    valid = df_incomplete.dropna(subset=['time_in_network', 'depart'])
+    if not valid.empty:
+        ax.scatter(valid['depart'], valid['time_in_network'],
+                   alpha=0.6, s=35, color='tomato', label='Viaje incompleto', zorder=3)
+    if len(completed_dur):
+        ax.axhline(float(np.mean(completed_dur)), color='steelblue', ls='--', lw=1.8,
+                   label=f'μ duration completados ({np.mean(completed_dur):.0f}s)')
+    ax.set_xlabel('Tiempo de salida (depart, s)')
+    ax.set_ylabel('time_in_network (s)')
+    ax.set_title(f'Viajes incompletos: tiempo de salida vs tiempo en red\n({label})')
+    ax.legend(fontsize=9)
+    ax.grid(True, alpha=0.25)
+    n = len(valid)
+    ax.annotate(f'n={n} incompletos', xy=(0.02, 0.96), xycoords='axes fraction',
+                fontsize=9, va='top')
+    fig.tight_layout()
+    fig.savefig(os.path.join(out_dir, filename), dpi=150, bbox_inches='tight')
+    plt.close(fig)
+
+
+def analyze_incomplete_trips(
+    run_dir: str,
+    df_trip: pd.DataFrame,
+    out_dir: str,
+    label: str = 'A',
+) -> List[str]:
+    """
+    Analyze incomplete trips (vehicles in FCD but not in tripinfo) and generate
+    4 separate diagnostic plots.
+
+    Called automatically from compare_runs() for run_A.
+
+    Args:
+        run_dir:  Simulation directory (must contain fcd.xml and routes.rou.xml)
+        df_trip:  Parsed tripinfo DataFrame for this run
+        out_dir:  Output directory for the 4 PNGs
+        label:    Run label shown in plot titles
+
+    Returns:
+        List of generated filenames.
+    """
+    print(f'  Analyzing incomplete trips for {label}...')
+    df_incomplete = _compute_incomplete_trips(run_dir, df_trip)
+
+    if df_incomplete.empty:
+        print(f'  No incomplete trips data available (fcd.xml missing?)')
+        return []
+
+    completed_dur = df_trip['duration'].dropna().values if not df_trip.empty else np.array([])
+    time_in_network = df_incomplete['time_in_network'].dropna().values
+
+    n_complete = len(completed_dur)
+    n_incomplete = len(df_incomplete)
+    print(f'  Completados: {n_complete} | Incompletos: {n_incomplete} '
+          f'| time_in_network mean: {time_in_network.mean():.1f}s' if len(time_in_network) else
+          f'  Completados: {n_complete} | Incompletos: {n_incomplete}')
+
+    Path(out_dir).mkdir(parents=True, exist_ok=True)
+    generated = []
+
+    _plot_incomplete_histogram(completed_dur, time_in_network, out_dir, label)
+    generated.append('21_incomplete_histogram.png')
+
+    _plot_incomplete_cdf(completed_dur, time_in_network, out_dir, label)
+    generated.append('22_incomplete_cdf.png')
+
+    _plot_incomplete_boxplot(completed_dur, time_in_network, out_dir, label)
+    generated.append('23_incomplete_boxplot.png')
+
+    _plot_incomplete_scatter(df_incomplete, completed_dur, out_dir, label)
+    generated.append('24_incomplete_scatter.png')
+
+    # Save CSV
+    csv_path = Path(out_dir) / 'incomplete_trips.csv'
+    df_incomplete.to_csv(str(csv_path), index=False)
+
+    return generated
+
+
 def _load_tripinfo(run_dir: str) -> pd.DataFrame:
     """Load tripinfo.xml from a run directory."""
     p = _find_file(run_dir, 'tripinfo.xml')
@@ -323,6 +586,12 @@ def compare_runs(
             plot_time_series_mean(df_trip_b, 'depart', 'duration', out_dir,
                                  filename=f'20_time_series_mean_{labels[1]}.png', bin_size=time_bin)
             generated_files.append(f'20_time_series_mean_{labels[1]}.png')
+
+        # 16. Incomplete trips analysis (runs 21–24)
+        incomplete_files = analyze_incomplete_trips(
+            run_a, df_trip_a, out_dir, label=labels[0]
+        )
+        generated_files.extend(incomplete_files)
 
     # Statistical tests
     print("Running statistical tests...")

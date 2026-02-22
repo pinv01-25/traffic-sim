@@ -79,6 +79,7 @@ def run_with_sumo_gui(
     cycle_time: float | None = None,
     sim_steps: int | None = None,
     enable_dynamic_optimization: bool = False,
+    seed: int | None = None,
 ) -> bool:
     """
     Ejecuta la simulación con sumo-gui (interfaz gráfica)
@@ -185,6 +186,8 @@ def run_with_sumo_gui(
             "--summary-output", os.path.join(sim_output_dir, "summary.xml"),
             "--fcd-output", os.path.join(sim_output_dir, "fcd.xml")
         ]
+        if seed is not None:
+            traci_cmd.extend(["--seed", str(seed)])
         traci.start(traci_cmd)
         # Apply signal timings if requested
         try:
@@ -403,6 +406,7 @@ def run_with_sumo_headless(
     cycle_time: float | None = None,
     sim_steps: int | None = None,
     enable_dynamic_optimization: bool = False,
+    seed: int | None = None,
 ) -> bool:
     """
     Ejecuta la simulación con sumo (modo headless)
@@ -424,6 +428,7 @@ def run_with_sumo_headless(
             cycle_time=cycle_time,
             sim_steps=sim_steps,
             enable_dynamic_optimization=enable_dynamic_optimization,
+            seed=seed,
         )
 
         if enable_dynamic_optimization:
@@ -548,6 +553,13 @@ Ejemplos de uso:
         help="Habilitar optimización dinámica de clusters de semáforos durante la simulación"
     )
 
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=None,
+        help="Semilla aleatoria para SUMO (controla comportamiento estocástico de conductores)"
+    )
+
     args = parser.parse_args()
 
     setup_logger("main")
@@ -567,6 +579,7 @@ Ejemplos de uso:
             cycle_time=args.cycle_time,
             sim_steps=args.sim_steps,
             enable_dynamic_optimization=args.dynamic_optimization,
+            seed=args.seed,
         )
     else:
         success = run_with_sumo_headless(
@@ -575,6 +588,7 @@ Ejemplos de uso:
             cycle_time=args.cycle_time,
             sim_steps=args.sim_steps,
             enable_dynamic_optimization=args.dynamic_optimization,
+            seed=args.seed,
         )
     
     # Limpiar archivos temporales
