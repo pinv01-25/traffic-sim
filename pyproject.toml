@@ -37,6 +37,7 @@ speedups = [
 
 dev = [
     "ruff>=0.6.0,<1.0.0",
+    "pytest>=8.0.0,<9.0.0",
 ]
 
 [tool.ruff]

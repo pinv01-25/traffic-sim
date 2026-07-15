@@ -43,26 +43,14 @@ def parse_tripinfo(path: str) -> pd.DataFrame:
 def parse_summary(path: str) -> pd.DataFrame:
     """Parse a SUMO summary.xml file into a DataFrame.
 
-    The expected structure is <summary><interval .../></summary> producing
-    rows indexed by the interval begin time and common measures as columns.
+    SUMO writes summary output as <summary><step time="..." running="..."
+    halting="..."/></summary>; older/alternative files may use <interval>.
     """
     rows: List[Dict] = []
-    for event, elem in ET.iterparse(path):
-        if elem.tag == 'interval' or elem.tag == 'summary' or elem.tag == 'intervals':
-            # summary files may use <interval .../> directly
-            if elem.tag == 'interval':
-                data = {k: float(v) if _is_float(v) else v for k, v in elem.items()}
-                rows.append(data)
+    for _event, elem in ET.iterparse(path):
+        if elem.tag in ('step', 'interval'):
+            rows.append({k: _try_cast(v) for k, v in elem.items()})
             elem.clear()
-
-    # Fallback: sometimes summaries use <summary time="..." running="..."/> entries
-    if not rows:
-        tree = ET.parse(path)
-        root = tree.getroot()
-        for child in root:
-            if child.tag in ('summary', 'interval'):
-                data = {k: _try_cast(v) for k, v in child.items()}
-                rows.append(data)
 
     if not rows:
         return pd.DataFrame()
@@ -127,151 +115,6 @@ def parse_fcd(path: str, sample_rate: int = 1) -> pd.DataFrame:
                 except (ValueError, TypeError):
                     continue
             elem.clear()
-
-    if not rows:
-        return pd.DataFrame()
-    return pd.DataFrame(rows)
-
-
-def parse_fcd_aggregated(path: str, time_bin: float = 60.0) -> pd.DataFrame:
-    """Parse FCD and aggregate by time bins.
-
-    Returns DataFrame with columns: time_bin, vehicle_count, avg_speed,
-    min_speed, max_speed, std_speed
-    """
-    df = parse_fcd(path, sample_rate=1)
-    if df.empty:
-        return pd.DataFrame()
-
-    df['time_bin'] = (df['time'] // time_bin) * time_bin
-
-    agg = df.groupby('time_bin').agg({
-        'id': 'nunique',
-        'speed': ['mean', 'min', 'max', 'std']
-    }).reset_index()
-
-    agg.columns = ['time_bin', 'vehicle_count', 'avg_speed', 'min_speed', 'max_speed', 'std_speed']
-    return agg
-
-
-def parse_fcd_by_edge(path: str) -> pd.DataFrame:
-    """Parse FCD and aggregate by edge.
-
-    Returns DataFrame with columns: edge, vehicle_count, avg_speed,
-    total_time_on_edge, congestion_index
-    """
-    df = parse_fcd(path, sample_rate=1)
-    if df.empty:
-        return pd.DataFrame()
-
-    agg = df.groupby('edge').agg({
-        'id': 'nunique',
-        'speed': ['mean', 'std', 'count'],
-        'time': ['min', 'max']
-    }).reset_index()
-
-    agg.columns = ['edge', 'vehicle_count', 'avg_speed', 'speed_std',
-                   'observations', 'first_seen', 'last_seen']
-
-    # Congestion index: lower speed + higher variability = more congestion
-    max_speed = agg['avg_speed'].max() if agg['avg_speed'].max() > 0 else 1
-    agg['congestion_index'] = 1 - (agg['avg_speed'] / max_speed)
-
-    return agg
-
-
-def parse_queue_output(path: str) -> pd.DataFrame:
-    """Parse SUMO queue-output.xml file.
-
-    Returns DataFrame with columns: time, lane_id, queue_length, queue_length_max
-    """
-    rows: List[Dict] = []
-
-    for event, elem in ET.iterparse(path, events=['end']):
-        if elem.tag == 'data':
-            time = float(elem.get('timestep', 0.0))
-            for lane in elem.findall('.//lane'):
-                try:
-                    rows.append({
-                        'time': time,
-                        'lane_id': lane.get('id'),
-                        'queue_length': float(lane.get('queueing_length', 0.0)),
-                        'queue_length_max': float(lane.get('queueing_length_experimental', 0.0)),
-                    })
-                except (ValueError, TypeError):
-                    continue
-            elem.clear()
-
-    if not rows:
-        return pd.DataFrame()
-    return pd.DataFrame(rows)
-
-
-def parse_edge_data(path: str) -> pd.DataFrame:
-    """Parse SUMO edgeData (meandata) output file.
-
-    Returns DataFrame with edge-level aggregated metrics.
-    """
-    rows: List[Dict] = []
-
-    for event, elem in ET.iterparse(path, events=['end']):
-        if elem.tag == 'edge':
-            parent_interval = elem.getparent() if hasattr(elem, 'getparent') else None
-            try:
-                row = {
-                    'edge_id': elem.get('id'),
-                    'sampled_seconds': float(elem.get('sampledSeconds', 0.0)),
-                    'travel_time': float(elem.get('traveltime', 0.0)) if elem.get('traveltime') else None,
-                    'overlapTraveltime': float(elem.get('overlapTraveltime', 0.0)) if elem.get('overlapTraveltime') else None,
-                    'density': float(elem.get('density', 0.0)) if elem.get('density') else None,
-                    'laneDensity': float(elem.get('laneDensity', 0.0)) if elem.get('laneDensity') else None,
-                    'occupancy': float(elem.get('occupancy', 0.0)) if elem.get('occupancy') else None,
-                    'waitingTime': float(elem.get('waitingTime', 0.0)) if elem.get('waitingTime') else None,
-                    'timeLoss': float(elem.get('timeLoss', 0.0)) if elem.get('timeLoss') else None,
-                    'speed': float(elem.get('speed', 0.0)) if elem.get('speed') else None,
-                    'speedRelative': float(elem.get('speedRelative', 0.0)) if elem.get('speedRelative') else None,
-                    'departed': int(elem.get('departed', 0)) if elem.get('departed') else 0,
-                    'arrived': int(elem.get('arrived', 0)) if elem.get('arrived') else 0,
-                    'entered': int(elem.get('entered', 0)) if elem.get('entered') else 0,
-                    'left': int(elem.get('left', 0)) if elem.get('left') else 0,
-                }
-                rows.append(row)
-            except (ValueError, TypeError):
-                continue
-            elem.clear()
-
-    if not rows:
-        return pd.DataFrame()
-    return pd.DataFrame(rows)
-
-
-def parse_detector_output(path: str) -> pd.DataFrame:
-    """Parse SUMO detector (e1/e2/e3) output file.
-
-    Returns DataFrame with detector measurements.
-    """
-    rows: List[Dict] = []
-
-    tree = ET.parse(path)
-    root = tree.getroot()
-
-    for interval in root.findall('.//interval'):
-        try:
-            row = {
-                'begin': float(interval.get('begin', 0.0)),
-                'end': float(interval.get('end', 0.0)),
-                'id': interval.get('id'),
-                'nVehContrib': int(interval.get('nVehContrib', 0)) if interval.get('nVehContrib') else 0,
-                'flow': float(interval.get('flow', 0.0)) if interval.get('flow') else None,
-                'occupancy': float(interval.get('occupancy', 0.0)) if interval.get('occupancy') else None,
-                'speed': float(interval.get('speed', 0.0)) if interval.get('speed') else None,
-                'harmonicMeanSpeed': float(interval.get('harmonicMeanSpeed', 0.0)) if interval.get('harmonicMeanSpeed') else None,
-                'length': float(interval.get('length', 0.0)) if interval.get('length') else None,
-                'nVehEntered': int(interval.get('nVehEntered', 0)) if interval.get('nVehEntered') else 0,
-            }
-            rows.append(row)
-        except (ValueError, TypeError):
-            continue
 
     if not rows:
         return pd.DataFrame()

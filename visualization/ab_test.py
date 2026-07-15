@@ -20,8 +20,8 @@ import pandas as pd
 from scipy import stats as scipy_stats
 
 from .parsers import (
-    parse_tripinfo, parse_summary, parse_fcd, parse_fcd_aggregated,
-    get_available_outputs, compute_trip_statistics, compute_summary_statistics
+    parse_tripinfo, parse_summary, parse_fcd,
+    compute_trip_statistics, compute_summary_statistics
 )
 from .plots import (
     # Basic plots
