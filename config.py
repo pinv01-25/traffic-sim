@@ -21,7 +21,7 @@ SIMULATION_CONFIG = {
 # Configuración de detección de cuellos de botella
 BOTTLENECK_CONFIG = {
     "density_threshold": 50.0,  # vehículos por kilómetro (reducido de 100.0 - más realista)
-    "speed_threshold": 15.0,    # metros por segundo (54 km/h - más realista)
+    "speed_threshold": 15.0,    # km/h (se compara contra avg_speed_kmh del detector)
     "queue_length_threshold": 3, # número de vehículos en cola (aumentado de 2)
     "detection_interval": 15,   # segundos entre detecciones (15 pasos)
     "min_detection_duration": 3, # segundos mínimos para confirmar cuello de botella

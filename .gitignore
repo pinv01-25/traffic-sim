@@ -177,3 +177,5 @@ logs/
 simulation/*
 # A/B test simulation outputs
 sim_*/
+# Added by code-review-graph
+.code-review-graph/

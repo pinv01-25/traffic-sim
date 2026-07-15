@@ -175,8 +175,7 @@ class MetricsCalculator:
         # Convertir de m/s a km/h
         avg_speed_kmh = (total_speed / valid_vehicles) * 3.6
 
-        # Mínimo 5 km/h para vehículos en movimiento
-        return round(max(avg_speed_kmh, 5.0), 2)
+        return round(avg_speed_kmh, 2)
     
     def calculate_avg_circulation_time_sec(self, visible_vehicles: List[str]) -> float:
         """

@@ -187,7 +187,7 @@ class BottleneckDetector:
         log_to_file(f"   Total: {total_vehicles} veh, {average_speed:.1f} km/h")
         log_to_file(f"   Densidad: {density:.1f} veh/km (umbral: {BOTTLENECK_CONFIG['density_threshold']})")
         log_to_file(f"   Cola: {queue_length} veh (umbral: {BOTTLENECK_CONFIG['queue_length_threshold']})")
-        log_to_file(f"   Velocidad: {average_speed:.1f} km/h (umbral: {BOTTLENECK_CONFIG['speed_threshold'] * 3.6})")
+        log_to_file(f"   Velocidad: {average_speed:.1f} km/h (umbral: {BOTTLENECK_CONFIG['speed_threshold']})")
         
         return IntersectionData(
             intersection_id=intersection_id,

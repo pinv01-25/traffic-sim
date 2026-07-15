@@ -318,9 +318,6 @@ class SimulationOrchestrator:
                 if self._should_detect_bottlenecks():
                     self._handle_bottleneck_detection(current_time)
                 
-                # Pausa para no saturar
-                time.sleep(0.05)
-                
         except KeyboardInterrupt:
             self.logger.info("Simulación interrumpida por el usuario")
         except Exception as e:

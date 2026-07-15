@@ -72,6 +72,7 @@ def _run_via_subprocess(
         "--end", str(sim_steps),
         "--tripinfo-output", str(out_dir / "tripinfo.xml"),
         "--summary-output", str(out_dir / "summary.xml"),
+        "--fcd-output", str(out_dir / "fcd.xml"),
     ]
     print(f"    $ {' '.join(cmd[:6])} ... --end {sim_steps}")
     result = subprocess.run(cmd, capture_output=True, text=True, cwd=str(config_file.parent))
