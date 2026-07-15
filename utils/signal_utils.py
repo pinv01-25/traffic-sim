@@ -1,36 +1,18 @@
 """Utilities to apply signal timing overrides via TraCI.
 
-Provides a helper that inspects traffic light phase definitions to detect
-which phases contain green indications and distributes requested green
-time among them, with the remainder assigned to non-green phases.
+`apply_durations_to_tls` is the single primitive that rewrites phase
+durations for one traffic light while preserving its phase structure:
+green time is split among phases containing green indications, red time
+among the remaining non-yellow phases, and yellow phases keep their
+original duration.
 
 This module expects a TraCI connection to already be established.
 """
-from typing import List, Optional, Tuple
-import traci
-import os
 import csv
 from pathlib import Path
+from typing import List, Optional
 
-
-def _get_phases_from_definition(tls_id: str) -> List[Tuple[str, float]]:
-    """Get phases (state, duration) from traffic light definition.
-
-    Returns list of (state_string, duration) tuples.
-    """
-    phases = []
-    try:
-        defs = traci.trafficlight.getCompleteRedYellowGreenDefinition(tls_id)
-        if defs and len(defs) > 0:
-            logic = defs[0]
-            if hasattr(logic, 'phases'):
-                for phase in logic.phases:
-                    state = phase.state if hasattr(phase, 'state') else ''
-                    duration = phase.duration if hasattr(phase, 'duration') else 0.0
-                    phases.append((state, duration))
-    except Exception as e:
-        print(f"Warning: Could not get phases for {tls_id}: {e}")
-    return phases
+import traci
 
 
 def _has_green(state: str) -> bool:
@@ -43,93 +25,77 @@ def _is_yellow(state: str) -> bool:
     return all(c in 'yY' for c in state if c not in 'rR')
 
 
-def apply_timings_to_all_tls(green_time: float, cycle_time: float, out_csv: Optional[str] = None):
-    """Apply `green_time` and `cycle_time` to all traffic lights connected.
+def apply_durations_to_tls(
+    tls_id: str,
+    green_total: float,
+    red_total: float,
+    rows: Optional[List[dict]] = None,
+) -> bool:
+    """Apply total green/red durations to one traffic light.
 
-    The function detects which phases include green indicators ('G' or 'g')
-    and distributes `green_time` among those phases; remaining time is split
-    among the other phases (red/yellow).
+    Preserves the existing program's states and number of phases:
+    `green_total` is split evenly among green phases, `red_total` among
+    non-green non-yellow phases, and yellow phases keep their duration.
+    If no green phase exists, phase 0 is treated as green.
 
-    Uses setCompleteRedYellowGreenDefinition to update the entire program.
+    Args:
+        tls_id: Traffic light ID
+        green_total: Total green time to distribute (seconds)
+        red_total: Total red time to distribute (seconds)
+        rows: Optional list to append per-phase CSV rows to
+
+    Returns:
+        True if a new program was applied.
     """
-    gt = float(green_time)
-    ct = float(cycle_time)
-    if ct <= 0:
-        raise ValueError('cycle_time must be > 0')
-    if gt < 0:
-        raise ValueError('green_time must be >= 0')
+    try:
+        defs = traci.trafficlight.getCompleteRedYellowGreenDefinition(tls_id)
+        if not defs:
+            return False
 
-    red_time = max(ct - gt, 0.0)
-    tls_list = traci.trafficlight.getIDList()
+        logic = defs[0]
+        phases = list(getattr(logic, 'phases', ()) or ())
+        if not phases:
+            return False
 
-    rows = []
+        green_indices = []
+        yellow_indices = []
+        red_indices = []
+        for i, phase in enumerate(phases):
+            state = getattr(phase, 'state', '') or ''
+            if _has_green(state):
+                green_indices.append(i)
+            elif _is_yellow(state):
+                yellow_indices.append(i)
+            else:
+                red_indices.append(i)
 
-    for tls in tls_list:
-        try:
-            # Get current definition
-            defs = traci.trafficlight.getCompleteRedYellowGreenDefinition(tls)
-            if not defs or len(defs) == 0:
-                continue
+        if not green_indices:
+            green_indices = [0]
+            red_indices = [i for i in range(1, len(phases)) if i not in yellow_indices]
 
-            logic = defs[0]
-            if not hasattr(logic, 'phases') or len(logic.phases) == 0:
-                continue
+        green_per_phase = green_total / len(green_indices)
+        red_per_phase = red_total / len(red_indices) if red_indices else 0.0
 
-            phases = list(logic.phases)
+        new_phases = []
+        for i, phase in enumerate(phases):
+            state = getattr(phase, 'state', '') or ''
+            if i in green_indices:
+                new_dur = green_per_phase
+            elif i in yellow_indices:
+                new_dur = phase.duration
+            else:
+                new_dur = red_per_phase
 
-            # Identify green phases vs non-green phases
-            green_indices = []
-            yellow_indices = []
-            red_indices = []
+            new_phases.append(traci.trafficlight.Phase(
+                duration=new_dur,
+                state=state,
+                minDur=new_dur,
+                maxDur=new_dur,
+            ))
 
-            for i, phase in enumerate(phases):
-                state = phase.state if hasattr(phase, 'state') else ''
-                if _has_green(state):
-                    green_indices.append(i)
-                elif _is_yellow(state):
-                    yellow_indices.append(i)
-                else:
-                    red_indices.append(i)
-
-            # If no green phases detected, treat first phase as green
-            if not green_indices:
-                green_indices = [0]
-                red_indices = list(range(1, len(phases)))
-
-            # Calculate durations
-            # Green time divided among green phases
-            green_per_phase = gt / len(green_indices) if green_indices else 0
-
-            # Yellow phases keep original duration (typically 3s)
-            # Red phases get remaining time after green and yellow
-            yellow_time = sum(phases[i].duration for i in yellow_indices)
-            red_total = max(ct - gt - yellow_time, 0.0)
-            red_per_phase = red_total / len(red_indices) if red_indices else 0
-
-            # Build new phases with updated durations
-            new_phases = []
-            for i, phase in enumerate(phases):
-                state = phase.state if hasattr(phase, 'state') else ''
-
-                if i in green_indices:
-                    new_dur = green_per_phase
-                elif i in yellow_indices:
-                    new_dur = phase.duration  # Keep yellow as-is
-                else:
-                    new_dur = red_per_phase
-
-                # Create new Phase object
-                new_phase = traci.trafficlight.Phase(
-                    duration=new_dur,
-                    state=state,
-                    minDur=new_dur,
-                    maxDur=new_dur
-                )
-                new_phases.append(new_phase)
-
-                # Record for CSV
+            if rows is not None:
                 rows.append({
-                    'tls_id': tls,
+                    'tls_id': tls_id,
                     'phase_idx': i,
                     'state': state,
                     'assigned_duration': float(new_dur),
@@ -138,22 +104,53 @@ def apply_timings_to_all_tls(green_time: float, cycle_time: float, out_csv: Opti
                     'is_yellow': i in yellow_indices,
                 })
 
-            # Create new Logic and apply it
-            new_logic = traci.trafficlight.Logic(
-                programID=logic.programID if hasattr(logic, 'programID') else '0',
-                type=logic.type if hasattr(logic, 'type') else 0,
-                currentPhaseIndex=0,
-                phases=tuple(new_phases),
-                subParameter=logic.subParameter if hasattr(logic, 'subParameter') else {}
+        new_logic = traci.trafficlight.Logic(
+            programID=getattr(logic, 'programID', '0'),
+            type=getattr(logic, 'type', 0),
+            currentPhaseIndex=0,
+            phases=tuple(new_phases),
+            subParameter=getattr(logic, 'subParameter', {}) or {},
+        )
+        traci.trafficlight.setCompleteRedYellowGreenDefinition(tls_id, new_logic)
+        return True
+
+    except Exception as e:
+        print(f"Warning: Could not apply timing to {tls_id}: {e}")
+        return False
+
+
+def apply_timings_to_all_tls(green_time: float, cycle_time: float, out_csv: Optional[str] = None):
+    """Apply `green_time` within `cycle_time` to all connected traffic lights.
+
+    Per traffic light: yellow phases keep their duration and the red total
+    is `cycle_time - green_time - yellow_total`.
+
+    Returns the number of phase rows processed (also written to `out_csv`).
+    """
+    gt = float(green_time)
+    ct = float(cycle_time)
+    if ct <= 0:
+        raise ValueError('cycle_time must be > 0')
+    if gt < 0:
+        raise ValueError('green_time must be >= 0')
+
+    rows: List[dict] = []
+    for tls in traci.trafficlight.getIDList():
+        try:
+            defs = traci.trafficlight.getCompleteRedYellowGreenDefinition(tls)
+            if not defs:
+                continue
+            phases = list(getattr(defs[0], 'phases', ()) or ())
+            yellow_total = sum(
+                p.duration for p in phases if _is_yellow(getattr(p, 'state', '') or '')
+                and not _has_green(getattr(p, 'state', '') or '')
             )
-
-            traci.trafficlight.setCompleteRedYellowGreenDefinition(tls, new_logic)
-
+            red_total = max(ct - gt - yellow_total, 0.0)
+            apply_durations_to_tls(tls, gt, red_total, rows=rows)
         except Exception as e:
             print(f"Warning: Could not apply timing to {tls}: {e}")
             continue
 
-    # Write CSV if requested
     if out_csv and rows:
         try:
             p = Path(out_csv)
@@ -164,8 +161,7 @@ def apply_timings_to_all_tls(green_time: float, cycle_time: float, out_csv: Opti
                     'original_duration', 'is_green', 'is_yellow'
                 ])
                 writer.writeheader()
-                for r in rows:
-                    writer.writerow(r)
+                writer.writerows(rows)
         except Exception as e:
             print(f"Warning: Could not write CSV: {e}")
 
