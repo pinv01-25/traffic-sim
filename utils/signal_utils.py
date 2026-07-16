@@ -86,12 +86,8 @@ def apply_durations_to_tls(
             else:
                 new_dur = red_per_phase
 
-            new_phases.append(traci.trafficlight.Phase(
-                duration=new_dur,
-                state=state,
-                minDur=new_dur,
-                maxDur=new_dur,
-            ))
+            # Posicional: el TraCIPhase de libsumo no acepta keyword args
+            new_phases.append(traci.trafficlight.Phase(new_dur, state, new_dur, new_dur))
 
             if rows is not None:
                 rows.append({
@@ -104,12 +100,13 @@ def apply_durations_to_tls(
                     'is_yellow': i in yellow_indices,
                 })
 
+        # Posicional: el TraCILogic de libsumo no acepta keyword args
         new_logic = traci.trafficlight.Logic(
-            programID=getattr(logic, 'programID', '0'),
-            type=getattr(logic, 'type', 0),
-            currentPhaseIndex=0,
-            phases=tuple(new_phases),
-            subParameter=getattr(logic, 'subParameter', {}) or {},
+            getattr(logic, 'programID', '0'),
+            getattr(logic, 'type', 0),
+            0,
+            tuple(new_phases),
+            getattr(logic, 'subParameter', {}) or {},
         )
         traci.trafficlight.setCompleteRedYellowGreenDefinition(tls_id, new_logic)
         return True
