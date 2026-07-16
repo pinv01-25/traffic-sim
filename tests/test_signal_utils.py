@@ -84,3 +84,30 @@ def test_apply_is_idempotent_and_preserves_current_phase(fake_traci):
     # Segunda aplicación idéntica: no hay set (no perturba el cruce)
     assert apply_durations_to_tls('tl1', green_total=25.0, red_total=15.0)
     assert len(fake_traci.trafficlight.applied) == 1
+
+
+def test_apply_directional_split_prioritizes_congested_edge(fake_traci):
+    """Con priority_edge, el verde largo va a la fase que sirve ese edge."""
+    from utils.signal_utils import apply_durations_to_tls
+
+    fake_traci.trafficlight.programs['tl1'] = FakeLogic(phases=(
+        FakePhase(duration=42.0, state='GGrr'),
+        FakePhase(duration=3.0, state='yyrr'),
+        FakePhase(duration=42.0, state='rrGG'),
+        FakePhase(duration=3.0, state='rryy'),
+    ))
+    # Señales 0-1 entran desde edge_norte; 2-3 desde edge_sur
+    fake_traci.trafficlight.links['tl1'] = [
+        [('edge_norte_0', 'out_0', '')], [('edge_norte_1', 'out_1', '')],
+        [('edge_sur_0', 'out_2', '')], [('edge_sur_1', 'out_3', '')],
+    ]
+
+    assert apply_durations_to_tls('tl1', 70.0, 20.0, priority_edge='edge_sur')
+    durations = [p.duration for p in fake_traci.trafficlight.applied[-1][1].phases]
+    # Fase 2 ('rrGG') sirve edge_sur → 70s; fase 0 recibe el rojo (20s); amarillas intactas
+    assert durations == [20.0, 3.0, 70.0, 3.0]
+
+    # Sin priority_edge conocido cae al reparto igualitario
+    assert apply_durations_to_tls('tl1', 70.0, 20.0, priority_edge='edge_inexistente')
+    durations = [p.duration for p in fake_traci.trafficlight.applied[-1][1].phases]
+    assert durations == [35.0, 3.0, 35.0, 3.0]

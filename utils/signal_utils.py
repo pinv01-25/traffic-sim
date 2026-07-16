@@ -25,17 +25,52 @@ def _is_yellow(state: str) -> bool:
     return any(c in 'yY' for c in state) and all(c in 'yYrR' for c in state)
 
 
+def _find_priority_green_phase(
+    tls_id: str,
+    phases: List,
+    green_indices: List[int],
+    priority_edge: str,
+) -> Optional[int]:
+    """Find the green phase whose green signals serve `priority_edge`.
+
+    Uses getControlledLinks: signal index i is served by in-lane links[i][0][0];
+    a phase serves the edge if any of its G/g signals enter from that edge.
+    """
+    try:
+        links = traci.trafficlight.getControlledLinks(tls_id)
+    except Exception:
+        return None
+
+    for i in green_indices:
+        state = getattr(phases[i], 'state', '') or ''
+        for sig_idx, ch in enumerate(state):
+            if ch not in 'Gg' or sig_idx >= len(links) or not links[sig_idx]:
+                continue
+            in_lane = links[sig_idx][0][0]
+            if in_lane.rsplit('_', 1)[0] == priority_edge:
+                return i
+    return None
+
+
 def apply_durations_to_tls(
     tls_id: str,
     green_total: float,
     red_total: float,
     rows: Optional[List[dict]] = None,
+    priority_edge: Optional[str] = None,
 ) -> bool:
     """Apply total green/red durations to one traffic light.
 
-    Preserves the existing program's states and number of phases:
-    `green_total` is split evenly among green phases, `red_total` among
-    non-green non-yellow phases, and yellow phases keep their duration.
+    Preserves the existing program's states and number of phases. Yellow
+    phases always keep their duration. Distribution of green/red:
+
+    - With `priority_edge` and >1 green phase: the phase serving that edge
+      gets `green_total` and the remaining green phases share `red_total`
+      (the optimizer's split is directional: more green for the congested
+      approach, less for the rest). Dedicated all-red phases keep duration.
+    - Otherwise: `green_total` split evenly among green phases and
+      `red_total` among non-green non-yellow phases (static mode semantics).
+
     If no green phase exists, phase 0 is treated as green.
 
     Args:
@@ -43,6 +78,7 @@ def apply_durations_to_tls(
         green_total: Total green time to distribute (seconds)
         red_total: Total red time to distribute (seconds)
         rows: Optional list to append per-phase CSV rows to
+        priority_edge: Edge whose approach should receive the green time
 
     Returns:
         True if a new program was applied.
@@ -73,17 +109,33 @@ def apply_durations_to_tls(
             green_indices = [0]
             red_indices = [i for i in range(1, len(phases)) if i not in yellow_indices]
 
-        green_per_phase = green_total / len(green_indices)
-        red_per_phase = red_total / len(red_indices) if red_indices else 0.0
+        priority_idx = None
+        if priority_edge and len(green_indices) > 1:
+            priority_idx = _find_priority_green_phase(tls_id, phases, green_indices, priority_edge)
 
         new_durations = []
-        for i, phase in enumerate(phases):
-            if i in green_indices:
-                new_durations.append(green_per_phase)
-            elif i in yellow_indices:
-                new_durations.append(float(phase.duration))
-            else:
-                new_durations.append(red_per_phase)
+        if priority_idx is not None:
+            # Reparto direccional: verde largo a la aproximación congestionada,
+            # el "rojo" del optimizador es el verde de las demás aproximaciones.
+            other_greens = [i for i in green_indices if i != priority_idx]
+            red_per_other = red_total / len(other_greens) if other_greens else 0.0
+            for i, phase in enumerate(phases):
+                if i == priority_idx:
+                    new_durations.append(green_total)
+                elif i in green_indices:
+                    new_durations.append(red_per_other)
+                else:  # amarillas y rojas dedicadas: intactas
+                    new_durations.append(float(phase.duration))
+        else:
+            green_per_phase = green_total / len(green_indices)
+            red_per_phase = red_total / len(red_indices) if red_indices else 0.0
+            for i, phase in enumerate(phases):
+                if i in green_indices:
+                    new_durations.append(green_per_phase)
+                elif i in yellow_indices:
+                    new_durations.append(float(phase.duration))
+                else:
+                    new_durations.append(red_per_phase)
 
         if rows is not None:
             for i, (phase, new_dur) in enumerate(zip(phases, new_durations, strict=False)):

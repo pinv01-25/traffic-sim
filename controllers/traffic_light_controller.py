@@ -23,7 +23,8 @@ class TrafficLightController:
 
         Args:
             traffic_light_id: ID del semáforo a actualizar
-            optimization_data: {"optimization": {"green_time_sec": .., "red_time_sec": ..}}
+            optimization_data: {"optimization": {"green_time_sec": .., "red_time_sec": ..},
+                                "priority_edge": <edge congestionado, opcional>}
 
         Returns:
             True si la actualización fue exitosa
@@ -38,7 +39,10 @@ class TrafficLightController:
             green_time = max(min_dur, min(green_time, max_dur))
             red_time = max(min_dur, min(red_time, max_dur))
 
-            success = apply_durations_to_tls(traffic_light_id, green_time, red_time)
+            success = apply_durations_to_tls(
+                traffic_light_id, green_time, red_time,
+                priority_edge=optimization_data.get("priority_edge"),
+            )
             if success:
                 logger.info(
                     f"Semáforo {traffic_light_id} actualizado - Verde: {green_time}s, Rojo: {red_time}s"

@@ -7,7 +7,7 @@ def test_update_traffic_light_clamps_and_delegates(fake_traci, monkeypatch):
     calls = []
     monkeypatch.setattr(
         tlc, 'apply_durations_to_tls',
-        lambda tls_id, green, red: calls.append((tls_id, green, red)) or True,
+        lambda tls_id, green, red, **kw: calls.append((tls_id, green, red)) or True,
     )
 
     controller = tlc.TrafficLightController()

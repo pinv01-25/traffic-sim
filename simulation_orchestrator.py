@@ -16,7 +16,7 @@ import threading
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import traci
 from config import BOTTLENECK_CONFIG, SIMULATION_CONFIG
@@ -456,6 +456,25 @@ class SimulationOrchestrator:
             sensors=sensors,
         )
 
+    def _busiest_edge(self, tls_id: str) -> Optional[str]:
+        """Edge controlado por `tls_id` con más vehículos visibles ahora mismo.
+
+        Es la aproximación que recibe el verde largo del optimizador
+        (reparto direccional en apply_durations_to_tls).
+        """
+        try:
+            edges = self.bottleneck_detector.intersection_edges.get(tls_id, [])
+            if not edges:
+                return None
+            counts = {
+                e: len(self.bottleneck_detector.metrics_calculator.get_visible_vehicles(e))
+                for e in edges
+            }
+            best = max(counts, key=counts.get)
+            return best if counts[best] > 0 else None
+        except Exception:
+            return None
+
     def _apply_cluster_optimization(self, response: ClusterOptimizationResponse):
         """
         Aplica las optimizaciones recibidas de traffic-sync (vía traffic-control)
@@ -488,7 +507,8 @@ class SimulationOrchestrator:
                             "optimization": {
                                 "green_time_sec": opt.green_time_sec,
                                 "red_time_sec": opt.red_time_sec,
-                            }
+                            },
+                            "priority_edge": self._busiest_edge(sumo_id),
                         },
                     )
                     if success:
