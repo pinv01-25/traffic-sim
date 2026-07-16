@@ -1054,6 +1054,17 @@ def _verdict(statistical_results: Dict, paired: Dict) -> Tuple[str, str, str]:
     if pct is None:
         return ('gray', 'Sin datos suficientes',
                 'No hay viajes completados en ambas corridas para comparar.')
+
+    # Guardia anti sesgo de supervivencia: una "mejora" de la media con
+    # caída de throughput solo significa que los viajes lentos no terminaron.
+    thr = statistical_results.get('throughput') or {}
+    thr_pct = thr.get('throughput_change_pct')
+    if pct > 0 and thr_pct is not None and thr_pct < -5.0:
+        return ('red', f'Resultado engañoso: media {pct:+.1f}% pero throughput {thr_pct:+.1f}%',
+                f'La corrida optimizada completó {thr.get("completed_b")} viajes frente a '
+                f'{thr.get("completed_a")} del baseline. La media de viaje baja porque los viajes '
+                'lentos no llegan a completarse (sesgo de supervivencia), no porque el tráfico mejore.')
+
     if pct > 0 and significant:
         detail = f'La optimización reduce el tiempo de viaje medio en {pct:.1f}% con significancia estadística.'
         if paired:

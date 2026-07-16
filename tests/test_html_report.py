@@ -43,3 +43,23 @@ def test_html_report_inconclusive_verdict(tmp_path):
         paired={}, throughput={}, run_config={}, generated_files=[],
     )
     assert 'no concluyente' in path.read_text().lower()
+
+
+def test_html_report_survivorship_guard(tmp_path):
+    """Media que 'mejora' con throughput colapsado no puede dar banner verde."""
+    path = tmp_path / 'r.html'
+    _write_html_report(
+        path,
+        labels=('A', 'B'),
+        stats_a={}, stats_b={},
+        statistical_results={
+            'percent_improvement': 17.0,
+            'permutation_test_pvalue': 0.001,
+            'throughput': {'completed_a': 2400, 'completed_b': 800, 'throughput_change_pct': -66.7},
+        },
+        paired={}, throughput={'completed_a': 2400, 'completed_b': 800, 'throughput_change_pct': -66.7},
+        run_config={}, generated_files=[],
+    )
+    html = path.read_text()
+    assert 'banner red' in html
+    assert 'supervivencia' in html
