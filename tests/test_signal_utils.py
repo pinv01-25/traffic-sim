@@ -63,3 +63,24 @@ def test_wrapper_matches_previous_behavior(fake_traci):
     _, logic = fake_traci.trafficlight.applied[-1]
     # verde=30, amarillo=3 intacto, rojo = 60-30-3 = 27
     assert [p.duration for p in logic.phases] == [30.0, 3.0, 27.0]
+
+
+def test_apply_is_idempotent_and_preserves_current_phase(fake_traci):
+    """Re-aplicar el mismo programa no debe resetear el semáforo."""
+    from utils.signal_utils import apply_durations_to_tls
+
+    fake_traci.trafficlight.programs['tl1'] = FakeLogic(phases=(
+        FakePhase(duration=30.0, state='GG'),
+        FakePhase(duration=3.0, state='yy'),
+        FakePhase(duration=30.0, state='rr'),
+    ))
+    fake_traci.trafficlight.phase['tl1'] = 2  # cruce a mitad de ciclo
+
+    assert apply_durations_to_tls('tl1', green_total=25.0, red_total=15.0)
+    assert len(fake_traci.trafficlight.applied) == 1
+    # Mantiene la fase en curso (no salta a la 0)
+    assert fake_traci.trafficlight.applied[-1][1].currentPhaseIndex == 2
+
+    # Segunda aplicación idéntica: no hay set (no perturba el cruce)
+    assert apply_durations_to_tls('tl1', green_total=25.0, red_total=15.0)
+    assert len(fake_traci.trafficlight.applied) == 1

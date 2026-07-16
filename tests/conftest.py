@@ -34,9 +34,13 @@ def _make_fake_traci():
         def __init__(self):
             self.programs = {}      # tls_id -> FakeLogic
             self.applied = []       # (tls_id, FakeLogic) de cada set
+            self.phase = {}         # tls_id -> índice de fase actual
 
         def getIDList(self):
             return list(self.programs.keys())
+
+        def getPhase(self, tls_id):
+            return self.phase.get(tls_id, 0)
 
         def getCompleteRedYellowGreenDefinition(self, tls_id):
             return [self.programs[tls_id]]
@@ -79,4 +83,5 @@ def fake_traci():
     traci = sys.modules['traci']
     traci.trafficlight.programs.clear()
     traci.trafficlight.applied.clear()
+    traci.trafficlight.phase.clear()
     return traci

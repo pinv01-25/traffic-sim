@@ -76,36 +76,49 @@ def apply_durations_to_tls(
         green_per_phase = green_total / len(green_indices)
         red_per_phase = red_total / len(red_indices) if red_indices else 0.0
 
-        new_phases = []
+        new_durations = []
         for i, phase in enumerate(phases):
-            state = getattr(phase, 'state', '') or ''
             if i in green_indices:
-                new_dur = green_per_phase
+                new_durations.append(green_per_phase)
             elif i in yellow_indices:
-                new_dur = phase.duration
+                new_durations.append(float(phase.duration))
             else:
-                new_dur = red_per_phase
+                new_durations.append(red_per_phase)
 
-            # Posicional: el TraCIPhase de libsumo no acepta keyword args
-            new_phases.append(traci.trafficlight.Phase(new_dur, state, new_dur, new_dur))
-
-            if rows is not None:
+        if rows is not None:
+            for i, (phase, new_dur) in enumerate(zip(phases, new_durations, strict=False)):
                 rows.append({
                     'tls_id': tls_id,
                     'phase_idx': i,
-                    'state': state,
+                    'state': getattr(phase, 'state', '') or '',
                     'assigned_duration': float(new_dur),
                     'original_duration': float(phase.duration),
                     'is_green': i in green_indices,
                     'is_yellow': i in yellow_indices,
                 })
 
-        # Posicional: el TraCILogic de libsumo no acepta keyword args
+        # Idempotencia: re-aplicar un programa igual resetea la fase en curso
+        # y perturba el cruce sin cambiar nada — mejor no tocar.
+        if all(abs(float(p.duration) - d) < 0.5 for p, d in zip(phases, new_durations, strict=False)):
+            return True
+
+        # Posicional: Phase/Logic de libsumo no aceptan keyword args
+        new_phases = tuple(
+            traci.trafficlight.Phase(d, getattr(p, 'state', '') or '', d, d)
+            for p, d in zip(phases, new_durations, strict=False)
+        )
+
+        # Mantener la fase en curso para no resetear el semáforo al aplicar
+        try:
+            current_phase = int(traci.trafficlight.getPhase(tls_id))
+        except Exception:
+            current_phase = 0
+
         new_logic = traci.trafficlight.Logic(
             getattr(logic, 'programID', '0'),
             getattr(logic, 'type', 0),
-            0,
-            tuple(new_phases),
+            current_phase,
+            new_phases,
             getattr(logic, 'subParameter', {}) or {},
         )
         traci.trafficlight.setCompleteRedYellowGreenDefinition(tls_id, new_logic)
