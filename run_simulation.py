@@ -84,6 +84,15 @@ def run_simulation_mode(
     """
     orchestrator = None
     try:
+        if not gui:
+            # ponytail: libsumo = TraCI in-process (~100x más rápido); la GUI
+            # requiere el traci por socket, por eso solo aplica en headless
+            try:
+                import libsumo
+                sys.modules['traci'] = libsumo
+            except ImportError:
+                pass
+
         from simulation_orchestrator import SimulationOrchestrator
 
         orchestrator = SimulationOrchestrator(

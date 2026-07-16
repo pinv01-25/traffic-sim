@@ -52,6 +52,9 @@ def load_seed_results(results_dir: Path) -> pd.DataFrame:
         for condition in ("sim_A", "sim_B"):
             tripinfo_path = seed_dir / condition / "tripinfo.xml"
             if not tripinfo_path.exists():
+                # run_ab.py / run_simulation.py escriben en logs/sumo_output/
+                tripinfo_path = seed_dir / condition / "logs" / "sumo_output" / "tripinfo.xml"
+            if not tripinfo_path.exists():
                 print(f"  WARNING: No encontrado {tripinfo_path}")
                 continue
 

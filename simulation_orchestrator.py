@@ -504,6 +504,12 @@ class SimulationOrchestrator:
     def _cleanup(self):
         """Libera recursos de la simulación"""
         try:
+            # Snapshot de stats finales antes de cerrar (tras close no hay red)
+            try:
+                self._final_time = float(traci.simulation.getTime())
+                self._final_vehicle_count = int(traci.vehicle.getIDCount())
+            except Exception:
+                pass
             try:
                 traci.close()
             except Exception:
@@ -519,9 +525,10 @@ class SimulationOrchestrator:
             try:
                 current_time = float(traci.simulation.getTime())
                 vehicle_count = traci.vehicle.getIDCount()
-            except (AttributeError, RuntimeError, traci.exceptions.FatalTraCIError):
-                current_time = 0.0
-                vehicle_count = 0
+            except Exception:
+                # Conexión cerrada: usar el snapshot tomado en _cleanup
+                current_time = getattr(self, '_final_time', 0.0)
+                vehicle_count = getattr(self, '_final_vehicle_count', 0)
 
             with self._history_lock:
                 history_len = len(self.bottleneck_history)
