@@ -70,6 +70,7 @@ class SimulationOrchestrator:
         self.last_detection_step = 0
         self.current_step = 0
         self.bottleneck_history = []
+        self._last_optimization_time = {}  # primary_tl_id -> tiempo sim del último /ingest
 
         # Configuración
         self.end_time = SIMULATION_CONFIG["end_time"]
@@ -325,6 +326,11 @@ class SimulationOrchestrator:
         except Exception as e:
             self.logger.error(f"Error procesando detección: {e}")
 
+    #: Segundos simulados mínimos entre optimizaciones del mismo cluster.
+    #: Re-optimizar cada detección (15s) satura al optimizador sin aportar:
+    #: las recomendaciones cambian en escalas de minutos, no de segundos.
+    OPTIMIZATION_COOLDOWN_SEC = 60.0
+
     def _process_cluster_optimization(self, detection: BottleneckDetection, current_time: float):
         """
         Procesa optimización de cluster: obtiene semáforos cercanos,
@@ -333,6 +339,11 @@ class SimulationOrchestrator:
         """
         try:
             primary_tl_id = detection.traffic_light_id
+
+            last = self._last_optimization_time.get(primary_tl_id)
+            if last is not None and (current_time - last) < self.OPTIMIZATION_COOLDOWN_SEC:
+                return
+            self._last_optimization_time[primary_tl_id] = current_time
 
             nearby_tls = self._get_nearby_traffic_lights(primary_tl_id)
             self.logger.info(f"Cluster de {len(nearby_tls)} semáforos para optimización")
