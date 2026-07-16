@@ -59,6 +59,7 @@ from .ab_test import (
     bootstrap_ci_diff,
     mann_whitney_test,
     cohens_d,
+    paired_statistics,
     analyze_incomplete_trips,
 )
 
@@ -140,11 +141,13 @@ def generate_ab_test(
     out_dir: str | None = None,
     labels: tuple[str, str] = ('Baseline', 'Optimized'),
     use_sumo_tools: bool = False,
+    time_bin: int = 30,
+    extra_info: dict | None = None,
 ) -> dict:
     """Run a comprehensive A/B comparison between two simulation runs.
 
-    Generates 20+ visualizations comparing metrics, distributions, time series,
-    and statistical tests.
+    Generates 30+ visualizations comparing metrics, distributions, time series,
+    paired per-vehicle evidence, plus CSV/JSON/HTML reports.
 
     Args:
         run_a: Directory containing baseline simulation outputs
@@ -152,6 +155,8 @@ def generate_ab_test(
         out_dir: Output directory for plots and reports (default: run_b/logs/visualizations/ab_test)
         labels: Labels for the two runs
         use_sumo_tools: Whether to also generate plots using native SUMO tools
+        time_bin: Time bin size for time series aggregations (seconds)
+        extra_info: Run configuration embedded in the JSON/HTML reports
 
     Returns:
         Dictionary with paths to generated files and statistical results
@@ -164,8 +169,10 @@ def generate_ab_test(
         run_b,
         out_dir,
         labels=labels,
+        time_bin=time_bin,
         generate_all_plots=True,
         use_sumo_tools=use_sumo_tools,
+        extra_info=extra_info,
     )
 
 
@@ -216,6 +223,8 @@ __all__ = [
     'bootstrap_ci_diff',
     'mann_whitney_test',
     'cohens_d',
+    'paired_statistics',
+    'analyze_incomplete_trips',
 
     # SUMO native tools
     'plot_xml_attributes',

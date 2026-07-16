@@ -256,18 +256,23 @@ def analyze_incomplete_trips(
     df_trip: pd.DataFrame,
     out_dir: str,
     label: str = 'A',
+    tag: str = 'A',
+    file_start: int = 21,
 ) -> List[str]:
     """
     Analyze incomplete trips (vehicles in FCD but not in tripinfo) and generate
     4 separate diagnostic plots.
 
-    Called automatically from compare_runs() for run_A.
+    Called automatically from compare_runs() for both runs (A: files 21-24,
+    B: files 25-28).
 
     Args:
-        run_dir:  Simulation directory (must contain fcd.xml and routes.rou.xml)
-        df_trip:  Parsed tripinfo DataFrame for this run
-        out_dir:  Output directory for the 4 PNGs
-        label:    Run label shown in plot titles
+        run_dir:    Simulation directory (must contain fcd.xml and routes.rou.xml)
+        df_trip:    Parsed tripinfo DataFrame for this run
+        out_dir:    Output directory for the 4 PNGs
+        label:      Run label shown in plot titles
+        tag:        Short tag used in filenames ('A' or 'B')
+        file_start: Number of the first generated plot
 
     Returns:
         List of generated filenames.
@@ -276,7 +281,7 @@ def analyze_incomplete_trips(
     df_incomplete = _compute_incomplete_trips(run_dir, df_trip)
 
     if df_incomplete.empty:
-        print(f'  No incomplete trips data available (fcd.xml missing?)')
+        print('  No incomplete trips data available (fcd.xml missing?)')
         return []
 
     completed_dur = df_trip['duration'].dropna().values if not df_trip.empty else np.array([])
@@ -291,20 +296,21 @@ def analyze_incomplete_trips(
     Path(out_dir).mkdir(parents=True, exist_ok=True)
     generated = []
 
-    _plot_incomplete_histogram(completed_dur, time_in_network, out_dir, label)
-    generated.append('21_incomplete_histogram.png')
+    names = [
+        f'{file_start:02d}_incomplete_histogram_{tag}.png',
+        f'{file_start + 1:02d}_incomplete_cdf_{tag}.png',
+        f'{file_start + 2:02d}_incomplete_boxplot_{tag}.png',
+        f'{file_start + 3:02d}_incomplete_scatter_{tag}.png',
+    ]
 
-    _plot_incomplete_cdf(completed_dur, time_in_network, out_dir, label)
-    generated.append('22_incomplete_cdf.png')
-
-    _plot_incomplete_boxplot(completed_dur, time_in_network, out_dir, label)
-    generated.append('23_incomplete_boxplot.png')
-
-    _plot_incomplete_scatter(df_incomplete, completed_dur, out_dir, label)
-    generated.append('24_incomplete_scatter.png')
+    _plot_incomplete_histogram(completed_dur, time_in_network, out_dir, label, filename=names[0])
+    _plot_incomplete_cdf(completed_dur, time_in_network, out_dir, label, filename=names[1])
+    _plot_incomplete_boxplot(completed_dur, time_in_network, out_dir, label, filename=names[2])
+    _plot_incomplete_scatter(df_incomplete, completed_dur, out_dir, label, filename=names[3])
+    generated.extend(names)
 
     # Save CSV
-    csv_path = Path(out_dir) / 'incomplete_trips.csv'
+    csv_path = Path(out_dir) / f'incomplete_trips_{tag}.csv'
     df_incomplete.to_csv(str(csv_path), index=False)
 
     return generated
@@ -429,6 +435,181 @@ def cohens_d(x: np.ndarray, y: np.ndarray) -> float:
 
 
 # =============================================================================
+# PAIRED PER-VEHICLE ANALYSIS
+# =============================================================================
+# La demanda es idéntica en A y B (mismos vehículos, mismas rutas, mismos
+# departs), así que cada vehículo puede compararse consigo mismo. Esta es la
+# evidencia estadística más fuerte del experimento.
+
+def _paired_frame(df_a: pd.DataFrame, df_b: pd.DataFrame, metric: str = 'duration') -> pd.DataFrame:
+    """Join per-vehicle metric of both runs on vehicle id.
+
+    Returns DataFrame with columns id, <metric>_a, <metric>_b, delta (B - A).
+    Empty DataFrame if pairing is not possible.
+    """
+    for df in (df_a, df_b):
+        if df.empty or 'id' not in df.columns or metric not in df.columns:
+            return pd.DataFrame()
+    merged = pd.merge(
+        df_a[['id', metric]].dropna(),
+        df_b[['id', metric]].dropna(),
+        on='id', suffixes=('_a', '_b'),
+    )
+    if merged.empty:
+        return merged
+    merged['delta'] = merged[f'{metric}_b'] - merged[f'{metric}_a']
+    return merged
+
+
+def paired_statistics(df_a: pd.DataFrame, df_b: pd.DataFrame, metric: str = 'duration') -> Dict:
+    """Per-vehicle paired statistics (same vehicle in A and B).
+
+    Returns dict with n_paired, mean_delta, median_delta, pct_improved
+    (share of vehicles with lower metric in B) and wilcoxon_pvalue
+    (two-sided signed-rank test on the deltas). Empty dict if no pairs.
+    """
+    merged = _paired_frame(df_a, df_b, metric)
+    if merged.empty:
+        return {}
+    delta = merged['delta'].values
+    try:
+        _stat, wilcoxon_pvalue = scipy_stats.wilcoxon(delta, alternative='two-sided')
+        wilcoxon_pvalue = float(wilcoxon_pvalue)
+    except ValueError:  # e.g. todas las diferencias son cero
+        wilcoxon_pvalue = float('nan')
+    return {
+        'metric': metric,
+        'n_paired': int(len(delta)),
+        'mean_delta': float(np.mean(delta)),
+        'median_delta': float(np.median(delta)),
+        'pct_improved': float((delta < 0).mean() * 100),
+        'wilcoxon_pvalue': wilcoxon_pvalue,
+    }
+
+
+def _plot_qq_comparison(dur_a, dur_b, out_dir, labels, filename='29_qq_duration.png'):
+    """QQ plot: quantiles of B vs quantiles of A with y=x reference."""
+    import matplotlib.pyplot as plt
+
+    qs = np.linspace(1, 99, 99)
+    qa = np.percentile(dur_a, qs)
+    qb = np.percentile(dur_b, qs)
+
+    fig, ax = plt.subplots(figsize=(7, 7))
+    lim = [0, max(qa.max(), qb.max()) * 1.05]
+    ax.plot(lim, lim, color='gray', ls='--', lw=1.5, label='y = x (sin cambio)')
+    ax.scatter(qa, qb, s=18, color='steelblue', alpha=0.8, zorder=3)
+    ax.fill_between(lim, [0, lim[1]], [0, 0], color='seagreen', alpha=0.06)
+    ax.set_xlim(lim)
+    ax.set_ylim(lim)
+    ax.set_xlabel(f'Cuantiles {labels[0]} (s)')
+    ax.set_ylabel(f'Cuantiles {labels[1]} (s)')
+    ax.set_title(f'QQ plot de duración de viaje — {labels[1]} vs {labels[0]}\n'
+                 'Puntos bajo la diagonal = mejora en ese cuantil')
+    ax.legend(fontsize=9)
+    ax.grid(True, alpha=0.25)
+    fig.tight_layout()
+    fig.savefig(os.path.join(out_dir, filename), dpi=150, bbox_inches='tight')
+    plt.close(fig)
+
+
+def _plot_paired_scatter(merged, metric, out_dir, labels, filename='30_paired_scatter.png'):
+    """Per-vehicle scatter: metric in A vs metric in B, colored by outcome."""
+    import matplotlib.pyplot as plt
+
+    x = merged[f'{metric}_a'].values
+    y = merged[f'{metric}_b'].values
+    improved = y < x
+
+    fig, ax = plt.subplots(figsize=(8, 8))
+    lim = [0, max(x.max(), y.max()) * 1.05]
+    ax.plot(lim, lim, color='gray', ls='--', lw=1.5, label='y = x (sin cambio)')
+    ax.scatter(x[improved], y[improved], s=8, alpha=0.35, color='seagreen',
+               label=f'Mejora (n={improved.sum()})')
+    ax.scatter(x[~improved], y[~improved], s=8, alpha=0.35, color='tomato',
+               label=f'Empeora (n={(~improved).sum()})')
+    ax.set_xlim(lim)
+    ax.set_ylim(lim)
+    ax.set_xlabel(f'{metric} en {labels[0]} (s)')
+    ax.set_ylabel(f'{metric} en {labels[1]} (s)')
+    pct = improved.mean() * 100
+    ax.set_title(f'Comparación pareada por vehículo (mismo vehículo en ambas corridas)\n'
+                 f'{pct:.1f}% de los {len(merged)} vehículos mejora en {labels[1]}')
+    ax.legend(fontsize=9)
+    ax.grid(True, alpha=0.25)
+    fig.tight_layout()
+    fig.savefig(os.path.join(out_dir, filename), dpi=150, bbox_inches='tight')
+    plt.close(fig)
+
+
+def _plot_paired_delta_hist(delta, metric, out_dir, labels, filename='31_paired_delta_hist.png'):
+    """Histogram of per-vehicle deltas (B - A); negative = improvement."""
+    import matplotlib.pyplot as plt
+
+    lo, hi = np.percentile(delta, [1, 99])
+    clipped = np.clip(delta, lo, hi)
+
+    fig, ax = plt.subplots(figsize=(9, 5))
+    ax.hist(clipped, bins=40, color='steelblue', alpha=0.75)
+    ax.axvline(0, color='gray', ls='-', lw=1.5, label='Sin cambio')
+    ax.axvline(float(np.mean(delta)), color='seagreen' if np.mean(delta) < 0 else 'tomato',
+               ls='--', lw=2, label=f'Δ medio = {np.mean(delta):+.1f}s')
+    ax.axvline(float(np.median(delta)), color='darkorange', ls=':', lw=2,
+               label=f'Δ mediana = {np.median(delta):+.1f}s')
+    pct = (delta < 0).mean() * 100
+    ax.set_xlabel(f'Δ {metric} por vehículo: {labels[1]} − {labels[0]} (s)')
+    ax.set_ylabel('Vehículos')
+    ax.set_title(f'Diferencia pareada por vehículo (negativo = mejora)\n'
+                 f'{pct:.1f}% de vehículos mejora')
+    ax.legend(fontsize=9)
+    ax.grid(True, alpha=0.25)
+    fig.tight_layout()
+    fig.savefig(os.path.join(out_dir, filename), dpi=150, bbox_inches='tight')
+    plt.close(fig)
+
+
+def _plot_throughput_timeline(df_trip_a, df_trip_b, out_dir, labels,
+                              filename='32_throughput_timeline.png'):
+    """Cumulative completed trips over time for both runs."""
+    import matplotlib.pyplot as plt
+
+    fig, ax = plt.subplots(figsize=(9, 5))
+    finals = []
+    for df, color, label in [(df_trip_a, 'steelblue', labels[0]),
+                             (df_trip_b, 'seagreen', labels[1])]:
+        if df.empty or 'arrival' not in df.columns:
+            continue
+        arrivals = np.sort(df['arrival'].dropna().values)
+        if len(arrivals) == 0:
+            continue
+        ax.step(arrivals, np.arange(1, len(arrivals) + 1), where='post',
+                color=color, lw=2, label=f'{label} (total={len(arrivals)})')
+        finals.append(len(arrivals))
+    ax.set_xlabel('Tiempo de simulación (s)')
+    ax.set_ylabel('Viajes completados (acumulado)')
+    title = 'Throughput: viajes completados acumulados en el tiempo'
+    if len(finals) == 2 and finals[0] > 0:
+        title += f'\n{labels[1]} completa {(finals[1] - finals[0]) / finals[0] * 100:+.1f}% de viajes'
+    ax.set_title(title)
+    ax.legend(fontsize=9)
+    ax.grid(True, alpha=0.25)
+    fig.tight_layout()
+    fig.savefig(os.path.join(out_dir, filename), dpi=150, bbox_inches='tight')
+    plt.close(fig)
+
+
+def throughput_statistics(df_trip_a: pd.DataFrame, df_trip_b: pd.DataFrame) -> Dict:
+    """Completed-trip counts per run and relative change."""
+    n_a = int(len(df_trip_a)) if not df_trip_a.empty else 0
+    n_b = int(len(df_trip_b)) if not df_trip_b.empty else 0
+    return {
+        'completed_a': n_a,
+        'completed_b': n_b,
+        'throughput_change_pct': float((n_b - n_a) / n_a * 100) if n_a > 0 else float('nan'),
+    }
+
+
+# =============================================================================
 # MAIN COMPARISON FUNCTION
 # =============================================================================
 
@@ -440,6 +621,7 @@ def compare_runs(
     time_bin: int = 30,
     generate_all_plots: bool = True,
     use_sumo_tools: bool = False,
+    extra_info: Optional[Dict] = None,
 ) -> Dict:
     """Comprehensive comparison of two simulation runs.
 
@@ -453,6 +635,8 @@ def compare_runs(
         time_bin: Time bin size for aggregations (seconds)
         generate_all_plots: Whether to generate all available plots
         use_sumo_tools: Whether to also run native SUMO visualization tools
+        extra_info: Run configuration (seed, steps, mode…) embedded in the
+            JSON and HTML reports for traceability
 
     Returns:
         Dictionary with analysis results and file paths
@@ -587,11 +771,29 @@ def compare_runs(
                                  filename=f'20_time_series_mean_{labels[1]}.png', bin_size=time_bin)
             generated_files.append(f'20_time_series_mean_{labels[1]}.png')
 
-        # 16. Incomplete trips analysis (runs 21–24)
-        incomplete_files = analyze_incomplete_trips(
-            run_a, df_trip_a, out_dir, label=labels[0]
-        )
-        generated_files.extend(incomplete_files)
+        # 16. Incomplete trips analysis for BOTH runs (A: 21–24, B: 25–28)
+        generated_files.extend(analyze_incomplete_trips(
+            run_a, df_trip_a, out_dir, label=labels[0], tag='A', file_start=21))
+        generated_files.extend(analyze_incomplete_trips(
+            run_b, df_trip_b, out_dir, label=labels[1], tag='B', file_start=25))
+
+        # 17. Paired per-vehicle evidence (29–32)
+        if len(dur_a) > 0 and len(dur_b) > 0:
+            _plot_qq_comparison(dur_a, dur_b, out_dir, labels, filename='29_qq_duration.png')
+            generated_files.append('29_qq_duration.png')
+
+        merged = _paired_frame(df_trip_a, df_trip_b, 'duration')
+        if not merged.empty:
+            _plot_paired_scatter(merged, 'duration', out_dir, labels,
+                                 filename='30_paired_scatter.png')
+            generated_files.append('30_paired_scatter.png')
+            _plot_paired_delta_hist(merged['delta'].values, 'duration', out_dir, labels,
+                                    filename='31_paired_delta_hist.png')
+            generated_files.append('31_paired_delta_hist.png')
+
+        _plot_throughput_timeline(df_trip_a, df_trip_b, out_dir, labels,
+                                  filename='32_throughput_timeline.png')
+        generated_files.append('32_throughput_timeline.png')
 
     # Statistical tests
     print("Running statistical tests...")
@@ -620,6 +822,12 @@ def compare_runs(
         statistical_results['mean_difference'] = mean_diff
         statistical_results['percent_improvement'] = pct_improvement
 
+    # Paired per-vehicle statistics (strongest evidence: identical fleets)
+    paired = paired_statistics(df_trip_a, df_trip_b, 'duration')
+    statistical_results['paired'] = paired
+    throughput = throughput_statistics(df_trip_a, df_trip_b)
+    statistical_results['throughput'] = throughput
+
     # Use native SUMO tools if requested
     if use_sumo_tools:
         try:
@@ -643,6 +851,7 @@ def compare_runs(
     json_path = Path(out_dir) / 'ab_report.json'
     report = {
         'labels': labels,
+        'run_config': extra_info or {},
         'statistics': {
             labels[0]: stats_a,
             labels[1]: stats_b,
@@ -669,12 +878,28 @@ def compare_runs(
     _write_json_report(json_path, report)
     generated_files.append('ab_report.json')
 
+    # HTML report (autocontenido, referencias relativas a los PNG)
+    html_path = Path(out_dir) / 'ab_report.html'
+    _write_html_report(
+        html_path,
+        labels=labels,
+        stats_a=stats_a,
+        stats_b=stats_b,
+        statistical_results=statistical_results,
+        paired=paired,
+        throughput=throughput,
+        run_config=extra_info or {},
+        generated_files=generated_files,
+    )
+    generated_files.append('ab_report.html')
+
     print(f"Analysis complete! Generated {len(generated_files)} files in {out_dir}")
 
     return {
         'out_dir': str(out_dir),
         'csv': str(csv_path),
         'json': str(json_path),
+        'html': str(html_path),
         'statistical_results': statistical_results,
         'stats_a': stats_a,
         'stats_b': stats_b,
@@ -779,6 +1004,220 @@ def _write_json_report(path: Path, report: Dict):
 
     with open(path, 'w') as f:
         json.dump(serializable_report, f, indent=2)
+
+
+# =============================================================================
+# HTML REPORT
+# =============================================================================
+
+_HTML_SECTIONS = [
+    ('Evidencia pareada por vehículo (la más fuerte)', range(29, 33)),
+    ('Distribuciones', range(1, 6)),
+    ('Comparación de métricas', [6, 11, 12, 13, 14, 18]),
+    ('Series temporales', [7, 8, 9, 10, 19, 20]),
+    ('Correlaciones y FCD', [15, 16, 17]),
+    ('Viajes incompletos — corrida A', range(21, 25)),
+    ('Viajes incompletos — corrida B', range(25, 29)),
+]
+
+
+def _fmt(v, spec='.2f', default='—'):
+    try:
+        if v is None or (isinstance(v, float) and np.isnan(v)):
+            return default
+        return format(v, spec)
+    except (TypeError, ValueError):
+        return default
+
+
+def _verdict(statistical_results: Dict, paired: Dict) -> Tuple[str, str, str]:
+    """Return (css_class, title, detail) for the verdict banner."""
+    pct = statistical_results.get('percent_improvement')
+    p = statistical_results.get('permutation_test_pvalue')
+    p_paired = paired.get('wilcoxon_pvalue') if paired else None
+    significant = (p is not None and p < 0.05) or (p_paired is not None and p_paired < 0.05)
+
+    if pct is None:
+        return ('gray', 'Sin datos suficientes',
+                'No hay viajes completados en ambas corridas para comparar.')
+    if pct > 0 and significant:
+        detail = f'La optimización reduce el tiempo de viaje medio en {pct:.1f}% con significancia estadística.'
+        if paired:
+            detail += (f' {paired["pct_improved"]:.1f}% de los {paired["n_paired"]} vehículos '
+                       f'pareados mejora (Wilcoxon p={_fmt(paired["wilcoxon_pvalue"], ".2e")}).')
+        return ('green', f'Mejora significativa: {pct:+.1f}% en tiempo de viaje', detail)
+    if pct < 0 and significant:
+        return ('red', f'Empeoramiento significativo: {pct:+.1f}% en tiempo de viaje',
+                'La corrida optimizada resulta peor que el baseline con significancia estadística.')
+    return ('gray', f'Resultado no concluyente ({pct:+.1f}%)',
+            f'La diferencia observada no alcanza significancia estadística (p={_fmt(p, ".3f")}).')
+
+
+def _write_html_report(
+    path: Path,
+    *,
+    labels: Tuple[str, str],
+    stats_a: Dict,
+    stats_b: Dict,
+    statistical_results: Dict,
+    paired: Dict,
+    throughput: Dict,
+    run_config: Dict,
+    generated_files: List[str],
+):
+    """Write a self-contained HTML report (relative <img> refs, no external deps)."""
+    from datetime import datetime
+
+    css_class, verdict_title, verdict_detail = _verdict(statistical_results, paired)
+
+    # --- tabla de métricas clave A vs B ---
+    metric_rows = []
+    for metric in ('duration', 'timeLoss', 'waitingTime', 'departDelay'):
+        sa, sb = stats_a.get(metric), stats_b.get(metric)
+        if not (isinstance(sa, dict) and isinstance(sb, dict)):
+            continue
+        mean_a, mean_b = sa.get('mean'), sb.get('mean')
+        pct = ((mean_a - mean_b) / mean_a * 100) if mean_a else None
+        color = 'pos' if (pct or 0) > 0 else 'neg'
+        metric_rows.append(
+            f'<tr><td>{metric}</td>'
+            f'<td>{_fmt(mean_a)}</td><td>{_fmt(mean_b)}</td>'
+            f'<td>{_fmt(sa.get("median"))}</td><td>{_fmt(sb.get("median"))}</td>'
+            f'<td>{_fmt(sa.get("q95"))}</td><td>{_fmt(sb.get("q95"))}</td>'
+            f'<td class="{color}">{_fmt(pct, "+.2f")}%</td></tr>'
+        )
+
+    # --- tabla de tests estadísticos ---
+    test_rows = []
+    p = statistical_results.get('permutation_test_pvalue')
+    if p is not None:
+        interp = ('Evidencia fuerte de diferencia real' if p < 0.01 else
+                  'Evidencia moderada de diferencia real' if p < 0.05 else
+                  'Diferencia no significativa')
+        test_rows.append(('Test de permutación (medias)', f'p = {_fmt(p, ".2e")}', interp))
+    mw = statistical_results.get('mann_whitney_u')
+    if mw:
+        test_rows.append(('Mann-Whitney U', f'U = {_fmt(mw.get("statistic"), ".0f")}, '
+                          f'p = {_fmt(mw.get("pvalue"), ".2e")}',
+                          'Test no paramétrico sobre distribuciones completas'))
+    d = statistical_results.get('cohens_d')
+    if d is not None:
+        size = 'pequeño' if abs(d) < 0.5 else 'mediano' if abs(d) < 0.8 else 'grande'
+        test_rows.append(("Cohen's d", f'd = {_fmt(d, ".3f")}', f'Tamaño de efecto {size}'))
+    ci = statistical_results.get('bootstrap_ci_95')
+    if ci:
+        test_rows.append(('Bootstrap IC 95% (A − B)',
+                          f'[{_fmt(ci.get("lower"))}, {_fmt(ci.get("upper"))}] s',
+                          'Si el intervalo no cruza 0, la diferencia es robusta'))
+    if paired:
+        test_rows.append(('Wilcoxon pareado por vehículo',
+                          f'p = {_fmt(paired.get("wilcoxon_pvalue"), ".2e")}',
+                          f'{_fmt(paired.get("pct_improved"), ".1f")}% de {paired.get("n_paired")} '
+                          f'vehículos mejora; Δ mediana = {_fmt(paired.get("median_delta"), "+.1f")}s'))
+    test_html = ''.join(f'<tr><td>{n}</td><td>{v}</td><td>{i}</td></tr>' for n, v, i in test_rows)
+
+    # --- throughput ---
+    thr_html = ''
+    if throughput and throughput.get('completed_a') is not None:
+        thr_html = (
+            f'<p><b>Throughput:</b> {labels[0]} completó {throughput["completed_a"]} viajes, '
+            f'{labels[1]} completó {throughput["completed_b"]} '
+            f'({_fmt(throughput.get("throughput_change_pct"), "+.1f")}%).</p>'
+        )
+
+    # --- run config ---
+    config_html = ''
+    if run_config:
+        rows = ''.join(f'<tr><td>{k}</td><td>{v}</td></tr>' for k, v in run_config.items())
+        config_html = (f'<h2>Configuración del experimento</h2>'
+                       f'<table><tr><th>Parámetro</th><th>Valor</th></tr>{rows}</table>')
+
+    # --- imágenes agrupadas por sección ---
+    pngs = [f for f in generated_files if f.endswith('.png')]
+
+    def _num(f):
+        try:
+            return int(f.split('_')[0])
+        except ValueError:
+            return -1
+
+    sections_html = []
+    used = set()
+    for title, nums in _HTML_SECTIONS:
+        files = [f for f in pngs if _num(f) in nums]
+        if not files:
+            continue
+        used.update(files)
+        imgs = ''.join(f'<figure><img src="{f}" alt="{f}"><figcaption>{f}</figcaption></figure>'
+                       for f in sorted(files, key=_num))
+        sections_html.append(f'<h2>{title}</h2><div class="grid">{imgs}</div>')
+    leftover = [f for f in pngs if f not in used]
+    if leftover:
+        imgs = ''.join(f'<figure><img src="{f}" alt="{f}"><figcaption>{f}</figcaption></figure>'
+                       for f in sorted(leftover))
+        sections_html.append(f'<h2>Otros gráficos</h2><div class="grid">{imgs}</div>')
+
+    html = f"""<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Reporte A/B — {labels[0]} vs {labels[1]}</title>
+<style>
+ body {{ font-family: system-ui, sans-serif; margin: 2rem auto; max-width: 1100px;
+        color: #222; line-height: 1.5; padding: 0 1rem; }}
+ h1 {{ font-size: 1.6rem; }} h2 {{ margin-top: 2.2rem; border-bottom: 1px solid #ddd; }}
+ .banner {{ padding: 1rem 1.4rem; border-radius: 8px; margin: 1rem 0; }}
+ .banner.green {{ background: #e6f6ec; border: 1px solid #34a853; }}
+ .banner.red {{ background: #fdecea; border: 1px solid #ea4335; }}
+ .banner.gray {{ background: #f1f3f4; border: 1px solid #9aa0a6; }}
+ .banner h2 {{ margin: 0 0 .4rem; border: none; }}
+ table {{ border-collapse: collapse; width: 100%; margin: .8rem 0; font-size: .92rem; }}
+ th, td {{ border: 1px solid #ddd; padding: .45rem .6rem; text-align: left; }}
+ th {{ background: #f6f8fa; }}
+ td.pos {{ color: #188038; font-weight: 600; }} td.neg {{ color: #c5221f; font-weight: 600; }}
+ .grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 1rem; }}
+ figure {{ margin: 0; }} img {{ max-width: 100%; border: 1px solid #eee; border-radius: 4px; }}
+ figcaption {{ font-size: .78rem; color: #777; text-align: center; }}
+ footer {{ margin-top: 3rem; font-size: .8rem; color: #999; }}
+</style>
+</head>
+<body>
+<h1>Reporte automatizado A/B — {labels[0]} vs {labels[1]}</h1>
+<p>Generado el {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}. Ambas corridas usan
+demanda, red, semilla y configuración idénticas; la única diferencia es la optimización
+de semáforos aplicada en «{labels[1]}».</p>
+
+<div class="banner {css_class}">
+<h2>{verdict_title}</h2>
+<p>{verdict_detail}</p>
+</div>
+
+{thr_html}
+
+<h2>Métricas clave por viaje</h2>
+<table>
+<tr><th>Métrica</th><th>Media {labels[0]}</th><th>Media {labels[1]}</th>
+<th>Mediana {labels[0]}</th><th>Mediana {labels[1]}</th>
+<th>p95 {labels[0]}</th><th>p95 {labels[1]}</th><th>Mejora</th></tr>
+{''.join(metric_rows)}
+</table>
+
+<h2>Tests estadísticos</h2>
+<table>
+<tr><th>Test</th><th>Resultado</th><th>Interpretación</th></tr>
+{test_html}
+</table>
+
+{config_html}
+
+{''.join(sections_html)}
+
+<footer>Datos completos en <code>ab_report.json</code> y <code>ab_summary.csv</code>
+(mismo directorio). Generado por traffic-sim.</footer>
+</body>
+</html>
+"""
+    Path(path).write_text(html, encoding='utf-8')
 
 
 # =============================================================================

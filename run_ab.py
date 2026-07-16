@@ -91,6 +91,8 @@ Examples:
                         help='Total traffic light cycle time (seconds)')
     parser.add_argument('--sim-steps', type=int, default=300,
                         help='Number of simulation steps to run')
+    parser.add_argument('--seed', type=int, default=42,
+                        help='SUMO random seed applied to BOTH runs (identical conditions)')
 
     # Directory options
     parser.add_argument('--extract-base', default='sim',
@@ -109,8 +111,6 @@ Examples:
                         help='Run simulations with SUMO GUI')
     parser.add_argument('--python', default=sys.executable,
                         help='Python executable to run simulation script')
-    parser.add_argument('--keep-files', action='store_true',
-                        help='Keep extracted files after runs')
 
     # Analysis options
     parser.add_argument('--use-sumo-tools', action='store_true',
@@ -150,12 +150,14 @@ Examples:
 
     if not args.analyze_only:
         # Build command arguments for each run
-        common_args = ["--sim-steps", str(args.sim_steps), "--cycle-time", str(args.cycle_time)]
+        common_args = [
+            "--sim-steps", str(args.sim_steps),
+            "--cycle-time", str(args.cycle_time),
+            "--seed", str(args.seed),
+        ]
 
         if args.gui:
             common_args.append('--gui')
-        if args.keep_files:
-            common_args.append('--keep-files')
 
         extra_a = common_args.copy()
 
@@ -204,7 +206,7 @@ Examples:
 
     try:
         sys.path.insert(0, str(repo_dir))
-        from visualization import generate_ab_test, quick_compare, compare_multiple_metrics
+        from visualization import generate_ab_test, compare_multiple_metrics
 
         # Determine output directory
         if args.output_dir:
@@ -219,6 +221,15 @@ Examples:
             out_dir=out_dir,
             labels=labels,
             use_sumo_tools=args.use_sumo_tools,
+            time_bin=args.time_bin,
+            extra_info={
+                'zip_file': args.zip_file,
+                'mode': 'dynamic-optimization' if use_dynamic else 'static green-time',
+                'b_config': b_config_desc,
+                'sim_steps': args.sim_steps,
+                'seed': args.seed,
+                'cycle_time': args.cycle_time,
+            },
         )
 
         # Print summary
@@ -252,10 +263,23 @@ Examples:
                 ci = stats['bootstrap_ci_95']
                 print(f"95% CI for Mean Diff: [{ci['lower']:.2f}, {ci['upper']:.2f}]")
 
+            paired = stats.get('paired') or {}
+            if paired:
+                print(f"Paired (per-vehicle): n={paired['n_paired']}, "
+                      f"{paired['pct_improved']:.1f}% improved, "
+                      f"median Δ={paired['median_delta']:+.1f}s, "
+                      f"Wilcoxon p={paired['wilcoxon_pvalue']:.2e}")
+
+            thr = stats.get('throughput') or {}
+            if thr.get('completed_a'):
+                print(f"Throughput: {thr['completed_a']} vs {thr['completed_b']} trips "
+                      f"({thr['throughput_change_pct']:+.1f}%)")
+
         print(f"\nGenerated files: {len(report.get('generated_files', []))}")
         print(f"Output directory: {out_dir}")
         print(f"CSV report: {report.get('csv', 'N/A')}")
         print(f"JSON report: {report.get('json', 'N/A')}")
+        print(f"HTML report: {report.get('html', 'N/A')}")
 
         # Quick metrics table
         print(f"\n{'='*60}")
