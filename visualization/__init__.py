@@ -14,64 +14,62 @@ Main entry points:
 - quick_compare(): Get quick statistics without generating plots
 """
 from pathlib import Path
-import os
-
-from .parsers import (
-    parse_tripinfo,
-    parse_summary,
-    parse_fcd,
-    get_available_outputs,
-    compute_trip_statistics,
-    compute_summary_statistics,
-)
-
-from .plots import (
-    # Single-run plots
-    plot_summary_timeline,
-    plot_tripinfo_histograms,
-    plot_depart_delay_scatter,
-    plot_network_traffic_lights,
-    # A/B comparison plots
-    plot_histogram_cdf_two,
-    plot_boxplot_two,
-    plot_time_series_mean,
-    plot_metric_comparison_bars,
-    plot_violin_comparison,
-    plot_multi_metric_violin,
-    plot_time_series_comparison,
-    plot_summary_comparison,
-    plot_efficiency_comparison,
-    plot_speed_distribution_comparison,
-    plot_waiting_time_analysis,
-    plot_correlation_heatmap,
-    plot_fcd_speed_heatmap,
-    plot_fcd_comparison,
-    plot_improvement_summary,
-    plot_percentile_comparison,
-    plot_congestion_timeline,
-)
 
 from .ab_test import (
-    compare_runs,
-    quick_compare,
-    compare_multiple_metrics,
-    permutation_test_mean,
-    bootstrap_ci_diff,
-    mann_whitney_test,
-    cohens_d,
-    paired_statistics,
     analyze_incomplete_trips,
+    bootstrap_ci_diff,
+    cohens_d,
+    compare_multiple_metrics,
+    compare_runs,
+    mann_whitney_test,
+    paired_statistics,
+    permutation_test_mean,
+    quick_compare,
 )
-
+from .parsers import (
+    compute_summary_statistics,
+    compute_trip_statistics,
+    get_available_outputs,
+    parse_fcd,
+    parse_summary,
+    parse_tripinfo,
+)
+from .plots import (
+    plot_boxplot_two,
+    plot_congestion_timeline,
+    plot_correlation_heatmap,
+    plot_depart_delay_scatter,
+    plot_efficiency_comparison,
+    plot_fcd_comparison,
+    plot_fcd_speed_heatmap,
+    # A/B comparison plots
+    plot_histogram_cdf_two,
+    plot_improvement_summary,
+    plot_metric_comparison_bars,
+    plot_multi_metric_violin,
+    plot_network_traffic_lights,
+    plot_percentile_comparison,
+    plot_speed_distribution_comparison,
+    plot_summary_comparison,
+    # Single-run plots
+    plot_summary_timeline,
+    plot_time_series_comparison,
+    plot_time_series_mean,
+    plot_tripinfo_histograms,
+    plot_violin_comparison,
+    plot_waiting_time_analysis,
+)
 from .sumo_tools import (
-    plot_xml_attributes,
-    plot_summary as sumo_plot_summary,
-    plot_tripinfo_distributions,
+    check_sumo_tools_available,
+    generate_all_sumo_plots,
     plot_net_dump,
     plot_net_speeds,
     plot_trajectories,
-    generate_all_sumo_plots,
-    check_sumo_tools_available,
+    plot_tripinfo_distributions,
+    plot_xml_attributes,
+)
+from .sumo_tools import (
+    plot_summary as sumo_plot_summary,
 )
 
 

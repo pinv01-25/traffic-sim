@@ -13,7 +13,6 @@
   "11": "simulation_orchestrator.py",
   "12": "run_simulation.py",
   "13": "parsers.py",
-  "14": "traffic_control_client.py",
   "15": "TrafficDataPayload",
   "16": "DescriptiveNames",
   "17": "MetricsValidator",
@@ -35,15 +34,6 @@
   "33": "Review Changes",
   "34": "code-review-graph",
   "35": "metrics_calculator.py",
-  "36": "compare_runs",
-  "37": "analyze_incomplete_trips",
-  "38": "__init__.py",
-  "39": "Path",
   "40": "Path",
-  "41": "Any",
-  "42": "paired_statistics",
-  "43": "compare_multiple_metrics",
-  "44": "_write_html_report",
-  "45": "DataFrame",
-  "46": "Path"
+  "41": "Any"
 }

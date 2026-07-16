@@ -5,11 +5,11 @@ Traffic-Sim es un sistema de simulación de tráfico urbano que utiliza SUMO (Si
 ## Características
 
 - **Detección automática de cuellos de botella** — analiza densidad, velocidad y longitud de colas
-- **Comunicación con traffic-control** — envía datos crudos a `/ingest` y recibe optimizaciones
+- **Comunicación con traffic-control** — envía datos crudos a `/ingest` y recibe optimizaciones (solo con `--dynamic-optimization`; el baseline nunca envía telemetría)
 - **Control dinámico de semáforos** — actualiza tiempos en tiempo real vía TraCI
 - **Dos modos de ejecución** — GUI (interfaz gráfica) y Headless (consola)
 - **Reproducibilidad con seeds** — control del comportamiento estocástico de conductores
-- **Pipeline A/B completo** — 24 gráficos + tests estadísticos + análisis de viajes incompletos
+- **Pipeline A/B completo** — 32 gráficos + tests estadísticos (incl. pareados por vehículo) + reporte HTML automatizado
 - **Experimento multi-seed** — cuantifica variabilidad entre runs para validar significancia
 - **Comparador Webster (sim_C)** — baseline fixed-time óptimo teórico para benchmarking
 
@@ -116,7 +116,7 @@ simulation.zip
 
 ## Pipeline A/B
 
-Compara dos corridas (A = control, B = optimizada con IA) y genera 24 gráficos + reportes estadísticos automáticamente.
+Compara dos corridas (A = control, B = optimizada con IA) y genera 32 gráficos + reportes CSV/JSON/HTML automáticamente.
 
 ### Uso programático
 
@@ -143,7 +143,7 @@ Los scripts detectan automáticamente los directorios de simulación sin necesid
 
 Esto permite usar cualquier nombre de directorio siempre que siga la convención de sufijo.
 
-### Gráficos generados (24 archivos)
+### Gráficos generados (32 archivos)
 
 Guardados en `sim_B/logs/visualizations/ab_test/`:
 
@@ -166,12 +166,16 @@ Guardados en `sim_B/logs/visualizations/ab_test/`:
 | 17 | `17_fcd_comparison.png` | Comparación FCD (Floating Car Data) |
 | 18 | `18_improvement_summary.png` | Resumen de mejoras |
 | 19–20 | `19/20_time_series_mean_A/B.png` | Serie temporal individual por run |
-| **21** | **`21_incomplete_histogram.png`** | **Histograma: completados vs incompletos** |
-| **22** | **`22_incomplete_cdf.png`** | **CDF: completados vs incompletos** |
-| **23** | **`23_incomplete_boxplot.png`** | **Boxplot: completados vs incompletos** |
-| **24** | **`24_incomplete_scatter.png`** | **Scatter: depart time vs time_in_network** |
+| 21–24 | `21..24_incomplete_*_A.png` | Viajes incompletos de la corrida A |
+| 25–28 | `25..28_incomplete_*_B.png` | Viajes incompletos de la corrida B |
+| **29** | **`29_qq_duration.png`** | **QQ plot: cuantiles B vs A (bajo la diagonal = mejora)** |
+| **30** | **`30_paired_scatter.png`** | **Scatter pareado: cada vehículo contra sí mismo (A vs B)** |
+| **31** | **`31_paired_delta_hist.png`** | **Histograma de Δ por vehículo (negativo = mejora)** |
+| **32** | **`32_throughput_timeline.png`** | **Viajes completados acumulados en el tiempo** |
 
-Los gráficos **21–24** analizan los **viajes incompletos** de sim_A: vehículos que entraron a la red (aparecen en `fcd.xml`) pero no completaron su ruta (ausentes en `tripinfo.xml`). Cuantifican cuántos viajes son excluidos del análisis A/B y por qué, detectando posible sesgo de selección en las métricas reportadas.
+Los gráficos **21–28** analizan los **viajes incompletos** de cada corrida: vehículos que entraron a la red (aparecen en `fcd.xml`) pero no completaron su ruta (ausentes en `tripinfo.xml`). Cuantifican cuántos viajes son excluidos del análisis A/B y por qué, detectando posible sesgo de selección en las métricas reportadas.
+
+Los gráficos **29–32** aportan la **evidencia pareada**: como la demanda es idéntica en A y B (mismos vehículos, rutas y departs), cada vehículo se compara consigo mismo — el diseño experimental más fuerte posible.
 
 ### Tests estadísticos (automáticos)
 
@@ -179,14 +183,17 @@ Los gráficos **21–24** analizan los **viajes incompletos** de sim_A: vehícul
 - **Bootstrap CI 95%** — intervalo de confianza para la diferencia
 - **Mann-Whitney U** — test no paramétrico
 - **Cohen's d** — tamaño del efecto
+- **Wilcoxon pareado por vehículo** — signed-rank sobre Δ duration del mismo vehículo en A y B
 
 ### Reportes
 
 ```
 sim_B/logs/visualizations/ab_test/
+├── ab_report.html          # Reporte automatizado: veredicto, tablas, todos los gráficos
 ├── ab_summary.csv          # Tabla de métricas y tests
-├── ab_report.json          # Reporte completo con estadísticas
-└── incomplete_trips.csv    # Detalle de viajes incompletos en sim_A
+├── ab_report.json          # Reporte completo con estadísticas y run_config
+├── incomplete_trips_A.csv  # Detalle de viajes incompletos en A
+└── incomplete_trips_B.csv  # Detalle de viajes incompletos en B
 ```
 
 ---

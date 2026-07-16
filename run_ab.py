@@ -24,7 +24,6 @@ import argparse
 import subprocess
 import sys
 from pathlib import Path
-import os
 
 
 def _run_instance(
@@ -168,9 +167,9 @@ Examples:
 
         # Run A (Baseline)
         print(f"\n{'#'*60}")
-        print(f"# STARTING BASELINE RUN A")
+        print("# STARTING BASELINE RUN A")
         print(f"# Extract dir: {extract_a}")
-        print(f"# Configuration: Default timing (no --green-time)")
+        print("# Configuration: Default timing (no --green-time)")
         print(f"{'#'*60}")
 
         rc = _run_instance(args.python, str(runner), args.zip_file, extract_a, extra_a)
@@ -180,7 +179,7 @@ Examples:
 
         # Run B (Optimized)
         print(f"\n{'#'*60}")
-        print(f"# STARTING OPTIMIZED RUN B")
+        print("# STARTING OPTIMIZED RUN B")
         print(f"# Extract dir: {extract_b}")
         print(f"# Configuration: {b_config_desc}")
         print(f"{'#'*60}")
@@ -200,13 +199,13 @@ Examples:
 
     # Run A/B Analysis
     print(f"\n{'#'*60}")
-    print(f"# RUNNING A/B ANALYSIS")
+    print("# RUNNING A/B ANALYSIS")
     print(f"# Comparing: {extract_a} ({labels[0]}) vs {extract_b} ({labels[1]})")
     print(f"{'#'*60}\n")
 
     try:
         sys.path.insert(0, str(repo_dir))
-        from visualization import generate_ab_test, compare_multiple_metrics
+        from visualization import compare_multiple_metrics, generate_ab_test
 
         # Determine output directory
         if args.output_dir:

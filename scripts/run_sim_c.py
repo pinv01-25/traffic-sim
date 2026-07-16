@@ -47,7 +47,7 @@ def main() -> int:
     out_dir = SIM_C_DIR / "logs" / "sumo_output"
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    print(f"Ejecutando sim_C (Webster fixed-time)...")
+    print("Ejecutando sim_C (Webster fixed-time)...")
     print(f"  Config:  {config_file}")
     print(f"  Output:  {out_dir}")
     print(f"  Steps:   {args.sim_steps}")
@@ -87,8 +87,8 @@ def main() -> int:
     else:
         print("\nWARNING: tripinfo.xml no fue creado")
 
-    print(f"\nSiguiente paso:")
-    print(f"  uv run python scripts/compare_three_runs.py")
+    print("\nSiguiente paso:")
+    print("  uv run python scripts/compare_three_runs.py")
 
     return 0
 

@@ -2,11 +2,12 @@
 
 Provides lightweight functions that return pandas DataFrames for plotting.
 """
-from typing import Dict, List, Optional
 import xml.etree.ElementTree as ET
-import pandas as pd
-import numpy as np
 from pathlib import Path
+from typing import Dict, List, Optional
+
+import numpy as np
+import pandas as pd
 
 
 def parse_tripinfo(path: str) -> pd.DataFrame:
@@ -15,7 +16,7 @@ def parse_tripinfo(path: str) -> pd.DataFrame:
     Columns: id, depart, arrival, duration, routeLength, departDelay, timeLoss, waitingTime, departLane
     """
     rows: List[Dict] = []
-    for event, elem in ET.iterparse(path):
+    for _event, elem in ET.iterparse(path):
         if elem.tag == 'tripinfo':
             try:
                 rows.append({
@@ -90,7 +91,7 @@ def parse_fcd(path: str, sample_rate: int = 1) -> pd.DataFrame:
     rows: List[Dict] = []
     timestep_count = 0
 
-    for event, elem in ET.iterparse(path, events=['end']):
+    for _event, elem in ET.iterparse(path, events=['end']):
         if elem.tag == 'timestep':
             timestep_count += 1
             if timestep_count % sample_rate != 0:

@@ -6,7 +6,6 @@ Implementa cálculos precisos de métricas críticas para traffic-sync
 from dataclasses import dataclass
 from typing import Dict, List
 
-import traci
 from config import BOTTLENECK_CONFIG
 from utils.descriptive_names import descriptive_names
 from utils.logger import setup_logger
@@ -19,7 +18,6 @@ from utils.traci_helpers import (
     get_vehicle_speed,
     get_vehicle_type,
     get_vehicle_waiting_time,
-    safe_float,
 )
 
 logger = setup_logger(__name__)

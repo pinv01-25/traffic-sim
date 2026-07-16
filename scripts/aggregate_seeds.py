@@ -26,7 +26,7 @@ import pandas as pd
 PROJECT_ROOT = Path.cwd()
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from visualization.parsers import parse_tripinfo
+from visualization.parsers import parse_tripinfo  # noqa: E402
 
 
 def load_seed_results(results_dir: Path) -> pd.DataFrame:
@@ -151,7 +151,7 @@ def plot_violin_by_seed(df: pd.DataFrame, out_path: Path) -> None:
     colors = {"sim_A": "steelblue", "sim_B": "tomato"}
     label_map = {"sim_A": "A (fixed)", "sim_B": "B (IA)"}
 
-    for ax, (metric, ylabel, _) in zip(axes, metrics):
+    for ax, (metric, ylabel, _) in zip(axes, metrics, strict=False):
         positions_a = []
         positions_b = []
         data_a = []
@@ -176,7 +176,7 @@ def plot_violin_by_seed(df: pd.DataFrame, out_path: Path) -> None:
             (positions_a, data_a, "sim_A"),
             (positions_b, data_b, "sim_B"),
         ]:
-            valid = [(p, d) for p, d in zip(pos, data) if not np.all(np.isnan(d)) and len(d) > 1]
+            valid = [(p, d) for p, d in zip(pos, data, strict=False) if not np.all(np.isnan(d)) and len(d) > 1]
             if valid:
                 vp = ax.violinplot(
                     [d for _, d in valid],

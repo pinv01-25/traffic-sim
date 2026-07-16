@@ -22,7 +22,6 @@ Uso:
     uv run python scripts/generate_webster_timing.py
 """
 
-import math
 import shutil
 import sys
 import xml.etree.ElementTree as ET
@@ -115,12 +114,8 @@ def count_vehicles_per_edge(routes_file: Path) -> dict:
             current_route_edges = None
             elem.clear()
         elif event == "end" and elem.tag == "route":
-            # standalone route (referenced by ID) — count edges too
-            edges_str = elem.get("edges", "")
-            if edges_str:
-                for edge in edges_str.split():
-                    # Don't double-count; vehicles will be counted separately
-                    pass
+            # standalone route (referenced by ID): no se cuenta aquí para no
+            # duplicar; los edges se acumulan al cerrar cada <vehicle>
             elem.clear()
 
     # Second pass: accumulate via vehicle → route lookup
@@ -319,7 +314,7 @@ def setup_sim_c(sim_a_dir: Path, sim_c_dir: Path) -> bool:
 # ---------------------------------------------------------------------------
 
 def main() -> int:
-    print(f"Generando temporización Webster para sim_C")
+    print("Generando temporización Webster para sim_C")
     print(f"  Network:  {NETWORK_FILE}")
     print(f"  Routes:   {ROUTES_FILE}")
     print(f"  Output:   {SIM_C_DIR}")
@@ -375,14 +370,14 @@ def main() -> int:
     # 6. Print summary
     n_tl_with_data = sum(1 for tl_id in tl_logics if tl_connections.get(tl_id))
     print(f"\n{'='*60}")
-    print(f"RESUMEN WEBSTER")
+    print("RESUMEN WEBSTER")
     print(f"{'='*60}")
     print(f"Total semáforos:       {len(tl_logics)}")
     print(f"Con datos de conexión: {n_tl_with_data}")
     print(f"{'='*60}")
 
-    print(f"\nSiguiente paso:")
-    print(f"  uv run python scripts/run_sim_c.py")
+    print("\nSiguiente paso:")
+    print("  uv run python scripts/run_sim_c.py")
 
     return 0
 

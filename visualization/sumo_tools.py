@@ -11,7 +11,6 @@ import subprocess
 import sys
 from pathlib import Path
 from typing import List, Optional, Tuple
-import shutil
 
 
 def _get_sumo_tools_path() -> Path:
@@ -28,7 +27,7 @@ def _get_sumo_tools_path() -> Path:
         for alt in alternatives:
             if alt.exists():
                 return alt
-        raise FileNotFoundError(f"SUMO tools not found. Set SUMO_HOME environment variable.")
+        raise FileNotFoundError("SUMO tools not found. Set SUMO_HOME environment variable.")
     return tools_path
 
 
@@ -175,7 +174,7 @@ def plot_summary(
     """
     args = []
 
-    for i, f in enumerate(input_files):
+    for _i, f in enumerate(input_files):
         args.extend(['-i', f])
 
     if measures:

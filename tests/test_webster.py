@@ -5,7 +5,10 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from scripts.generate_webster_timing import (  # noqa: E402
-    AMBER_DURATION, MAX_CYCLE, MIN_CYCLE, compute_webster_timing,
+    AMBER_DURATION,
+    MAX_CYCLE,
+    MIN_CYCLE,
+    compute_webster_timing,
 )
 
 PHASES = [

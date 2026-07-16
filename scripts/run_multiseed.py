@@ -97,7 +97,9 @@ def _run_via_orchestrator(
         return False
 
     # Create a symlinked temp dir pointing to the sim files, with custom output
-    import tempfile, os, shutil
+    import os
+    import shutil
+    import tempfile
 
     with tempfile.TemporaryDirectory(prefix="multiseed_") as tmpdir:
         tmpdir_path = Path(tmpdir)
@@ -193,7 +195,7 @@ def main() -> int:
         print(f"ERROR: No se encontró {sim_b_cfg}")
         return 1
 
-    print(f"Multi-seed experiment")
+    print("Multi-seed experiment")
     print(f"  Seeds:      {args.seeds}")
     print(f"  Sim steps:  {args.sim_steps}")
     print(f"  Output dir: {args.out}")
@@ -217,7 +219,7 @@ def main() -> int:
             successes += 1
             print(f"  sim_A OK — {out_a / 'tripinfo.xml'}")
         else:
-            print(f"  sim_A FAILED")
+            print("  sim_A FAILED")
 
         # sim_B: with or without dynamic optimization
         out_b = args.out / f"seed_{seed}" / "sim_B"
@@ -230,7 +232,7 @@ def main() -> int:
             successes += 1
             print(f"  sim_B OK — {out_b / 'tripinfo.xml'}")
         else:
-            print(f"  sim_B FAILED")
+            print("  sim_B FAILED")
 
         print()
 

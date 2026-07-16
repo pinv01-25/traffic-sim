@@ -1,16 +1,16 @@
 # Graph Report - traffic-sim  (2026-07-16)
 
 ## Corpus Check
-- 48 files · ~31,969 words
+- 46 files · ~29,744 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 600 nodes · 896 edges · 47 communities (35 shown, 12 thin omitted)
-- Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 12 edges (avg confidence: 0.67)
+- 572 nodes · 861 edges · 37 communities (27 shown, 10 thin omitted)
+- Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 7 edges (avg confidence: 0.59)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `a8508fcc`
+- Built from commit: `765f760e`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -29,7 +29,6 @@
 - simulation_orchestrator.py
 - run_simulation.py
 - parsers.py
-- traffic_control_client.py
 - TrafficDataPayload
 - DescriptiveNames
 - MetricsValidator
@@ -46,58 +45,49 @@
 - Review Changes
 - code-review-graph
 - metrics_calculator.py
-- compare_runs
-- analyze_incomplete_trips
-- __init__.py
-- Path
 - Path
 - Any
-- paired_statistics
-- compare_multiple_metrics
-- _write_html_report
-- DataFrame
-- Path
 
 ## God Nodes (most connected - your core abstractions)
 1. `SimulationOrchestrator` - 26 edges
-2. `compare_runs()` - 23 edges
-3. `_ensure_dir()` - 22 edges
-4. `MetricsCalculator` - 17 edges
-5. `analyze_incomplete_trips()` - 11 edges
-6. `SimulationManager` - 11 edges
-7. `Traffic-Sim: Simulador de Tráfico Inteligente` - 11 edges
-8. `_run_sumo_tool()` - 10 edges
-9. `paired_statistics()` - 9 edges
-10. `_write_html_report()` - 9 edges
+2. `_ensure_dir()` - 22 edges
+3. `MetricsCalculator` - 17 edges
+4. `compare_runs()` - 17 edges
+5. `SimulationManager` - 11 edges
+6. `analyze_incomplete_trips()` - 11 edges
+7. `parse_tripinfo()` - 11 edges
+8. `parse_summary()` - 11 edges
+9. `Traffic-Sim: Simulador de Tráfico Inteligente` - 11 edges
+10. `_run_sumo_tool()` - 10 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `test_html_report_renders_verdict_stats_and_images()` --calls--> `_write_html_report()`  [EXTRACTED]
-  tests/test_html_report.py → visualization/ab_test.py
-- `test_html_report_inconclusive_verdict()` --calls--> `_write_html_report()`  [EXTRACTED]
-  tests/test_html_report.py → visualization/ab_test.py
-- `test_paired_statistics_empty_or_disjoint()` --calls--> `paired_statistics()`  [EXTRACTED]
-  tests/test_paired_stats.py → visualization/ab_test.py
 - `IntersectionData` --uses--> `MetricsCalculator`  [INFERRED]
   detectors/bottleneck_detector.py → services/metrics_calculator.py
 - `BottleneckDetection` --uses--> `MetricsCalculator`  [INFERRED]
   detectors/bottleneck_detector.py → services/metrics_calculator.py
+- `BottleneckDetector` --uses--> `MetricsCalculator`  [INFERRED]
+  detectors/bottleneck_detector.py → services/metrics_calculator.py
+- `_run_via_orchestrator()` --calls--> `SimulationOrchestrator`  [EXTRACTED]
+  scripts/run_multiseed.py → simulation_orchestrator.py
+- `load_all()` --calls--> `parse_tripinfo()`  [EXTRACTED]
+  scripts/compare_three_runs.py → visualization/parsers.py
 
 ## Import Cycles
 - None detected.
 
-## Communities (47 total, 12 thin omitted)
+## Communities (37 total, 10 thin omitted)
 
 ### Community 1 - "ab_test.py"
-Cohesion: 0.15
-Nodes (18): _compute_incomplete_trips(), _find_file(), _fmt(), _get_depart_times(), _get_last_fcd_times(), _load_fcd(), _load_summary(), _load_tripinfo() (+10 more)
+Cohesion: 0.06
+Nodes (74): ndarray, main(), Run a single simulation instance., _run_instance(), Tests de parsers de outputs SUMO., test_parse_summary_interval_format(), test_parse_summary_step_format(), test_parse_tripinfo() (+66 more)
 
 ### Community 2 - "__init__.py"
 Cohesion: 0.09
 Nodes (40): _ensure_dir(), plot_boxplot_two(), plot_congestion_timeline(), plot_correlation_heatmap(), plot_depart_delay_scatter(), plot_efficiency_comparison(), plot_fcd_comparison(), plot_fcd_speed_heatmap() (+32 more)
 
 ### Community 4 - "compare_three_runs.py"
-Cohesion: 0.08
-Nodes (39): format_pval(), load_all(), main(), mann_whitney(), plot_three_way(), print_summary_table(), Path, Series (+31 more)
+Cohesion: 0.14
+Nodes (20): format_pval(), load_all(), main(), mann_whitney(), plot_three_way(), print_summary_table(), Path, Series (+12 more)
 
 ### Community 5 - "generate_webster_timing.py"
 Cohesion: 0.15
@@ -123,10 +113,6 @@ Nodes (27): get_available_outputs(), Path, Scan a simulation directory for avail
 Cohesion: 0.07
 Nodes (26): BottleneckDetection, BottleneckDetector, IntersectionData, log_to_file(), Detector de cuellos de botella para intersecciones con semáforos, Calcula la longitud de cola (vehículos con velocidad < 1 m/s)., Escribe mensaje al archivo de log con timestamp, Verifica si ha pasado suficiente tiempo desde la última detección con misma seve (+18 more)
 
-### Community 14 - "traffic_control_client.py"
-Cohesion: 0.14
-Nodes (14): ClusterOptimizationResponse, Any, Cliente HTTP para comunicación con traffic-control, Cliente para comunicación síncrona con traffic-control, Realiza una petición HTTP con reintentos automáticos          Args:, Envía datos crudos de simulación a traffic-control /ingest.          No se reali, Optimización para un semáforo individual dentro de un cluster, Respuesta de optimización para un cluster de semáforos.      Parsea la respuesta (+6 more)
-
 ### Community 15 - "TrafficDataPayload"
 Cohesion: 0.10
 Nodes (19): 1. Diseño del experimento, 2.1 Inputs — VERIFICADO IDÉNTICOS ✅, 2.2 Demanda — DETERMINISTA ✅, 2.3 Motor y flags — IDÉNTICOS POR CONSTRUCCIÓN ✅ (en `run_ab.py`), 2.4 Seed — IGUAL PERO IMPLÍCITO ⚠️, 2.5 Aislamiento del baseline — **NO GARANTIZADO** ❌ (hallazgo crítico), 2.6 ¿La medición perturba la simulación? — NO ✅, 2.7 Prueba de no-sesgo recomendada: test A/A (+11 more)
@@ -148,16 +134,16 @@ Cohesion: 0.18
 Nodes (10): 1. Hallazgos críticos, 2. Hallazgos mayores, 3. Hallazgos menores / limpieza, 4. Lo que está bien (vale la pena decirlo), 5. Acciones priorizadas, C1. El baseline (run A) puede recibir y aplicar optimizaciones — contamina el experimento A/B, C2. Deadlock en la API REST, C3. `parse_summary()` probablemente no parsea los summary.xml reales de SUMO (+2 more)
 
 ### Community 20 - "traffic_control_client.py"
-Cohesion: 0.08
-Nodes (25): Any, Configuración del sistema de simulación de tráfico, Controlador de semáforos para actualización dinámica de tiempos, Aplica tiempos de optimización a semáforos preservando la estructura     de fase, Actualiza un semáforo con nuevos tiempos de optimización.          Args:, TrafficLightController, Logger, extract_simulation_zip() (+17 more)
+Cohesion: 0.06
+Nodes (31): Any, Configuración del sistema de simulación de tráfico, Controlador de semáforos para actualización dinámica de tiempos, Aplica tiempos de optimización a semáforos preservando la estructura     de fase, Actualiza un semáforo con nuevos tiempos de optimización.          Args:, TrafficLightController, Logger, ClusterOptimizationResponse (+23 more)
 
 ### Community 27 - ".setup_simulation"
-Cohesion: 0.21
-Nodes (15): DataFrame, compute_improvement_per_seed(), compute_seed_stats(), load_seed_results(), main(), plot_improvement_scatter(), plot_violin_by_seed(), Wilcoxon signed-rank test: ¿es la mejora consistentemente distinta de 0? (+7 more)
+Cohesion: 0.14
+Nodes (23): DataFrame, Path, compute_improvement_per_seed(), compute_seed_stats(), load_seed_results(), main(), plot_improvement_scatter(), plot_violin_by_seed() (+15 more)
 
 ### Community 28 - "TrafficControlClient"
-Cohesion: 0.07
-Nodes (23): BottleneckDetection, ClusterOptimizationResponse, RawSimulationPayload, main(), Verifica que SUMO esté instalado, Genera la red de simulación usando netconvert, Inicia la conexión TraCI con SUMO, Aplica green_time/cycle_time a todos los semáforos si fueron pedidos (+15 more)
+Cohesion: 0.06
+Nodes (31): BottleneckDetection, ClusterOptimizationResponse, RawSimulationPayload, extract_simulation_zip(), main(), Resuelve el directorio A para comparación implícita (<base>_B → <base>_A)., Función principal para ejecutar la simulación, Extrae un archivo ZIP con archivos de simulación SUMO      Args:         zip_pat (+23 more)
 
 ### Community 29 - "MCP Tools: code-review-graph"
 Cohesion: 0.40
@@ -179,53 +165,25 @@ Nodes (4): Refactor Safely, Safety Checks, Steps, Token Efficiency Rules
 Cohesion: 0.40
 Nodes (4): Output Format, Review Changes, Steps, Token Efficiency Rules
 
-### Community 36 - "compare_runs"
-Cohesion: 0.14
-Nodes (14): compare_runs(), _plot_paired_delta_hist(), _plot_paired_scatter(), _plot_qq_comparison(), _plot_throughput_timeline(), QQ plot: quantiles of B vs quantiles of A with y=x reference., Per-vehicle scatter: metric in A vs metric in B, colored by outcome., Histogram of per-vehicle deltas (B - A); negative = improvement. (+6 more)
-
-### Community 37 - "analyze_incomplete_trips"
-Cohesion: 0.19
-Nodes (13): ndarray, analyze_incomplete_trips(), mann_whitney_test(), _plot_incomplete_boxplot(), _plot_incomplete_cdf(), _plot_incomplete_histogram(), _plot_incomplete_scatter(), Histogram: duration of completed trips vs time_in_network of incomplete ones. (+5 more)
-
-### Community 38 - "__init__.py"
-Cohesion: 0.19
-Nodes (12): bootstrap_ci_diff(), cohens_d(), permutation_test_mean(), quick_compare(), Quick comparison returning just key statistics.      Useful for programmatic acc, Two-sample permutation test for difference in means.      Tests H0: mean(x) = me, Bootstrap confidence interval for difference in means.      Returns (lower_ci, u, Calculate Cohen's d effect size. (+4 more)
-
-### Community 39 - "Path"
-Cohesion: 0.27
-Nodes (10): Path, main(), Ejecuta SUMO headless con un seed dado.      Para sim_A (fixed-time) se usa sumo, Corre SUMO como subprocess directo (sin TraCI). Más rápido, sin optimización., Corre la simulación via SimulationOrchestrator (con TraCI y optimización dinámic, run_sumo_headless(), _run_via_orchestrator(), _run_via_subprocess() (+2 more)
-
-### Community 42 - "paired_statistics"
-Cohesion: 0.31
-Nodes (8): _make_runs(), Tests del análisis pareado por vehículo (misma flota en A y B)., test_paired_statistics_basic(), test_paired_statistics_empty_or_disjoint(), _paired_frame(), paired_statistics(), Join per-vehicle metric of both runs on vehicle id.      Returns DataFrame with, Per-vehicle paired statistics (same vehicle in A and B).      Returns dict with
-
-### Community 43 - "compare_multiple_metrics"
-Cohesion: 0.36
-Nodes (7): main(), Run a single simulation instance., _run_instance(), compare_multiple_metrics(), Compare all available metrics and return as DataFrame.      Useful for quick tab, generate_ab_test(), Run a comprehensive A/B comparison between two simulation runs.      Generates 3
-
-### Community 44 - "_write_html_report"
-Cohesion: 0.47
-Nodes (5): Tests del reporte HTML automatizado del A/B test., test_html_report_inconclusive_verdict(), test_html_report_renders_verdict_stats_and_images(), Write a self-contained HTML report (relative <img> refs, no external deps)., _write_html_report()
-
 ## Knowledge Gaps
 - **63 isolated node(s):** `Steps`, `Tips`, `Token Efficiency Rules`, `Steps`, `Tips` (+58 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **12 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **10 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `SimulationOrchestrator` connect `TrafficControlClient` to `traffic_control_client.py`, `Path`?**
-  _High betweenness centrality (0.327) - this node is a cross-community bridge._
-- **Why does `_run_via_orchestrator()` connect `Path` to `TrafficControlClient`?**
-  _High betweenness centrality (0.173) - this node is a cross-community bridge._
-- **Why does `get_available_outputs()` connect `sumo_tools.py` to `compare_three_runs.py`?**
-  _High betweenness centrality (0.064) - this node is a cross-community bridge._
-- **Are the 7 inferred relationships involving `Path` (e.g. with `._run_simulation()` and `._setup_simulation_files()`) actually correct?**
-  _`Path` has 7 INFERRED edges - model-reasoned connections that need verification._
+- **Why does `SimulationOrchestrator` connect `TrafficControlClient` to `.setup_simulation`, `traffic_control_client.py`?**
+  _High betweenness centrality (0.325) - this node is a cross-community bridge._
+- **Why does `_run_via_orchestrator()` connect `.setup_simulation` to `TrafficControlClient`?**
+  _High betweenness centrality (0.072) - this node is a cross-community bridge._
+- **Why does `get_available_outputs()` connect `sumo_tools.py` to `ab_test.py`?**
+  _High betweenness centrality (0.066) - this node is a cross-community bridge._
 - **Are the 3 inferred relationships involving `MetricsCalculator` (e.g. with `BottleneckDetection` and `BottleneckDetector`) actually correct?**
   _`MetricsCalculator` has 3 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `Steps`, `Tips`, `Token Efficiency Rules` to the rest of the system?**
   _63 weakly-connected nodes found - possible documentation gaps or missing edges._
+- **Should `ab_test.py` be split into smaller, more focused modules?**
+  _Cohesion score 0.055501460564751706 - nodes in this community are weakly interconnected._
 - **Should `__init__.py` be split into smaller, more focused modules?**
   _Cohesion score 0.09024390243902439 - nodes in this community are weakly interconnected._

@@ -1,6 +1,5 @@
 """Tests del análisis pareado por vehículo (misma flota en A y B)."""
 import pandas as pd
-
 from visualization.ab_test import paired_statistics
 
 

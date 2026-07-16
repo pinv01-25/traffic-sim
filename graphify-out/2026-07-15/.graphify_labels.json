@@ -19,7 +19,6 @@
   "17": "MetricsValidator",
   "18": "ClusterDataPayload",
   "19": "RawSimulationPayload",
-  "20": "plot_percentile_comparison",
   "21": "run_sim_c.py",
   "22": "__init__.py",
   "23": "__init__.py",

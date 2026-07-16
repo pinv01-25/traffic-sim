@@ -10,28 +10,42 @@ optimized traffic light timing. Generates:
  - Improvement summary
  - Detailed CSV/JSON reports
 """
-from pathlib import Path
-import os
 import csv
 import json
+import os
+from pathlib import Path
 from typing import Dict, List, Optional, Tuple
+
 import numpy as np
 import pandas as pd
 from scipy import stats as scipy_stats
 
 from .parsers import (
-    parse_tripinfo, parse_summary, parse_fcd,
-    compute_trip_statistics, compute_summary_statistics
+    compute_summary_statistics,
+    compute_trip_statistics,
+    parse_fcd,
+    parse_summary,
+    parse_tripinfo,
 )
 from .plots import (
+    plot_boxplot_two,
+    plot_congestion_timeline,
+    plot_correlation_heatmap,
+    plot_efficiency_comparison,
+    plot_fcd_comparison,
     # Basic plots
-    plot_histogram_cdf_two, plot_boxplot_two, plot_time_series_mean,
+    plot_histogram_cdf_two,
+    plot_improvement_summary,
     # Advanced comparison plots
-    plot_metric_comparison_bars, plot_violin_comparison, plot_multi_metric_violin,
-    plot_time_series_comparison, plot_summary_comparison, plot_efficiency_comparison,
-    plot_speed_distribution_comparison, plot_waiting_time_analysis,
-    plot_correlation_heatmap, plot_fcd_comparison, plot_improvement_summary,
-    plot_percentile_comparison, plot_congestion_timeline
+    plot_metric_comparison_bars,
+    plot_multi_metric_violin,
+    plot_percentile_comparison,
+    plot_speed_distribution_comparison,
+    plot_summary_comparison,
+    plot_time_series_comparison,
+    plot_time_series_mean,
+    plot_violin_comparison,
+    plot_waiting_time_analysis,
 )
 
 
@@ -171,8 +185,8 @@ def _plot_incomplete_cdf(
 
     fig, ax = plt.subplots(figsize=(9, 5))
     for data, color, lbl in [
-        (np.sort(completed_dur), 'steelblue', f'Completados (duration)'),
-        (np.sort(time_in_network), 'tomato', f'Incompletos (time_in_network)'),
+        (np.sort(completed_dur), 'steelblue', 'Completados (duration)'),
+        (np.sort(time_in_network), 'tomato', 'Incompletos (time_in_network)'),
     ]:
         if len(data):
             cdf = np.arange(1, len(data) + 1) / len(data)
@@ -204,7 +218,7 @@ def _plot_incomplete_boxplot(
                     showfliers=True,
                     flierprops={'marker': '.', 'markersize': 3, 'alpha': 0.4})
     colors = ['steelblue', 'tomato']
-    for patch, color in zip(bp['boxes'], colors):
+    for patch, color in zip(bp['boxes'], colors, strict=False):
         patch.set_facecolor(color)
         patch.set_alpha(0.65)
     for i, data in enumerate(data_list, 1):
@@ -831,7 +845,7 @@ def compare_runs(
     # Use native SUMO tools if requested
     if use_sumo_tools:
         try:
-            from .sumo_tools import generate_all_sumo_plots, check_sumo_tools_available
+            from .sumo_tools import check_sumo_tools_available, generate_all_sumo_plots
             if check_sumo_tools_available():
                 sumo_out_dir = os.path.join(out_dir, 'sumo_native')
                 sumo_files = generate_all_sumo_plots(run_a, run_b, sumo_out_dir, labels=labels)

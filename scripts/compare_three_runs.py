@@ -108,8 +108,8 @@ def print_summary_table(dfs: dict, metric: str) -> None:
 
     # Pairwise B vs C
     if len(labels) >= 3:
-        b_label = [l for l in labels if "B" in l]
-        c_label = [l for l in labels if "C" in l]
+        b_label = [lbl for lbl in labels if "B" in lbl]
+        c_label = [lbl for lbl in labels if "C" in lbl]
         if b_label and c_label:
             bl, cl = b_label[0], c_label[0]
             _, pbc = mann_whitney(dfs[bl][metric], dfs[cl][metric])
@@ -137,14 +137,13 @@ def plot_three_way(dfs: dict, out_path: Path) -> None:
 
     labels = list(dfs.keys())
     colors = ["steelblue", "tomato", "forestgreen"][:len(labels)]
-    short_labels = [l.split()[0] for l in labels]  # "A", "B", "C"
 
-    for ax, (metric, ylabel) in zip(axes, metrics):
+    for ax, (metric, ylabel) in zip(axes, metrics, strict=False):
         data_list = []
         valid_labels = []
         valid_colors = []
 
-        for label, color in zip(labels, colors):
+        for label, color in zip(labels, colors, strict=False):
             if label not in dfs:
                 continue
             data = dfs[label][metric].dropna()
@@ -167,12 +166,12 @@ def plot_three_way(dfs: dict, out_path: Path) -> None:
             flierprops={"marker": ".", "markersize": 3, "alpha": 0.4},
         )
 
-        for patch, color in zip(bp["boxes"], valid_colors):
+        for patch, color in zip(bp["boxes"], valid_colors, strict=False):
             patch.set_facecolor(color)
             patch.set_alpha(0.65)
 
         # Add mean markers
-        for i, (data, color) in enumerate(zip(data_list, valid_colors), 1):
+        for i, (data, color) in enumerate(zip(data_list, valid_colors, strict=False), 1):
             ax.scatter([i], [np.mean(data)], marker="D", color=color,
                        s=40, zorder=5, edgecolors="white", linewidths=0.5)
 

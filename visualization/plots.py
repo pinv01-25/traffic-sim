@@ -3,12 +3,13 @@
 Comprehensive matplotlib-based functions for single runs and A/B comparisons.
 Accepts DataFrames from parsers and writes PNG files to an output directory.
 """
-from typing import Optional, List, Dict, Tuple, Union
 import os
-import matplotlib.pyplot as plt
+from typing import Dict, List, Tuple
+
 import matplotlib.patches as mpatches
-import pandas as pd
+import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import seaborn as sns
 
 # Set style defaults
@@ -123,7 +124,7 @@ def plot_network_traffic_lights(net_file: str, out_dir: str):
         labels = [c[2] for c in coords]
         fig, ax = plt.subplots(figsize=(8, 6))
         ax.scatter(xs, ys, c='red', s=20)
-        for xi, yi, lab in zip(xs, ys, labels):
+        for xi, yi, lab in zip(xs, ys, labels, strict=False):
             ax.text(xi, yi, lab, fontsize=6)
         ax.set_title('Traffic lights (network)')
         ax.set_xlabel('x')
@@ -200,7 +201,6 @@ def plot_time_series_mean(df: 'pd.DataFrame', time_col: str, value_col: str, out
     _ensure_dir(out_dir)
     if df is None or df.empty:
         return
-    import numpy as _np
     if time_col not in df.columns or value_col not in df.columns:
         return
     # Bin by integer time windows
@@ -256,9 +256,9 @@ def plot_metric_comparison_bars(
 
     fig, ax = plt.subplots(figsize=(max(10, len(available_metrics) * 2), 6))
 
-    bars_a = ax.bar(x - width/2, means_a, width, yerr=stds_a, label=labels[0],
+    ax.bar(x - width/2, means_a, width, yerr=stds_a, label=labels[0],
                     capsize=5, color='steelblue', alpha=0.8)
-    bars_b = ax.bar(x + width/2, means_b, width, yerr=stds_b, label=labels[1],
+    ax.bar(x + width/2, means_b, width, yerr=stds_b, label=labels[1],
                     capsize=5, color='coral', alpha=0.8)
 
     ax.set_ylabel('Value')
@@ -268,7 +268,7 @@ def plot_metric_comparison_bars(
     ax.legend()
 
     # Add percentage difference annotations
-    for i, (ma, mb) in enumerate(zip(means_a, means_b)):
+    for i, (ma, mb) in enumerate(zip(means_a, means_b, strict=False)):
         if ma != 0:
             pct_diff = ((mb - ma) / ma) * 100
             color = 'green' if pct_diff < 0 else 'red'
@@ -546,14 +546,14 @@ def plot_efficiency_comparison(
     box_labels = list(efficiencies.keys())
     bp = ax.boxplot(data, labels=box_labels, patch_artist=True)
     colors = ['steelblue', 'coral']
-    for patch, color in zip(bp['boxes'], colors[:len(data)]):
+    for patch, color in zip(bp['boxes'], colors[:len(data)], strict=False):
         patch.set_facecolor(color)
         patch.set_alpha(0.7)
     ax.set_ylabel('Time Efficiency')
     ax.set_title('Time Efficiency Comparison')
 
     # Add mean values as text
-    for i, (label, eff) in enumerate(efficiencies.items()):
+    for i, (_label, eff) in enumerate(efficiencies.items()):
         mean_eff = np.mean(eff)
         ax.annotate(f'μ={mean_eff:.3f}', xy=(i + 1, mean_eff),
                    xytext=(10, 0), textcoords='offset points',
@@ -899,7 +899,7 @@ def plot_improvement_summary(
     ax.set_title(f'Performance Improvement: {labels[1]} vs {labels[0]}')
 
     # Add value labels
-    for bar, imp in zip(bars, improvements):
+    for bar, imp in zip(bars, improvements, strict=False):
         width = bar.get_width()
         ax.annotate(f'{imp:+.1f}%',
                    xy=(width, bar.get_y() + bar.get_height() / 2),

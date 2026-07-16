@@ -5,9 +5,10 @@ Proporciona funciones helper para conversión de tipos y obtención de
 datos de la red de forma robusta, centralizando el manejo de errores.
 """
 
-from typing import Any, Optional
+from typing import Any
 
 import traci
+
 from utils.logger import setup_logger
 
 logger = setup_logger(__name__)
