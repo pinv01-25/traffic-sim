@@ -3,7 +3,6 @@ Calculador de métricas de tráfico para traffic-sim
 Implementa cálculos precisos de métricas críticas para traffic-sync
 """
 
-from collections import deque
 from dataclasses import dataclass
 from typing import Dict, List
 
@@ -51,9 +50,7 @@ class MetricsCalculator:
     """
     
     def __init__(self):
-        self.vehicle_history: Dict[str, deque] = {}  # vehicle_id -> deque de timestamps
         self.edge_vehicle_tracking: Dict[str, Dict[str, float]] = {}  # edge_id -> {vehicle_id -> entry_time}
-        self.last_calculation_time = 0.0
         self.visible_range = BOTTLENECK_CONFIG["visible_range"]
         
     def get_visible_vehicles(self, edge_id: str) -> List[str]:
@@ -108,11 +105,6 @@ class MetricsCalculator:
         # Solo registrar si no está ya siendo trackeado
         if vehicle_id not in self.edge_vehicle_tracking[edge_id]:
             self.edge_vehicle_tracking[edge_id][vehicle_id] = current_time
-            
-            # Agregar al historial global
-            if vehicle_id not in self.vehicle_history:
-                self.vehicle_history[vehicle_id] = deque(maxlen=1000)
-            self.vehicle_history[vehicle_id].append(current_time)
     
     def calculate_vehicles_per_minute(self, edge_id: str, current_time: float) -> int:
         """

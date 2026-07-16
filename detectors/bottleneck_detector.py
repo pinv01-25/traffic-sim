@@ -80,9 +80,6 @@ class BottleneckDetector:
         except Exception as e:
             logger.error(f"Error inicializando intersecciones: {e}")
 
-    def _get_intersection_for_traffic_light(self, tl_id: str) -> str:
-        return tl_id
-
     def get_intersection_data(self, intersection_id: str) -> Optional[IntersectionData]:
         if intersection_id not in self.intersection_edges:
             return None
@@ -97,10 +94,9 @@ class BottleneckDetector:
         # Calcular métricas agregadas para toda la intersección
         total_vehicles = 0
         total_speed = 0.0
-        total_waiting_time = 0.0
         total_vehicles_per_minute = 0
         total_circulation_time = 0.0
-        all_visible_vehicles = []
+        visible_by_edge: Dict[str, List[str]] = {}
         vehicle_stats: Dict[str, int] = {}
         
         # Debug logging solo para archivo (no consola)
@@ -118,13 +114,11 @@ class BottleneckDetector:
                 # Acumular métricas
                 total_vehicles += edge_metrics.vehicle_count
                 total_speed += edge_metrics.avg_speed_kmh * edge_metrics.vehicle_count  # Ponderado por vehículos
-                total_waiting_time += edge_metrics.avg_circulation_time_sec * edge_metrics.vehicle_count
                 total_vehicles_per_minute += edge_metrics.vehicles_per_minute
                 total_circulation_time += edge_metrics.avg_circulation_time_sec * edge_metrics.vehicle_count
-                
-                # Obtener vehículos visibles para densidad
-                visible_vehicles = self.metrics_calculator.get_visible_vehicles(edge_id)
-                all_visible_vehicles.extend(visible_vehicles)
+
+                # Vehículos visibles para densidad (una sola consulta por edge)
+                visible_by_edge[edge_id] = self.metrics_calculator.get_visible_vehicles(edge_id)
                 
                 # Acumular estadísticas de vehículos por tipo
                 for vehicle_type, count in edge_metrics.vehicle_stats.items():
@@ -161,24 +155,17 @@ class BottleneckDetector:
         avg_circulation_time = total_circulation_time / total_vehicles if total_vehicles > 0 else 0.0
         
         # Calcular densidad agregada (promedio ponderado de todos los edges)
-        if edges and all_visible_vehicles:
-            total_density = 0.0
-            total_weight = 0.0
-            
-            for edge_id in edges:
-                edge_vehicles = [v for v in all_visible_vehicles if v in self.metrics_calculator.get_visible_vehicles(edge_id)]
-                if edge_vehicles:
-                    edge_density = self.metrics_calculator.calculate_density(edge_vehicles, edge_id)
-                    # Ponderar por número de vehículos en este edge
-                    weight = len(edge_vehicles)
-                    total_density += edge_density * weight
-                    total_weight += weight
-            
-            density = total_density / total_weight if total_weight > 0 else 0.0
-            log_to_file(f"   DENSIDAD CALCULADA: {density:.2f} veh/km (promedio ponderado de {len(edges)} edges, total vehicles: {len(all_visible_vehicles)})")
-        else:
-            density = 0.0
-            log_to_file("   DENSIDAD: 0.0 (no edges or vehicles)")
+        total_density = 0.0
+        total_weight = 0.0
+        for edge_id, edge_vehicles in visible_by_edge.items():
+            if edge_vehicles:
+                edge_density = self.metrics_calculator.calculate_density(edge_vehicles, edge_id)
+                weight = len(edge_vehicles)
+                total_density += edge_density * weight
+                total_weight += weight
+
+        density = total_density / total_weight if total_weight > 0 else 0.0
+        log_to_file(f"   DENSIDAD CALCULADA: {density:.2f} veh/km (promedio ponderado de {len(edges)} edges)")
         
         # Calcular cola (solo para detección interna)
         queue_length = self._calculate_queue_length(edges)
@@ -314,17 +301,3 @@ class BottleneckDetector:
                 return (current_time - detection.timestamp) >= min_duration
 
         return True
-
-    def get_intersection_status(self, intersection_id: str) -> Dict:
-        data = self.get_intersection_data(intersection_id)
-        if data is None:
-            return {"error": "Intersección no encontrada"}
-        return {
-            "intersection_id": data.intersection_id,
-            "traffic_light_id": data.traffic_light_id,
-            "vehicle_count": data.vehicle_count,
-            "average_speed": data.average_speed,
-            "density": data.density,
-            "queue_length": data.queue_length,
-            "timestamp": data.timestamp
-        } 

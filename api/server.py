@@ -35,14 +35,11 @@ app.add_middleware(
 )
 
 # Service URLs
-CONTROL_URL = os.getenv("CONTROL_URL", "http://traffic-control:8003")
 STORAGE_URL = os.getenv("STORAGE_URL", "http://traffic-storage:8000")
-SYNC_URL = os.getenv("SYNC_URL", "http://traffic-sync:8002")
 
 class SimulationStatus(Enum):
     IDLE = "idle"
     RUNNING = "running"
-    PAUSED = "paused"
     STOPPED = "stopped"
     ERROR = "error"
 
@@ -51,7 +48,8 @@ class SimulationManager:
     
     def __init__(self):
         self.simulations: Dict[str, Dict[str, Any]] = {}
-        self.lock = threading.Lock()
+        # RLock: get_all_simulations llama a get_simulation_status con el lock tomado
+        self.lock = threading.RLock()
     
     def create_simulation(self, simulation_id: str, config: dict) -> bool:
         """Create a new simulation instance"""

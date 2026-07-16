@@ -117,7 +117,8 @@ def wilcoxon_test(improvements: pd.Series, label: str) -> None:
         return
     try:
         from scipy import stats
-        stat, pval = stats.wilcoxon(valid, alternative="less")
+        # two-sided: no presuponer la dirección del efecto (evita sesgo pro-mejora)
+        stat, pval = stats.wilcoxon(valid, alternative="two-sided")
         direction = "mejora" if valid.mean() < 0 else "empeora"
         print(f"  {label}: n={len(valid)}, mean={valid.mean():.2f}%, "
               f"Wilcoxon W={stat:.0f}, p={pval:.4f} ({direction})")
