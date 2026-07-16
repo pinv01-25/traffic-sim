@@ -64,17 +64,19 @@ def _make_fake_traci():
     return traci
 
 
-@pytest.fixture
-def fake_traci(monkeypatch):
-    traci = _make_fake_traci()
-    monkeypatch.setitem(sys.modules, 'traci', traci)
-    monkeypatch.setitem(sys.modules, 'traci.exceptions', traci.exceptions)
-    return traci
-
-
 # Instalar un fake por defecto para que los imports de módulos que hacen
 # `import traci` no fallen al colectar tests en máquinas sin SUMO.
+# Los módulos del proyecto hacen `import traci` a nivel de módulo y quedan
+# ligados a ESTE objeto, así que el fixture debe resetearlo, no reemplazarlo.
 if 'traci' not in sys.modules:
     _default = _make_fake_traci()
     sys.modules['traci'] = _default
     sys.modules['traci.exceptions'] = _default.exceptions
+
+
+@pytest.fixture
+def fake_traci():
+    traci = sys.modules['traci']
+    traci.trafficlight.programs.clear()
+    traci.trafficlight.applied.clear()
+    return traci

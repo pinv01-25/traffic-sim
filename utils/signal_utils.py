@@ -21,8 +21,8 @@ def _has_green(state: str) -> bool:
 
 
 def _is_yellow(state: str) -> bool:
-    """Check if a phase state is yellow only."""
-    return all(c in 'yY' for c in state if c not in 'rR')
+    """Check if a phase state is a yellow transition (yellow+red only)."""
+    return any(c in 'yY' for c in state) and all(c in 'yYrR' for c in state)
 
 
 def apply_durations_to_tls(
