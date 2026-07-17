@@ -486,16 +486,11 @@ class SimulationOrchestrator:
         applied_count = 0
 
         for opt in response.optimizations:
-            # Intervenir solo si el propio optimizador predice mejora: si su
-            # modelo no espera reducir la congestión, aplicar el cambio es
-            # perturbación pura (medido: cola pesada de viajes en flujo libre).
-            if opt.optimized_congestion >= opt.original_congestion:
-                self.logger.info(
-                    f"Optimización sin mejora prevista para {opt.traffic_light_id} "
-                    f"({opt.original_congestion}→{opt.optimized_congestion}): no se aplica"
-                )
-                continue
-
+            # Sin gate de mejora prevista: la ganancia de ajustar el ciclo está
+            # en el tiempo de espera, que la congestión servida (entera) no
+            # captura — ambos números casi siempre redondean igual y el gate
+            # vetaba todo. Aplicar es solo actualizar un presupuesto que el
+            # controlador local aplica de forma idempotente al próximo ciclo.
             target_tl_ids = opt.cluster_sensors if opt.cluster_sensors else [opt.traffic_light_id]
 
             for normalized_id in target_tl_ids:
