@@ -16,11 +16,11 @@ import threading
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 import traci
 from config import BOTTLENECK_CONFIG, SIMULATION_CONFIG
-from controllers.traffic_light_controller import TrafficLightController
+from controllers.adaptive_split import AdaptiveSplitController
 from detectors.bottleneck_detector import BottleneckDetection, BottleneckDetector
 from services.traffic_control_client import (
     ClusterOptimizationResponse,
@@ -64,7 +64,7 @@ class SimulationOrchestrator:
         # Componentes del sistema
         self.bottleneck_detector = None
         self.traffic_control_client = None
-        self.traffic_light_controller = None
+        self.adaptive_controller = None
 
         # Estado de la simulación
         self.last_detection_step = 0
@@ -221,7 +221,13 @@ class SimulationOrchestrator:
             # el baseline queda aislado por construcción.
             if self.enable_dynamic_optimization:
                 self.traffic_control_client = TrafficControlClient()
-                self.traffic_light_controller = TrafficLightController()
+                self.adaptive_controller = AdaptiveSplitController(
+                    visible_count=lambda e: len(
+                        self.bottleneck_detector.metrics_calculator.get_visible_vehicles(e)
+                    )
+                )
+                for tl_id in self.bottleneck_detector.intersection_edges:
+                    self.adaptive_controller.register(tl_id)
 
             self.logger.info("Componentes inicializados")
 
@@ -239,6 +245,9 @@ class SimulationOrchestrator:
                 self.current_step += 1
 
                 current_time = float(traci.simulation.getTime())
+
+                if self.adaptive_controller is not None:
+                    self.adaptive_controller.tick(current_time)
 
                 if self._should_detect_bottlenecks():
                     self._handle_bottleneck_detection(current_time)
@@ -456,25 +465,6 @@ class SimulationOrchestrator:
             sensors=sensors,
         )
 
-    def _busiest_edge(self, tls_id: str) -> Optional[str]:
-        """Edge controlado por `tls_id` con más vehículos visibles ahora mismo.
-
-        Es la aproximación que recibe la proporción mayor (acotada) del
-        presupuesto de verde en el reparto direccional.
-        """
-        try:
-            edges = self.bottleneck_detector.intersection_edges.get(tls_id, [])
-            if not edges:
-                return None
-            counts = {
-                e: len(self.bottleneck_detector.metrics_calculator.get_visible_vehicles(e))
-                for e in edges
-            }
-            best = max(counts, key=counts.get)
-            return best if counts[best] > 0 else None
-        except Exception:
-            return None
-
     def _apply_cluster_optimization(self, response: ClusterOptimizationResponse):
         """
         Aplica las optimizaciones recibidas de traffic-sync (vía traffic-control)
@@ -511,25 +501,15 @@ class SimulationOrchestrator:
             for normalized_id in target_tl_ids:
                 sumo_id = normalized_to_sumo.get(normalized_id, normalized_id)
                 try:
-                    success = self.traffic_light_controller.update_traffic_light(
-                        sumo_id,
-                        {
-                            "optimization": {
-                                "green_time_sec": opt.green_time_sec,
-                                "red_time_sec": opt.red_time_sec,
-                            },
-                            "priority_edge": self._busiest_edge(sumo_id),
-                        },
+                    budget = float(opt.green_time_sec) + float(opt.red_time_sec)
+                    self.adaptive_controller.set_cycle_budget(sumo_id, budget)
+                    applied_count += 1
+                    self.logger.info(
+                        f"Presupuesto de ciclo {budget:.0f}s aplicado a {sumo_id} "
+                        f"(norm:{normalized_id}) [cluster: {opt.cluster_sensors}]"
                     )
-                    if success:
-                        applied_count += 1
-                        self.logger.info(
-                            f"Optimización aplicada a {sumo_id} (norm:{normalized_id}): "
-                            f"green={opt.green_time_sec}s, red={opt.red_time_sec}s "
-                            f"[cluster: {opt.cluster_sensors}]"
-                        )
                 except Exception as e:
-                    self.logger.error(f"Error aplicando optimización a {sumo_id}: {e}")
+                    self.logger.error(f"Error aplicando presupuesto a {sumo_id}: {e}")
 
         if applied_count > 0:
             print(f"\n{Colors.GREEN}{Colors.BOLD}OPTIMIZACIÓN DE CLUSTER APLICADA{Colors.END}")
