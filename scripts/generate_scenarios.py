@@ -30,6 +30,10 @@ SCENARIOS = {
     'demanda_alta': {'keep': 1.0},
     'demanda_saturada': {'keep': 1.0, 'extra': 0.4},
     'hora_pico': {'keep': 1.0, 'peak': True},
+    # Demanda asimétrica: corredor dominante (2x) con transversales casi vacías
+    # (20%), ventana corta. El caso donde el reparto direccional de verde tiene
+    # sentido: fixed-time balanceado desperdicia verde en calles sin tráfico.
+    'corredor': {'corridor': 'Saturio_Rios', 'cross_keep': 0.2, 'window': 1800.0},
 }
 
 
@@ -61,6 +65,42 @@ def build_scenario(routes_root: ET.Element, name: str, cfg: dict) -> ET.Element:
     n = len(vehicles)
     departs = [float(v.get('depart', 0)) for v in vehicles]
     t_max = max(departs) if departs else 0.0
+
+    # Escenario corredor: demanda asimétrica sobre una calle dominante
+    if cfg.get('corridor'):
+        street = cfg['corridor']
+        window = cfg.get('window', t_max)
+        cross_keep = cfg.get('cross_keep', 0.2)
+
+        def on_corridor(veh):
+            route = routes_by_id.get(veh.get('route'))
+            edges = (route.get('edges') or '').split()
+            return any(e.rsplit('_', 1)[0] == street for e in edges)
+
+        pairs = []
+        cross_count = 0
+        for veh in vehicles:
+            depart = float(veh.get('depart', 0))
+            if depart >= window:
+                continue
+            if on_corridor(veh):
+                # Corredor a demanda doble: original + duplicado intercalado
+                pairs.append((veh, depart, ''))
+                pairs.append((veh, depart + 0.36, '_dup'))
+            else:
+                cross_count += 1
+                if cross_count % int(round(1 / cross_keep)) == 0:
+                    pairs.append((veh, depart, ''))
+        pairs.sort(key=lambda p: p[1])
+        for veh, depart, suffix in pairs:
+            route = routes_by_id.get(veh.get('route'))
+            r = ET.SubElement(out, 'route', dict(route.attrib))
+            r.set('id', veh.get('route') + suffix)
+            v = ET.SubElement(out, 'vehicle', dict(veh.attrib))
+            v.set('id', veh.get('id') + suffix)
+            v.set('route', veh.get('route') + suffix)
+            v.set('depart', f'{depart:.2f}')
+        return out
 
     keep = cfg.get('keep', 1.0)
     n_keep = int(round(n * keep))
