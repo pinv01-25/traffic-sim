@@ -38,13 +38,40 @@ traffic-sim/
 ├── detectors/
 │   └── bottleneck_detector.py
 ├── controllers/
-│   └── traffic_light_controller.py
+│   └── adaptive_split.py            # Capa local: aplica el ciclo del pipeline por cruce
 ├── services/
 │   └── traffic_control_client.py
 └── utils/
     ├── logger.py
     └── signal_utils.py
 ```
+
+### Control jerárquico (modo `--dynamic-optimization`)
+
+Dos capas con escalas de tiempo distintas:
+
+- **Política lenta (pipeline)**: los sensores publican métricas por intersección a
+  traffic-control → traffic-sync, cuyo PSO 1-D decide el **largo de ciclo** C ∈ [60, 120]s
+  por cluster (fitness fuzzy + costos de espera/capacidad dependientes de la carga).
+  El contrato HTTP no cambia: `green + red = C − amarillos`.
+- **Capa local (traffic-sim)**: `AdaptiveSplitController` aplica ese presupuesto de ciclo
+  a cada semáforo una vez por ciclo, de forma idempotente y preservando la fase en curso.
+  El reparto entre fases verdes es igualitario por defecto (`ADAPTIVE_SPLIT=equal`,
+  configuración validada por A/B). `ADAPTIVE_SPLIT=queue` activa el reparto experimental
+  por equisaturación de colas visibles: medido +16% de throughput en el escenario corredor
+  pero −25% en demanda baja (la cola instantánea sobre-sirve backlogs estancados), por eso
+  no es el default.
+
+Resultados de la campaña A/B por escenario: `results/index.html`
+(generado con `scripts/build_campaign_summary.py`). Resumen honesto de la campaña
+2026-07-17 (12 corridas, seeds 42–44): en regímenes fluidos la mejora es consistente
+y significativa — corredor +3.8%, demanda_baja +4.6%, demanda_media +3.5% de
+throughput con duraciones pareadas mejores (p≪0.001). En regímenes saturados
+(demanda_alta/saturada/hora_pico) el resultado es bimodal y lo domina la formación
+de gridlock, sensible al timing de cada semilla: en 9 corridas A colapsó 3 veces y
+B 3 veces, con oscilaciones de −69% a +129% según quién se atasca. En saturación
+no se reclama mejora ni empeoramiento sin muchas más semillas o un mecanismo
+anti-gridlock explícito.
 
 ---
 
