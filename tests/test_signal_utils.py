@@ -139,3 +139,25 @@ def test_apply_cycle_preserved_for_light_traffic_recommendation(fake_traci):
     cycle = sum(durations)
     assert abs(cycle - (89.0 + 6.0)) < 0.01  # ciclo ≈ presupuesto + amarillos
     assert durations[0] == round(0.40 * 89.0, 10)  # prioridad acotada abajo
+
+
+def test_apply_phase_durations_sets_only_requested(fake_traci):
+    from utils.signal_utils import apply_phase_durations
+
+    fake_traci.trafficlight.programs['tl1'] = FakeLogic(phases=(
+        FakePhase(duration=42.0, state='GGrr'),
+        FakePhase(duration=3.0, state='yyrr'),
+        FakePhase(duration=42.0, state='rrGG'),
+        FakePhase(duration=3.0, state='rryy'),
+    ))
+    fake_traci.trafficlight.phase['tl1'] = 2
+
+    assert apply_phase_durations('tl1', {0: 60.0, 2: 24.0})
+    logic = fake_traci.trafficlight.applied[-1][1]
+    assert [p.duration for p in logic.phases] == [60.0, 3.0, 24.0, 3.0]
+    assert [p.state for p in logic.phases] == ['GGrr', 'yyrr', 'rrGG', 'rryy']
+    assert logic.currentPhaseIndex == 2
+
+    # idéntica → idempotente (no re-aplica)
+    assert apply_phase_durations('tl1', {0: 60.0, 2: 24.0})
+    assert len(fake_traci.trafficlight.applied) == 1

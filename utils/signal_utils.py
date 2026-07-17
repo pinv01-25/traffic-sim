@@ -177,35 +177,59 @@ def apply_durations_to_tls(
                     'is_yellow': i in yellow_indices,
                 })
 
-        # Idempotencia: re-aplicar un programa igual resetea la fase en curso
-        # y perturba el cruce sin cambiar nada — mejor no tocar.
-        if all(abs(float(p.duration) - d) < 0.5 for p, d in zip(phases, new_durations, strict=False)):
-            return True
-
-        # Posicional: Phase/Logic de libsumo no aceptan keyword args
-        new_phases = tuple(
-            traci.trafficlight.Phase(d, getattr(p, 'state', '') or '', d, d)
-            for p, d in zip(phases, new_durations, strict=False)
-        )
-
-        # Mantener la fase en curso para no resetear el semáforo al aplicar
-        try:
-            current_phase = int(traci.trafficlight.getPhase(tls_id))
-        except Exception:
-            current_phase = 0
-
-        new_logic = traci.trafficlight.Logic(
-            getattr(logic, 'programID', '0'),
-            getattr(logic, 'type', 0),
-            current_phase,
-            new_phases,
-            getattr(logic, 'subParameter', {}) or {},
-        )
-        traci.trafficlight.setCompleteRedYellowGreenDefinition(tls_id, new_logic)
-        return True
+        return _set_program(tls_id, logic, phases, new_durations)
 
     except Exception as e:
         print(f"Warning: Could not apply timing to {tls_id}: {e}")
+        return False
+
+
+def _set_program(tls_id, logic, phases, new_durations):
+    """Aplica new_durations preservando estados y fase actual; idempotente ±0.5s."""
+    # Idempotencia: re-aplicar un programa igual resetea la fase en curso
+    # y perturba el cruce sin cambiar nada — mejor no tocar.
+    if all(abs(float(p.duration) - d) < 0.5 for p, d in zip(phases, new_durations, strict=False)):
+        return True
+
+    # Posicional: Phase/Logic de libsumo no aceptan keyword args
+    new_phases = tuple(
+        traci.trafficlight.Phase(d, getattr(p, 'state', '') or '', d, d)
+        for p, d in zip(phases, new_durations, strict=False)
+    )
+
+    # Mantener la fase en curso para no resetear el semáforo al aplicar
+    try:
+        current_phase = int(traci.trafficlight.getPhase(tls_id))
+    except Exception:
+        current_phase = 0
+
+    new_logic = traci.trafficlight.Logic(
+        getattr(logic, 'programID', '0'),
+        getattr(logic, 'type', 0),
+        current_phase,
+        new_phases,
+        getattr(logic, 'subParameter', {}) or {},
+    )
+    traci.trafficlight.setCompleteRedYellowGreenDefinition(tls_id, new_logic)
+    return True
+
+
+def apply_phase_durations(tls_id, durations):
+    """Fija la duración de las fases indicadas (índice → segundos); el resto intacto."""
+    try:
+        defs = traci.trafficlight.getCompleteRedYellowGreenDefinition(tls_id)
+        if not defs:
+            return False
+        logic = defs[0]
+        phases = list(getattr(logic, 'phases', ()) or ())
+        if not phases:
+            return False
+        new_durations = [
+            float(durations.get(i, phase.duration)) for i, phase in enumerate(phases)
+        ]
+        return _set_program(tls_id, logic, phases, new_durations)
+    except Exception as e:
+        print(f"Warning: Could not apply phase durations to {tls_id}: {e}")
         return False
 
 
