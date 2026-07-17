@@ -16,7 +16,7 @@ import threading
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import traci
 from config import BOTTLENECK_CONFIG, SIMULATION_CONFIG
