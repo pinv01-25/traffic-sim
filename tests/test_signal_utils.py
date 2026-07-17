@@ -86,8 +86,8 @@ def test_apply_is_idempotent_and_preserves_current_phase(fake_traci):
     assert len(fake_traci.trafficlight.applied) == 1
 
 
-def test_apply_directional_split_prioritizes_congested_edge(fake_traci):
-    """Con priority_edge, el verde largo va a la fase que sirve ese edge."""
+def test_apply_directional_split_bounded_and_cycle_preserving(fake_traci):
+    """Modo dinámico: presupuesto = verde+rojo, prioridad acotada a 65%."""
     from utils.signal_utils import apply_durations_to_tls
 
     fake_traci.trafficlight.programs['tl1'] = FakeLogic(phases=(
@@ -102,12 +102,40 @@ def test_apply_directional_split_prioritizes_congested_edge(fake_traci):
         [('edge_sur_0', 'out_2', '')], [('edge_sur_1', 'out_3', '')],
     ]
 
-    assert apply_durations_to_tls('tl1', 70.0, 20.0, priority_edge='edge_sur')
+    # 70/20 → presupuesto 90; share pedido 78% se acota a 65% → 58.5/31.5.
+    # Fase 2 ('rrGG') sirve edge_sur → recibe la parte mayor; amarillas intactas.
+    assert apply_durations_to_tls('tl1', 70.0, 20.0, priority_edge='edge_sur',
+                                  preserve_cycle=True)
     durations = [p.duration for p in fake_traci.trafficlight.applied[-1][1].phases]
-    # Fase 2 ('rrGG') sirve edge_sur → 70s; fase 0 recibe el rojo (20s); amarillas intactas
-    assert durations == [20.0, 3.0, 70.0, 3.0]
+    assert durations == [31.5, 3.0, 58.5, 3.0]
 
-    # Sin priority_edge conocido cae al reparto igualitario
-    assert apply_durations_to_tls('tl1', 70.0, 20.0, priority_edge='edge_inexistente')
+    # Sin priority_edge conocido: presupuesto completo repartido igual (45/45,
+    # ciclo preservado — NO 35/35 que encogería el ciclo)
+    assert apply_durations_to_tls('tl1', 70.0, 20.0, priority_edge='edge_inexistente',
+                                  preserve_cycle=True)
     durations = [p.duration for p in fake_traci.trafficlight.applied[-1][1].phases]
-    assert durations == [35.0, 3.0, 35.0, 3.0]
+    assert durations == [45.0, 3.0, 45.0, 3.0]
+
+
+def test_apply_cycle_preserved_for_light_traffic_recommendation(fake_traci):
+    """27/62 (tráfico ligero) no debe colapsar el ciclo a ~30s."""
+    from utils.signal_utils import apply_durations_to_tls
+
+    fake_traci.trafficlight.programs['tl1'] = FakeLogic(phases=(
+        FakePhase(duration=42.0, state='GGrr'),
+        FakePhase(duration=3.0, state='yyrr'),
+        FakePhase(duration=42.0, state='rrGG'),
+        FakePhase(duration=3.0, state='rryy'),
+    ))
+    fake_traci.trafficlight.links['tl1'] = [
+        [('edge_norte_0', 'o', '')], [('edge_norte_1', 'o', '')],
+        [('edge_sur_0', 'o', '')], [('edge_sur_1', 'o', '')],
+    ]
+
+    # share pedido 27/89 = 30% se acota a 35% → 31.15/57.85 sobre presupuesto 89
+    assert apply_durations_to_tls('tl1', 27.0, 62.0, priority_edge='edge_norte',
+                                  preserve_cycle=True)
+    durations = [p.duration for p in fake_traci.trafficlight.applied[-1][1].phases]
+    cycle = sum(durations)
+    assert abs(cycle - (89.0 + 6.0)) < 0.01  # ciclo ≈ presupuesto + amarillos
+    assert durations[0] == round(0.35 * 89.0, 10)  # prioridad acotada abajo

@@ -42,6 +42,7 @@ class TrafficLightController:
             success = apply_durations_to_tls(
                 traffic_light_id, green_time, red_time,
                 priority_edge=optimization_data.get("priority_edge"),
+                preserve_cycle=True,
             )
             if success:
                 logger.info(

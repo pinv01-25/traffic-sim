@@ -52,24 +52,37 @@ def _find_priority_green_phase(
     return None
 
 
+#: Cota del reparto direccional: la aproximación prioritaria nunca recibe
+#: menos del 35% ni más del 65% del presupuesto de verde. Servicio mínimo
+#: para las transversales — sin cota, 70/20 gridlockea la red (medido).
+PRIORITY_SHARE_MIN = 0.35
+PRIORITY_SHARE_MAX = 0.65
+
+
 def apply_durations_to_tls(
     tls_id: str,
     green_total: float,
     red_total: float,
     rows: Optional[List[dict]] = None,
     priority_edge: Optional[str] = None,
+    preserve_cycle: bool = False,
 ) -> bool:
     """Apply total green/red durations to one traffic light.
 
     Preserves the existing program's states and number of phases. Yellow
-    phases always keep their duration. Distribution of green/red:
+    phases always keep their duration. Distribution:
 
-    - With `priority_edge` and >1 green phase: the phase serving that edge
-      gets `green_total` and the remaining green phases share `red_total`
-      (the optimizer's split is directional: more green for the congested
-      approach, less for the rest). Dedicated all-red phases keep duration.
-    - Otherwise: `green_total` split evenly among green phases and
-      `red_total` among non-green non-yellow phases (static mode semantics).
+    - `preserve_cycle=True` (modo dinámico): el optimizador piensa
+      green+red como el ciclo del cruce. Si el programa no tiene fases
+      todo-rojo, ese presupuesto completo se reparte entre las fases
+      verdes (si solo se usara green_total, el ciclo se encogería y
+      recomendaciones como 27/62 lo colapsarían a ~30s).
+    - Con `priority_edge`: la fase verde que sirve ese edge recibe una
+      proporción del presupuesto igual a green/(green+red), acotada a
+      [PRIORITY_SHARE_MIN, PRIORITY_SHARE_MAX]; el resto se reparte entre
+      las demás fases verdes.
+    - Sin `priority_edge` (modo estático --green-time): `green_total`
+      entre fases verdes y `red_total` entre fases todo-rojo, como siempre.
 
     If no green phase exists, phase 0 is treated as green.
 
@@ -78,7 +91,9 @@ def apply_durations_to_tls(
         green_total: Total green time to distribute (seconds)
         red_total: Total red time to distribute (seconds)
         rows: Optional list to append per-phase CSV rows to
-        priority_edge: Edge whose approach should receive the green time
+        priority_edge: Edge whose approach should receive the larger share
+        preserve_cycle: Treat green+red as the full cycle budget when the
+            program has no dedicated all-red phases
 
     Returns:
         True if a new program was applied.
@@ -113,22 +128,34 @@ def apply_durations_to_tls(
         if priority_edge and len(green_indices) > 1:
             priority_idx = _find_priority_green_phase(tls_id, phases, green_indices, priority_edge)
 
+        # Presupuesto de verde: en modo dinámico sin fases todo-rojo, el
+        # green+red del optimizador ES el ciclo útil del cruce.
+        if preserve_cycle and not red_indices:
+            green_budget = green_total + red_total
+            red_per_phase = 0.0
+        else:
+            green_budget = green_total
+            red_per_phase = red_total / len(red_indices) if red_indices else 0.0
+
         new_durations = []
         if priority_idx is not None:
-            # Reparto direccional: verde largo a la aproximación congestionada,
-            # el "rojo" del optimizador es el verde de las demás aproximaciones.
+            total = green_total + red_total
+            share = green_total / total if total > 0 else 0.5
+            share = max(PRIORITY_SHARE_MIN, min(share, PRIORITY_SHARE_MAX))
             other_greens = [i for i in green_indices if i != priority_idx]
-            red_per_other = red_total / len(other_greens) if other_greens else 0.0
+            priority_dur = share * green_budget if other_greens else green_budget
+            other_per_phase = (green_budget - priority_dur) / len(other_greens) if other_greens else 0.0
             for i, phase in enumerate(phases):
                 if i == priority_idx:
-                    new_durations.append(green_total)
+                    new_durations.append(priority_dur)
                 elif i in green_indices:
-                    new_durations.append(red_per_other)
-                else:  # amarillas y rojas dedicadas: intactas
+                    new_durations.append(other_per_phase)
+                elif i in yellow_indices:
                     new_durations.append(float(phase.duration))
+                else:
+                    new_durations.append(red_per_phase)
         else:
-            green_per_phase = green_total / len(green_indices)
-            red_per_phase = red_total / len(red_indices) if red_indices else 0.0
+            green_per_phase = green_budget / len(green_indices)
             for i, phase in enumerate(phases):
                 if i in green_indices:
                     new_durations.append(green_per_phase)

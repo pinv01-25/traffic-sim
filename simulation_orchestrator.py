@@ -456,6 +456,25 @@ class SimulationOrchestrator:
             sensors=sensors,
         )
 
+    def _busiest_edge(self, tls_id: str) -> Optional[str]:
+        """Edge controlado por `tls_id` con más vehículos visibles ahora mismo.
+
+        Es la aproximación que recibe la proporción mayor (acotada) del
+        presupuesto de verde en el reparto direccional.
+        """
+        try:
+            edges = self.bottleneck_detector.intersection_edges.get(tls_id, [])
+            if not edges:
+                return None
+            counts = {
+                e: len(self.bottleneck_detector.metrics_calculator.get_visible_vehicles(e))
+                for e in edges
+            }
+            best = max(counts, key=counts.get)
+            return best if counts[best] > 0 else None
+        except Exception:
+            return None
+
     def _apply_cluster_optimization(self, response: ClusterOptimizationResponse):
         """
         Aplica las optimizaciones recibidas de traffic-sync (vía traffic-control)
@@ -482,16 +501,14 @@ class SimulationOrchestrator:
             for normalized_id in target_tl_ids:
                 sumo_id = normalized_to_sumo.get(normalized_id, normalized_id)
                 try:
-                    # Reparto igualitario (sin priority_edge): el split direccional
-                    # 70/20 estrangula las transversales en esta red y colapsa el
-                    # throughput (-66%, medido); ver git log para el experimento.
                     success = self.traffic_light_controller.update_traffic_light(
                         sumo_id,
                         {
                             "optimization": {
                                 "green_time_sec": opt.green_time_sec,
                                 "red_time_sec": opt.red_time_sec,
-                            }
+                            },
+                            "priority_edge": self._busiest_edge(sumo_id),
                         },
                     )
                     if success:
