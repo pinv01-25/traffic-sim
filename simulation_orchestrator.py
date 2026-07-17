@@ -497,12 +497,17 @@ class SimulationOrchestrator:
                 sumo_id = normalized_to_sumo.get(normalized_id, normalized_id)
                 try:
                     budget = float(opt.green_time_sec) + float(opt.red_time_sec)
-                    self.adaptive_controller.set_cycle_budget(sumo_id, budget)
-                    applied_count += 1
-                    self.logger.info(
-                        f"Presupuesto de ciclo {budget:.0f}s aplicado a {sumo_id} "
-                        f"(norm:{normalized_id}) [cluster: {opt.cluster_sensors}]"
-                    )
+                    if self.adaptive_controller.set_cycle_budget(sumo_id, budget):
+                        applied_count += 1
+                        self.logger.info(
+                            f"Presupuesto de ciclo {budget:.0f}s aplicado a {sumo_id} "
+                            f"(norm:{normalized_id}) [cluster: {opt.cluster_sensors}]"
+                        )
+                    else:
+                        self.logger.debug(
+                            f"TLS {sumo_id} sin capa adaptativa (una sola fase verde): "
+                            f"presupuesto no aplicado"
+                        )
                 except Exception as e:
                     self.logger.error(f"Error aplicando presupuesto a {sumo_id}: {e}")
 

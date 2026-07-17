@@ -55,7 +55,9 @@ Dos capas con escalas de tiempo distintas:
   por cluster (fitness fuzzy + costos de espera/capacidad dependientes de la carga).
   El contrato HTTP no cambia: `green + red = C − amarillos`.
 - **Capa local (traffic-sim)**: `AdaptiveSplitController` aplica ese presupuesto de ciclo
-  a cada semáforo una vez por ciclo, de forma idempotente y preservando la fase en curso.
+  una vez por ciclo, de forma idempotente y preservando la fase en curso. Solo controla
+  semáforos con ≥2 fases verdes (donde hay reparto posible); los de una sola fase verde
+  conservan su programa original.
   El reparto entre fases verdes es igualitario por defecto (`ADAPTIVE_SPLIT=equal`,
   configuración validada por A/B). `ADAPTIVE_SPLIT=queue` activa el reparto experimental
   por equisaturación de colas visibles: medido +16% de throughput en el escenario corredor

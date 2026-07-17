@@ -52,8 +52,11 @@ class AdaptiveSplitController:
         }
 
     def set_cycle_budget(self, tls_id, budget):
+        """Devuelve True si el TLS está registrado y el presupuesto se tomó."""
         if tls_id in self._tls and budget > 0:
             self._tls[tls_id]['budget'] = float(budget)
+            return True
+        return False
 
     def tick(self, current_time):
         applied = 0

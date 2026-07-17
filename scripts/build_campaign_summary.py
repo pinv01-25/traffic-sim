@@ -28,7 +28,8 @@ def load_report(seed_dir: Path):
     paired = st.get('paired', {}) or {}
     thr = st.get('throughput', {}) or {}
     a, b = thr.get('completed_a'), thr.get('completed_b')
-    thr_pct = (b - a) / a * 100 if a and b else None
+    # a=0 o b=0 son datos reales (colapso total), no ausencia de dato
+    thr_pct = (b - a) / a * 100 if a not in (None, 0) and b is not None else None
     return {
         'seed': seed_dir.name.replace('seed_', ''),
         'thr_a': a, 'thr_b': b, 'thr_pct': thr_pct,
@@ -49,10 +50,13 @@ def classify(r):
         return 'win'
     if tp < -THR_TIE:
         return 'loss'
-    # Throughput igual: deciden las duraciones pareadas significativas
-    if isinstance(p, float) and p < 0.05 and (r['mean_delta'] or 0) < 0:
+    # Throughput igual: deciden las duraciones pareadas significativas.
+    # Wilcoxon es un test de mediana → el signo lo da median_delta (con
+    # fallback a la media cuando la mediana es exactamente 0).
+    delta = r['median_delta'] if r['median_delta'] else r['mean_delta']
+    if isinstance(p, float) and p < 0.05 and (delta or 0) < 0:
         return 'win'
-    if isinstance(p, float) and p < 0.05 and (r['mean_delta'] or 0) > 0:
+    if isinstance(p, float) and p < 0.05 and (delta or 0) > 0:
         return 'loss'
     return 'tie'
 
