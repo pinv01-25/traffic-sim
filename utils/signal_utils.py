@@ -25,6 +25,26 @@ def _is_yellow(state: str) -> bool:
     return any(c in 'yY' for c in state) and all(c in 'yYrR' for c in state)
 
 
+def _green_phase_edges(tls_id, phases):
+    """Mapea índice de fase verde -> set de edges de entrada que sirve."""
+    try:
+        links = traci.trafficlight.getControlledLinks(tls_id)
+    except Exception:
+        return {}
+    result = {}
+    for i, phase in enumerate(phases):
+        state = getattr(phase, 'state', '') or ''
+        if not _has_green(state):
+            continue
+        edges = set()
+        for sig_idx, ch in enumerate(state):
+            if ch in 'Gg' and sig_idx < len(links) and links[sig_idx]:
+                edges.add(links[sig_idx][0][0].rsplit('_', 1)[0])
+        if edges:
+            result[i] = edges
+    return result
+
+
 def _find_priority_green_phase(
     tls_id: str,
     phases: List,
@@ -36,19 +56,10 @@ def _find_priority_green_phase(
     Uses getControlledLinks: signal index i is served by in-lane links[i][0][0];
     a phase serves the edge if any of its G/g signals enter from that edge.
     """
-    try:
-        links = traci.trafficlight.getControlledLinks(tls_id)
-    except Exception:
-        return None
-
+    phase_edges = _green_phase_edges(tls_id, phases)
     for i in green_indices:
-        state = getattr(phases[i], 'state', '') or ''
-        for sig_idx, ch in enumerate(state):
-            if ch not in 'Gg' or sig_idx >= len(links) or not links[sig_idx]:
-                continue
-            in_lane = links[sig_idx][0][0]
-            if in_lane.rsplit('_', 1)[0] == priority_edge:
-                return i
+        if priority_edge in phase_edges.get(i, ()):
+            return i
     return None
 
 
