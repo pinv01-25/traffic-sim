@@ -1,4 +1,6 @@
 """Reparto de verde por equisaturación: proporcional a colas con piso."""
+import os
+
 import traci
 from utils.signal_utils import _green_phase_edges, apply_phase_durations
 
@@ -23,6 +25,13 @@ class AdaptiveSplitController:
 
     def __init__(self, visible_count):
         self._visible_count = visible_count
+        # 'equal' reparte el presupuesto del pipeline en partes iguales (config
+        # validada: +3.8/+4.6% en corredor/demanda_baja). 'queue' (experimental)
+        # reparte proporcional a colas visibles: +16% en corredor pero −25% en
+        # demanda_baja — el snapshot instantáneo sobre-sirve colas estancadas y
+        # mata de hambre a la arteria; necesita una señal de demanda (tasa de
+        # llegada), no de cola, antes de ser default.
+        self._mode = os.environ.get('ADAPTIVE_SPLIT', 'equal')
         self._tls = {}   # tls_id -> {'phase_edges', 'budget', 'yellow_total', 'next_update'}
 
     def register(self, tls_id):
@@ -51,10 +60,13 @@ class AdaptiveSplitController:
         for tls_id, info in self._tls.items():
             if current_time < info['next_update']:
                 continue
-            queues = {
-                i: sum(self._visible_count(e) for e in edges)
-                for i, edges in info['phase_edges'].items()
-            }
+            if self._mode == 'equal':
+                queues = {i: 1 for i in info['phase_edges']}
+            else:
+                queues = {
+                    i: sum(self._visible_count(e) for e in edges)
+                    for i, edges in info['phase_edges'].items()
+                }
             split = compute_split(queues, info['budget'])
             if split and apply_phase_durations(tls_id, split):
                 applied += 1

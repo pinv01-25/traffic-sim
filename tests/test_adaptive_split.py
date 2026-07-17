@@ -30,9 +30,10 @@ def _setup_tl(fake_traci):
     ]
 
 
-def test_controller_splits_by_queues_each_cycle(fake_traci):
+def test_controller_splits_by_queues_each_cycle(fake_traci, monkeypatch):
     from controllers.adaptive_split import AdaptiveSplitController
 
+    monkeypatch.setenv('ADAPTIVE_SPLIT', 'queue')
     _setup_tl(fake_traci)
     queues = {'edge_norte': 8, 'edge_sur': 2}
     ctl = AdaptiveSplitController(visible_count=lambda e: queues.get(e, 0))
@@ -49,14 +50,29 @@ def test_controller_splits_by_queues_each_cycle(fake_traci):
     assert [round(p.duration, 1) for p in logic.phases] == [16.8, 3.0, 67.2, 3.0]
 
 
-def test_controller_noop_without_demand(fake_traci):
+def test_controller_noop_without_demand(fake_traci, monkeypatch):
     from controllers.adaptive_split import AdaptiveSplitController
 
+    monkeypatch.setenv('ADAPTIVE_SPLIT', 'queue')
     _setup_tl(fake_traci)
     ctl = AdaptiveSplitController(visible_count=lambda e: 0)
     ctl.register('tl1')
     assert ctl.tick(0.0) == 0
     assert fake_traci.trafficlight.applied == []
+
+
+def test_controller_default_equal_split_ignores_queues(fake_traci):
+    """Default 'equal': el presupuesto del pipeline se reparte en partes iguales."""
+    from controllers.adaptive_split import AdaptiveSplitController
+
+    _setup_tl(fake_traci)
+    queues = {'edge_norte': 8, 'edge_sur': 2}
+    ctl = AdaptiveSplitController(visible_count=lambda e: queues.get(e, 0))
+    ctl.register('tl1')
+    ctl.set_cycle_budget('tl1', 54.0)
+    assert ctl.tick(0.0) == 1
+    logic = fake_traci.trafficlight.applied[-1][1]
+    assert [round(p.duration, 1) for p in logic.phases] == [27.0, 3.0, 27.0, 3.0]
 
 
 def test_controller_cycle_budget_from_pipeline(fake_traci):
