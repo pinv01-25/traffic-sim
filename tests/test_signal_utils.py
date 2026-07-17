@@ -102,12 +102,12 @@ def test_apply_directional_split_bounded_and_cycle_preserving(fake_traci):
         [('edge_sur_0', 'out_2', '')], [('edge_sur_1', 'out_3', '')],
     ]
 
-    # 70/20 → presupuesto 90; share pedido 78% se acota a 65% → 58.5/31.5.
+    # 70/20 → presupuesto 90; share pedido 78% se acota a 60% → 54/36.
     # Fase 2 ('rrGG') sirve edge_sur → recibe la parte mayor; amarillas intactas.
     assert apply_durations_to_tls('tl1', 70.0, 20.0, priority_edge='edge_sur',
                                   preserve_cycle=True)
     durations = [p.duration for p in fake_traci.trafficlight.applied[-1][1].phases]
-    assert durations == [31.5, 3.0, 58.5, 3.0]
+    assert durations == [36.0, 3.0, 54.0, 3.0]
 
     # Sin priority_edge conocido: presupuesto completo repartido igual (45/45,
     # ciclo preservado — NO 35/35 que encogería el ciclo)
@@ -132,10 +132,10 @@ def test_apply_cycle_preserved_for_light_traffic_recommendation(fake_traci):
         [('edge_sur_0', 'o', '')], [('edge_sur_1', 'o', '')],
     ]
 
-    # share pedido 27/89 = 30% se acota a 35% → 31.15/57.85 sobre presupuesto 89
+    # share pedido 27/89 = 30% se acota a 40% sobre presupuesto 89
     assert apply_durations_to_tls('tl1', 27.0, 62.0, priority_edge='edge_norte',
                                   preserve_cycle=True)
     durations = [p.duration for p in fake_traci.trafficlight.applied[-1][1].phases]
     cycle = sum(durations)
     assert abs(cycle - (89.0 + 6.0)) < 0.01  # ciclo ≈ presupuesto + amarillos
-    assert durations[0] == round(0.35 * 89.0, 10)  # prioridad acotada abajo
+    assert durations[0] == round(0.40 * 89.0, 10)  # prioridad acotada abajo

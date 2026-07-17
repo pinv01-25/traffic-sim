@@ -53,10 +53,11 @@ def _find_priority_green_phase(
 
 
 #: Cota del reparto direccional: la aproximación prioritaria nunca recibe
-#: menos del 35% ni más del 65% del presupuesto de verde. Servicio mínimo
-#: para las transversales — sin cota, 70/20 gridlockea la red (medido).
-PRIORITY_SHARE_MIN = 0.35
-PRIORITY_SHARE_MAX = 0.65
+#: menos del 40% ni más del 60% del presupuesto de verde. Servicio mínimo
+#: para las transversales — sin cota, 70/20 gridlockea la red, y con 65%
+#: el throughput también colapsó en demanda alta (medido).
+PRIORITY_SHARE_MIN = 0.40
+PRIORITY_SHARE_MAX = 0.60
 
 
 def apply_durations_to_tls(
