@@ -20,7 +20,7 @@ from typing import Any, Dict
 
 import traci
 from config import BOTTLENECK_CONFIG, SIMULATION_CONFIG
-from controllers.adaptive_split import AdaptiveSplitController
+from controllers.max_pressure import MaxPressureController
 from detectors.bottleneck_detector import BottleneckDetection, BottleneckDetector
 from services.traffic_control_client import (
     ClusterOptimizationResponse,
@@ -64,7 +64,7 @@ class SimulationOrchestrator:
         # Componentes del sistema
         self.bottleneck_detector = None
         self.traffic_control_client = None
-        self.adaptive_controller = None
+        self.signal_controller = None
 
         # Estado de la simulación
         self.last_detection_step = 0
@@ -221,13 +221,9 @@ class SimulationOrchestrator:
             # el baseline queda aislado por construcción.
             if self.enable_dynamic_optimization:
                 self.traffic_control_client = TrafficControlClient()
-                self.adaptive_controller = AdaptiveSplitController(
-                    visible_count=lambda e: len(
-                        self.bottleneck_detector.metrics_calculator.get_visible_vehicles(e)
-                    )
-                )
+                self.signal_controller = MaxPressureController()
                 for tl_id in self.bottleneck_detector.intersection_edges:
-                    self.adaptive_controller.register(tl_id)
+                    self.signal_controller.register(tl_id)
 
             self.logger.info("Componentes inicializados")
 
@@ -246,8 +242,8 @@ class SimulationOrchestrator:
 
                 current_time = float(traci.simulation.getTime())
 
-                if self.adaptive_controller is not None:
-                    self.adaptive_controller.tick(current_time)
+                if self.signal_controller is not None:
+                    self.signal_controller.tick(current_time)
 
                 if self._should_detect_bottlenecks():
                     self._handle_bottleneck_detection(current_time)
@@ -489,23 +485,25 @@ class SimulationOrchestrator:
             # Sin gate de mejora prevista: la ganancia de ajustar el ciclo está
             # en el tiempo de espera, que la congestión servida (entera) no
             # captura — ambos números casi siempre redondean igual y el gate
-            # vetaba todo. Aplicar es solo actualizar un presupuesto que el
-            # controlador local aplica de forma idempotente al próximo ciclo.
+            # vetaba todo. El presupuesto del PSO ya no reparte segundos
+            # exactos: fija el verde máximo de *referencia* por fase que
+            # Max-Pressure usa como techo blando (nunca impide extender una
+            # fase realmente saturada).
             target_tl_ids = opt.cluster_sensors if opt.cluster_sensors else [opt.traffic_light_id]
 
             for normalized_id in target_tl_ids:
                 sumo_id = normalized_to_sumo.get(normalized_id, normalized_id)
                 try:
                     budget = float(opt.green_time_sec) + float(opt.red_time_sec)
-                    if self.adaptive_controller.set_cycle_budget(sumo_id, budget):
+                    if self.signal_controller.set_cycle_budget(sumo_id, budget):
                         applied_count += 1
                         self.logger.info(
-                            f"Presupuesto de ciclo {budget:.0f}s aplicado a {sumo_id} "
+                            f"Verde máx. de referencia {budget:.0f}s (ciclo) aplicado a {sumo_id} "
                             f"(norm:{normalized_id}) [cluster: {opt.cluster_sensors}]"
                         )
                     else:
                         self.logger.debug(
-                            f"TLS {sumo_id} sin capa adaptativa (una sola fase verde): "
+                            f"TLS {sumo_id} sin capa Max-Pressure (una sola fase verde): "
                             f"presupuesto no aplicado"
                         )
                 except Exception as e:

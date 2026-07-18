@@ -38,7 +38,7 @@ traffic-sim/
 ├── detectors/
 │   └── bottleneck_detector.py
 ├── controllers/
-│   └── adaptive_split.py            # Capa local: aplica el ciclo del pipeline por cruce
+│   └── max_pressure.py              # Capa local: Max-Pressure reactivo por presión de carriles
 ├── services/
 │   └── traffic_control_client.py
 └── utils/
@@ -54,26 +54,32 @@ Dos capas con escalas de tiempo distintas:
   traffic-control → traffic-sync, cuyo PSO 1-D decide el **largo de ciclo** C ∈ [60, 120]s
   por cluster (fitness fuzzy + costos de espera/capacidad dependientes de la carga).
   El contrato HTTP no cambia: `green + red = C − amarillos`.
-- **Capa local (traffic-sim)**: `AdaptiveSplitController` aplica ese presupuesto de ciclo
-  una vez por ciclo, de forma idempotente y preservando la fase en curso. Solo controla
-  semáforos con ≥2 fases verdes (donde hay reparto posible); los de una sola fase verde
-  conservan su programa original.
-  El reparto entre fases verdes es igualitario por defecto (`ADAPTIVE_SPLIT=equal`,
-  configuración validada por A/B). `ADAPTIVE_SPLIT=queue` activa el reparto experimental
-  por equisaturación de colas visibles: medido +16% de throughput en el escenario corredor
-  pero −25% en demanda baja (la cola instantánea sobre-sirve backlogs estancados), por eso
-  no es el default.
+- **Capa local (traffic-sim)**: `MaxPressureController` decide, cada 5s (`check_interval`),
+  qué fase verde servir según la **presión** de sus carriles — cola de entrada normalizada
+  por capacidad del carril menos cola de salida, para no seguir sirviendo una fase que
+  empuja vehículos a un carril ya congestionado aguas abajo. El presupuesto de ciclo del
+  PSO deja de repartir segundos exactos: pasa a fijar un **verde máximo de referencia** por
+  fase (techo blando) que Max-Pressure respeta en régimen normal pero puede exceder si la
+  presión real de esa fase lo justifica — la garantía teórica de estabilidad de Max-Pressure
+  (Varaiya) depende de que nunca esté forzado a cortar una fase saturada por un presupuesto
+  externo. Incluye histéresis (±15% de margen antes de cambiar de fase, evita flapping),
+  un piso de starvation (bonus de presión creciente por tiempo sin servicio, evita matar de
+  hambre giros de baja frecuencia) y un verde máximo *duro* (3× el verde base, evita que una
+  fase monopolice el cruce bajo demanda sostenida). Solo controla semáforos con ≥2 fases
+  verdes; los de una sola fase verde conservan su programa original. Los saltos de fase se
+  restringen a fases adyacentes en el anillo original de netconvert (o la misma fase) para
+  no activar en amarillo movimientos que el diseño original nunca puso a coexistir.
 
 Resultados de la campaña A/B por escenario: `results/index.html`
 (generado con `scripts/build_campaign_summary.py`). Resumen honesto de la campaña
-2026-07-17 (12 corridas, seeds 42–44): en regímenes fluidos la mejora es consistente
-y significativa — corredor +3.8%, demanda_baja +4.6%, demanda_media +3.5% de
-throughput con duraciones pareadas mejores (p≪0.001). En regímenes saturados
-(demanda_alta/saturada/hora_pico) el resultado es bimodal y lo domina la formación
-de gridlock, sensible al timing de cada semilla: en 9 corridas A colapsó 3 veces y
-B 3 veces, con oscilaciones de −69% a +129% según quién se atasca. En saturación
-no se reclama mejora ni empeoramiento sin muchas más semillas o un mecanismo
-anti-gridlock explícito.
+2026-07-17 (12 corridas, seeds 42–44, con el reparto proporcional pre-Max-Pressure):
+en regímenes fluidos la mejora es consistente y significativa — corredor +3.8%,
+demanda_baja +4.6%, demanda_media +3.5% de throughput con duraciones pareadas
+mejores (p≪0.001). En regímenes saturados (demanda_alta/saturada/hora_pico) el
+resultado era bimodal y lo dominaba la formación de gridlock, sensible al timing
+de cada semilla: en 9 corridas A colapsó 3 veces y B 3 veces, con oscilaciones de
+−69% a +129% según quién se atasca. Max-Pressure ataca directamente ese modo de
+falla; falta re-correr la campaña saturada para cuantificar el efecto.
 
 ---
 

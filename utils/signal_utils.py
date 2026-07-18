@@ -45,6 +45,55 @@ def _green_phase_edges(tls_id, phases):
     return result
 
 
+def _phase_link_lanes(tls_id, phases):
+    """Mapea índice de fase verde -> lista de (carril_entrada, carril_salida)."""
+    try:
+        links = traci.trafficlight.getControlledLinks(tls_id)
+    except Exception:
+        return {}
+    result = {}
+    for i, phase in enumerate(phases):
+        state = getattr(phase, 'state', '') or ''
+        if not _has_green(state):
+            continue
+        pairs = []
+        for sig_idx, ch in enumerate(state):
+            if ch in 'Gg' and sig_idx < len(links) and links[sig_idx]:
+                in_lane, out_lane = links[sig_idx][0][0], links[sig_idx][0][1]
+                pairs.append((in_lane, out_lane))
+        if pairs:
+            result[i] = pairs
+    return result
+
+
+def derive_yellow_state(state: str) -> str:
+    """Amarillo derivado: lo verde pasa a amarillo, el resto a rojo."""
+    return ''.join('y' if c in 'Gg' else 'r' for c in state)
+
+
+def _green_ring_order(phases) -> List[int]:
+    return [i for i, p in enumerate(phases) if _has_green(getattr(p, 'state', '') or '')]
+
+
+def phases_conflict(phases, a: int, b: int) -> bool:
+    """Aproxima si un salto directo fase `a` -> fase `b` es seguro.
+
+    Solo se permite entre fases adyacentes en el anillo original que generó
+    netconvert (o la misma fase): ese anillo ya encodea transiciones sin
+    movimientos conflictivos simultáneos. Saltar a una fase no adyacente
+    arriesga activar en amarillo movimientos que el diseño original nunca
+    puso a coexistir. Con ≤2 fases verdes no hay a qué más saltar.
+    """
+    if a == b:
+        return False
+    order = _green_ring_order(phases)
+    if len(order) <= 2:
+        return False
+    ia, ib = order.index(a), order.index(b)
+    n = len(order)
+    return min(abs(ia - ib), n - abs(ia - ib)) != 1
+
+
 def _find_priority_green_phase(
     tls_id: str,
     phases: List,
