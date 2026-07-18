@@ -14,6 +14,7 @@ from visualization.plots import (
     SAMPLE_NONCOMPARABLE_THRESHOLD_PCT,
     legend_label_with_n,
     plot_improvement_summary,
+    plot_metric_comparison_bars,
     samples_noncomparable,
     title_with_sample_note,
 )
@@ -121,6 +122,44 @@ def test_improvement_summary_uses_median_for_noncomparable_metric(tmp_path):
     plot_improvement_summary(stats_a, stats_b, str(tmp_path),
                              labels=('Baseline', 'Dynamic'), filename='18.png')
     assert (tmp_path / '18.png').exists()
+
+
+def test_metric_comparison_bars_uses_median_for_noncomparable_metric(tmp_path, monkeypatch):
+    """06_metric_comparison_bars.png tenía el mismo bug que 18: el % de
+    diferencia de departDelay se calculaba con la media cruda, mostrando
+    +281% de "empeoramiento" cuando en realidad la mediana muestra una
+    mejora real (el baseline colapsado solo insertó los pocos vehículos
+    con poca espera de origen). Verificamos que la anotación use la
+    mediana — parcheamos ax.annotate para capturar el texto anotado sin
+    depender de inspeccionar píxeles del PNG."""
+    import matplotlib.axes
+
+    captured = []
+    original_annotate = matplotlib.axes.Axes.annotate
+
+    def spy_annotate(self, text, *args, **kwargs):
+        captured.append(text)
+        return original_annotate(self, text, *args, **kwargs)
+
+    monkeypatch.setattr(matplotlib.axes.Axes, 'annotate', spy_annotate)
+
+    stats_a = {
+        'duration': {'mean': 75.76, 'median': 70.0, 'std': 10, 'count': 349},
+        'departDelay': {'mean': 149.88, 'median': 83.92, 'std': 10, 'count': 349},
+    }
+    stats_b = {
+        'duration': {'mean': 57.60, 'median': 50.0, 'std': 10, 'count': 1022},
+        'departDelay': {'mean': 571.63, 'median': 21.54, 'std': 10, 'count': 1022},
+    }
+    plot_metric_comparison_bars(stats_a, stats_b, ['duration', 'departDelay'],
+                                str(tmp_path), labels=('Baseline', 'Dynamic'),
+                                filename='06.png')
+
+    # departDelay: mediana 83.92 -> 21.54 baja ~74.3% (B < A, verde = mejora
+    # en la convención de este gráfico), no el +281% "en contra" que daría
+    # la media cruda dominada por sesgo de supervivencia.
+    depart_delay_annotation = captured[1]
+    assert depart_delay_annotation.startswith('~-74.')
 
 
 def test_improvement_summary_median_switch_matches_html_table_logic():

@@ -338,12 +338,21 @@ def plot_metric_comparison_bars(
     ax.set_xticklabels(available_metrics, rotation=45, ha='right')
     ax.legend()
 
-    # Add percentage difference annotations
-    for i, (ma, mb) in enumerate(zip(means_a, means_b, strict=False)):
+    # Add percentage difference annotations. Igual que en
+    # plot_improvement_summary: cuando el conteo por métrica difiere >10%
+    # (lado colapsado), la media está dominada por sesgo de supervivencia
+    # y se reemplaza por la mediana — si no, departDelay puede mostrar un
+    # "+281%" que en realidad es una mejora real leída al revés (el
+    # baseline solo insertó los pocos vehículos con poca espera de origen).
+    for i, metric in enumerate(available_metrics):
+        sa, sb = stats_a[metric], stats_b[metric]
+        noncomparable = samples_noncomparable(sa.get('count'), sb.get('count'))
+        ma, mb = (sa.get('median', 0), sb.get('median', 0)) if noncomparable else (means_a[i], means_b[i])
         if ma != 0:
             pct_diff = ((mb - ma) / ma) * 100
             color = 'green' if pct_diff < 0 else 'red'
-            ax.annotate(f'{pct_diff:+.1f}%', xy=(i, max(ma, mb)),
+            prefix = '~' if noncomparable else ''
+            ax.annotate(f'{prefix}{pct_diff:+.1f}%', xy=(i, max(means_a[i], means_b[i])),
                        xytext=(0, 10), textcoords='offset points',
                        ha='center', fontsize=8, color=color)
 
@@ -816,7 +825,22 @@ def plot_correlation_heatmap(
     label: str = '',
     filename: str = 'correlation_heatmap.png'
 ):
-    """Correlation heatmap for tripinfo metrics."""
+    """Correlation heatmap for tripinfo metrics.
+
+    Es un diagnóstico INTERNO de una sola corrida (qué tan acopladas están
+    duration/timeLoss/waitingTime/routeLength/departDelay entre sí), no una
+    comparación A vs B: la correlación no tiene una dirección "buena" o
+    "mala" en sí misma — duration y timeLoss correlacionan cerca de 1.0 casi
+    siempre porque timeLoss es, por definición, casi todo el contenido de
+    duration en una red congestionada, no porque el sistema esté mejor o
+    peor. Además, como cada heatmap se calcula solo sobre los viajes
+    COMPLETADOS de esa corrida, si las corridas tienen conteos muy distintos
+    (colapso de un lado) tampoco son directamente comparables entre sí — una
+    diferencia entre el heatmap de A y el de B puede deberse a qué
+    subconjunto de vehículos sobrevivió, no a un cambio real de
+    comportamiento. No usar este gráfico para argumentar cuál corrida es
+    superior; para eso están throughput/tiempo de sistema/pareado.
+    """
     _ensure_dir(out_dir)
 
     if df.empty:
@@ -831,12 +855,21 @@ def plot_correlation_heatmap(
     corr_df = df[available_cols].corr()
 
     fig, ax = plt.subplots(figsize=(8, 6))
-    sns.heatmap(corr_df, annot=True, cmap='RdYlBu_r', center=0,
+    # Diverging rojo-verde centrado en 0 y con rango fijo [-1, 1]: así el
+    # signo se lee de un vistazo (verde = correlación positiva, rojo =
+    # negativa) en vez de RdYlBu_r auto-escalado, que con datos siempre
+    # positivos (típico en estas 5 métricas) desperdiciaba la mitad de la
+    # escala y hacía ver "rojo" (extremo alto) lo que solo era correlación
+    # fuerte, no algo negativo. El signo NO implica "bueno/malo": una
+    # correlación fuerte entre duration y timeLoss es estructural, no una
+    # señal de desempeño.
+    sns.heatmap(corr_df, annot=True, cmap='RdYlGn', center=0, vmin=-1, vmax=1,
                 square=True, ax=ax, fmt='.2f')
     # Correlación calculada solo sobre viajes completados (n=len(df)); no es
     # una comparación A vs B, pero se anota el n para que quede claro que
     # excluye los viajes atrapados/no insertados.
-    title = f'Metric Correlations{" - " + label if label else ""} (n={len(df)})'
+    title = (f'Metric Correlations{" - " + label if label else ""} (n={len(df)})'
+             '\n(diagnóstico interno — no compara A vs B)')
     ax.set_title(title)
 
     out_file = os.path.join(out_dir, filename)
