@@ -92,6 +92,10 @@ Examples:
                         help='Number of simulation steps to run')
     parser.add_argument('--seed', type=int, default=42,
                         help='SUMO random seed applied to BOTH runs (identical conditions)')
+    parser.add_argument('--baseline-green', type=float, default=None,
+                        help='Verde fijo (s) para el baseline A. Con esto, A usa un plan fijo '
+                             'naive estilo MOPC (reparto igualitario dentro de --cycle-time) en '
+                             'vez del programa por defecto de netconvert.')
 
     # Directory options
     parser.add_argument('--extract-base', default='sim',
@@ -159,6 +163,11 @@ Examples:
             common_args.append('--gui')
 
         extra_a = common_args.copy()
+        if args.baseline_green is not None:
+            # Baseline naive (MOPC 113.14.3): ciclo fijo con reparto igualitario
+            # del verde, sin ajuste por volúmenes — el plan estático "real" de
+            # un semáforo paraguayo sin datos de tránsito.
+            extra_a += ["--green-time", str(args.baseline_green)]
 
         if use_dynamic:
             extra_b = common_args + ["--dynamic-optimization"]
@@ -169,7 +178,7 @@ Examples:
         print(f"\n{'#'*60}")
         print("# STARTING BASELINE RUN A")
         print(f"# Extract dir: {extract_a}")
-        print("# Configuration: Default timing (no --green-time)")
+        print(f"# Configuration: {'MOPC naive green=' + str(args.baseline_green) if args.baseline_green is not None else 'Default timing (no --green-time)'}")
         print(f"{'#'*60}")
 
         rc = _run_instance(args.python, str(runner), args.zip_file, extract_a, extra_a)
