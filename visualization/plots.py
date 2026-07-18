@@ -62,9 +62,17 @@ def legend_label_with_n(label: str, n: int) -> str:
 
 def title_with_sample_note(title: str, n_a: int, n_b: int) -> str:
     """Append a non-comparability note to a plot title when the two sample
-    sizes differ by more than SAMPLE_NONCOMPARABLE_THRESHOLD_PCT."""
+    sizes differ by more than SAMPLE_NONCOMPARABLE_THRESHOLD_PCT.
+
+    La nota apunta a 32_throughput_timeline.png (y no a "ver nota" a secas)
+    a propósito: este gráfico puede abrirse solo, fuera del HTML, y ese es
+    el único gráfico insesgado que cuenta a TODOS los vehículos — el que de
+    verdad decide el resultado cuando las distribuciones de tripinfo no son
+    comparables entre A y B.
+    """
     if samples_noncomparable(n_a, n_b):
-        return f'{title}\nn={n_a} vs n={n_b} — muestras no comparables (ver nota)'
+        return (f'{title}\nn={n_a} vs n={n_b} — muestras no comparables\n'
+                '(resultado real: ver 32_throughput_timeline.png)')
     return title
 
 
@@ -1032,7 +1040,7 @@ def plot_improvement_summary(
     title = title_with_sample_note(
         f'Performance Improvement: {labels[1]} vs {labels[0]}', n_a, n_b)
     if any(used_median):
-        title += '\n(mediana usada donde las muestras no son comparables — ver nota)'
+        title += '\n(~ = mediana usada por sesgo de supervivencia; resultado real: ver 32_throughput_timeline.png)'
     ax.set_title(title)
 
     # Add value labels

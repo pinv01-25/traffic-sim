@@ -52,6 +52,10 @@ def test_title_with_sample_note_appends_when_noncomparable():
     assert 'Travel time boxplot' in title
     assert 'n=349 vs n=1022' in title
     assert 'no comparables' in title
+    # La nota debe apuntar al gráfico insesgado (auto-contenido: el PNG
+    # puede verse suelto, fuera del HTML, así que "ver nota" a secas no
+    # sirve — tiene que decir dónde está la evidencia real).
+    assert '32_throughput_timeline.png' in title
 
 
 def test_title_with_sample_note_unchanged_when_comparable():
