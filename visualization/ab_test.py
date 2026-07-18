@@ -46,6 +46,8 @@ from .plots import (
     plot_time_series_mean,
     plot_violin_comparison,
     plot_waiting_time_analysis,
+    samples_noncomparable,
+    title_with_sample_note,
 )
 
 
@@ -139,12 +141,28 @@ def _compute_incomplete_trips(run_dir: str, df_trip: pd.DataFrame) -> pd.DataFra
     return pd.DataFrame(rows).sort_values('time_in_network').reset_index(drop=True)
 
 
+def _never_inserted_note(n_never_inserted: Optional[int]) -> str:
+    """Title suffix documenting vehicles that never entered the network.
+
+    `_compute_incomplete_trips` only finds vehicles present in FCD but
+    missing from tripinfo — i.e. vehicles that WERE inserted but never
+    finished. It misses vehicles blocked at their origin edge that never
+    got inserted at all (the dominant case in an insertion-collapse
+    scenario), so the "incompletos" plots understate the real backlog
+    unless this count is shown explicitly.
+    """
+    if n_never_inserted is None or n_never_inserted <= 0:
+        return ''
+    return f'\n(no incluye vehículos nunca insertados: {n_never_inserted})'
+
+
 def _plot_incomplete_histogram(
     completed_dur: np.ndarray,
     time_in_network: np.ndarray,
     out_dir: str,
     label: str,
     filename: str = '21_incomplete_histogram.png',
+    n_never_inserted: Optional[int] = None,
 ) -> None:
     """Histogram: duration of completed trips vs time_in_network of incomplete ones."""
     import matplotlib.pyplot as plt
@@ -165,7 +183,9 @@ def _plot_incomplete_histogram(
                label=f'μ completados={np.mean(completed_dur):.0f}s')
     ax.set_xlabel('Tiempo en red (s)')
     ax.set_ylabel('Densidad')
-    ax.set_title(f'Distribución de tiempos — viajes incompletos vs completados\n({label})')
+    title = (f'Distribución de tiempos — viajes incompletos vs completados\n({label})'
+             + _never_inserted_note(n_never_inserted))
+    ax.set_title(title)
     ax.legend(fontsize=9)
     ax.grid(True, alpha=0.25)
     fig.tight_layout()
@@ -179,21 +199,24 @@ def _plot_incomplete_cdf(
     out_dir: str,
     label: str,
     filename: str = '22_incomplete_cdf.png',
+    n_never_inserted: Optional[int] = None,
 ) -> None:
     """CDF: completed duration vs incomplete time_in_network."""
     import matplotlib.pyplot as plt
 
     fig, ax = plt.subplots(figsize=(9, 5))
     for data, color, lbl in [
-        (np.sort(completed_dur), 'steelblue', 'Completados (duration)'),
-        (np.sort(time_in_network), 'tomato', 'Incompletos (time_in_network)'),
+        (np.sort(completed_dur), 'steelblue', f'Completados (duration, n={len(completed_dur)})'),
+        (np.sort(time_in_network), 'tomato', f'Incompletos (time_in_network, n={len(time_in_network)})'),
     ]:
         if len(data):
             cdf = np.arange(1, len(data) + 1) / len(data)
             ax.plot(data, cdf, color=color, lw=2, label=lbl)
     ax.set_xlabel('Tiempo (s)')
     ax.set_ylabel('CDF')
-    ax.set_title(f'Función de distribución acumulada — incompletos vs completados\n({label})')
+    title = (f'Función de distribución acumulada — incompletos vs completados\n({label})'
+             + _never_inserted_note(n_never_inserted))
+    ax.set_title(title)
     ax.legend(fontsize=9)
     ax.grid(True, alpha=0.25)
     fig.tight_layout()
@@ -207,13 +230,15 @@ def _plot_incomplete_boxplot(
     out_dir: str,
     label: str,
     filename: str = '23_incomplete_boxplot.png',
+    n_never_inserted: Optional[int] = None,
 ) -> None:
     """Box plot: completed duration vs incomplete time_in_network."""
     import matplotlib.pyplot as plt
 
     fig, ax = plt.subplots(figsize=(7, 6))
     data_list = [d for d in [completed_dur, time_in_network] if len(d) > 0]
-    tick_labels = ['Completados\n(duration)', 'Incompletos\n(time_in_network)'][:len(data_list)]
+    tick_labels = [f'Completados\n(duration, n={len(completed_dur)})',
+                   f'Incompletos\n(time_in_network, n={len(time_in_network)})'][:len(data_list)]
     bp = ax.boxplot(data_list, tick_labels=tick_labels, patch_artist=True,
                     showfliers=True,
                     flierprops={'marker': '.', 'markersize': 3, 'alpha': 0.4})
@@ -227,7 +252,9 @@ def _plot_incomplete_boxplot(
         ax.text(i, np.mean(data) * 1.02, f'μ={np.mean(data):.0f}s',
                 ha='center', va='bottom', fontsize=8)
     ax.set_ylabel('Tiempo (s)')
-    ax.set_title(f'Box plot comparativo — viajes incompletos vs completados\n({label})')
+    title = (f'Box plot comparativo — viajes incompletos vs completados\n({label})'
+             + _never_inserted_note(n_never_inserted))
+    ax.set_title(title)
     ax.grid(True, alpha=0.25, axis='y')
     fig.tight_layout()
     fig.savefig(os.path.join(out_dir, filename), dpi=150, bbox_inches='tight')
@@ -240,6 +267,7 @@ def _plot_incomplete_scatter(
     out_dir: str,
     label: str,
     filename: str = '24_incomplete_scatter.png',
+    n_never_inserted: Optional[int] = None,
 ) -> None:
     """Scatter: depart time vs time_in_network for incomplete trips."""
     import matplotlib.pyplot as plt
@@ -254,7 +282,9 @@ def _plot_incomplete_scatter(
                    label=f'μ duration completados ({np.mean(completed_dur):.0f}s)')
     ax.set_xlabel('Tiempo de salida (depart, s)')
     ax.set_ylabel('time_in_network (s)')
-    ax.set_title(f'Viajes incompletos: tiempo de salida vs tiempo en red\n({label})')
+    title = (f'Viajes incompletos: tiempo de salida vs tiempo en red\n({label})'
+             + _never_inserted_note(n_never_inserted))
+    ax.set_title(title)
     ax.legend(fontsize=9)
     ax.grid(True, alpha=0.25)
     n = len(valid)
@@ -265,6 +295,28 @@ def _plot_incomplete_scatter(
     plt.close(fig)
 
 
+def _count_never_inserted(df_summary: pd.DataFrame) -> Optional[int]:
+    """Vehicles that never entered the network at all (loaded but not inserted).
+
+    `loaded` and `inserted` are cumulative columns in summary.xml; their
+    maxima are the total demand and the total actually admitted into the
+    network. `loaded - inserted` is the backlog blocked at the origin edge
+    — the dominant case in an insertion collapse — which the FCD-based
+    incomplete-trips analysis cannot see (FCD only records vehicles that
+    were inserted).
+    """
+    if df_summary is None or df_summary.empty:
+        return None
+    if 'loaded' not in df_summary.columns or 'inserted' not in df_summary.columns:
+        return None
+    loaded = df_summary['loaded'].dropna()
+    inserted = df_summary['inserted'].dropna()
+    if loaded.empty or inserted.empty:
+        return None
+    n = int(loaded.max() - inserted.max())
+    return n if n > 0 else None
+
+
 def analyze_incomplete_trips(
     run_dir: str,
     df_trip: pd.DataFrame,
@@ -272,6 +324,7 @@ def analyze_incomplete_trips(
     label: str = 'A',
     tag: str = 'A',
     file_start: int = 21,
+    df_summary: Optional[pd.DataFrame] = None,
 ) -> List[str]:
     """
     Analyze incomplete trips (vehicles in FCD but not in tripinfo) and generate
@@ -287,12 +340,18 @@ def analyze_incomplete_trips(
         label:      Run label shown in plot titles
         tag:        Short tag used in filenames ('A' or 'B')
         file_start: Number of the first generated plot
+        df_summary: Parsed summary.xml DataFrame for this run, used to
+            report vehicles that never got inserted (loaded − inserted).
+            These are NOT visible in FCD, so they're absent from
+            `df_incomplete` — this only counts vehicles inserted-but-not-
+            finished. Omit and the plots simply don't show the note.
 
     Returns:
         List of generated filenames.
     """
     print(f'  Analyzing incomplete trips for {label}...')
     df_incomplete = _compute_incomplete_trips(run_dir, df_trip)
+    n_never_inserted = _count_never_inserted(df_summary) if df_summary is not None else None
 
     if df_incomplete.empty:
         print('  No incomplete trips data available (fcd.xml missing?)')
@@ -306,6 +365,8 @@ def analyze_incomplete_trips(
     print(f'  Completados: {n_complete} | Incompletos: {n_incomplete} '
           f'| time_in_network mean: {time_in_network.mean():.1f}s' if len(time_in_network) else
           f'  Completados: {n_complete} | Incompletos: {n_incomplete}')
+    if n_never_inserted:
+        print(f'  Nunca insertados (loaded-inserted): {n_never_inserted}')
 
     Path(out_dir).mkdir(parents=True, exist_ok=True)
     generated = []
@@ -317,10 +378,14 @@ def analyze_incomplete_trips(
         f'{file_start + 3:02d}_incomplete_scatter_{tag}.png',
     ]
 
-    _plot_incomplete_histogram(completed_dur, time_in_network, out_dir, label, filename=names[0])
-    _plot_incomplete_cdf(completed_dur, time_in_network, out_dir, label, filename=names[1])
-    _plot_incomplete_boxplot(completed_dur, time_in_network, out_dir, label, filename=names[2])
-    _plot_incomplete_scatter(df_incomplete, completed_dur, out_dir, label, filename=names[3])
+    _plot_incomplete_histogram(completed_dur, time_in_network, out_dir, label, filename=names[0],
+                               n_never_inserted=n_never_inserted)
+    _plot_incomplete_cdf(completed_dur, time_in_network, out_dir, label, filename=names[1],
+                         n_never_inserted=n_never_inserted)
+    _plot_incomplete_boxplot(completed_dur, time_in_network, out_dir, label, filename=names[2],
+                             n_never_inserted=n_never_inserted)
+    _plot_incomplete_scatter(df_incomplete, completed_dur, out_dir, label, filename=names[3],
+                             n_never_inserted=n_never_inserted)
     generated.extend(names)
 
     # Save CSV
@@ -518,8 +583,14 @@ def _plot_qq_comparison(dur_a, dur_b, out_dir, labels, filename='29_qq_duration.
     ax.set_ylim(lim)
     ax.set_xlabel(f'Cuantiles {labels[0]} (s)')
     ax.set_ylabel(f'Cuantiles {labels[1]} (s)')
-    ax.set_title(f'QQ plot de duración de viaje — {labels[1]} vs {labels[0]}\n'
-                 'Puntos bajo la diagonal = mejora en ese cuantil')
+    n_a, n_b = len(dur_a), len(dur_b)
+    # Los cuantiles se calculan sobre muestras de tamaño distinto (solo
+    # viajes completados); si difieren mucho, los cuantiles altos de la
+    # corrida colapsada pueden no reflejar sus vehículos más lentos.
+    title = title_with_sample_note(
+        f'QQ plot de duración de viaje — {labels[1]} vs {labels[0]}', n_a, n_b)
+    title += '\nPuntos bajo la diagonal = mejora en ese cuantil'
+    ax.set_title(title)
     ax.legend(fontsize=9)
     ax.grid(True, alpha=0.25)
     fig.tight_layout()
@@ -527,13 +598,22 @@ def _plot_qq_comparison(dur_a, dur_b, out_dir, labels, filename='29_qq_duration.
     plt.close(fig)
 
 
-def _plot_paired_scatter(merged, metric, out_dir, labels, filename='30_paired_scatter.png'):
-    """Per-vehicle scatter: metric in A vs metric in B, colored by outcome."""
+def _plot_paired_scatter(merged, metric, out_dir, labels, filename='30_paired_scatter.png',
+                         n_total_a=None, n_total_b=None):
+    """Per-vehicle scatter: metric in A vs metric in B, colored by outcome.
+
+    Solo incluye vehículos que completaron su viaje en AMBAS corridas
+    (intersección) — es la muestra pareada más fuerte porque compara el
+    mismo vehículo consigo mismo, pero si `n_paired` es mucho menor que el
+    total completado en alguna corrida (colapso parcial), esa diferencia se
+    anota en el título para que no se lea como si cubriera toda la flota.
+    """
     import matplotlib.pyplot as plt
 
     x = merged[f'{metric}_a'].values
     y = merged[f'{metric}_b'].values
     improved = y < x
+    n_paired = len(merged)
 
     fig, ax = plt.subplots(figsize=(8, 8))
     lim = [0, max(x.max(), y.max()) * 1.05]
@@ -547,8 +627,13 @@ def _plot_paired_scatter(merged, metric, out_dir, labels, filename='30_paired_sc
     ax.set_xlabel(f'{metric} en {labels[0]} (s)')
     ax.set_ylabel(f'{metric} en {labels[1]} (s)')
     pct = improved.mean() * 100
-    ax.set_title(f'Comparación pareada por vehículo (mismo vehículo en ambas corridas)\n'
-                 f'{pct:.1f}% de los {len(merged)} vehículos mejora en {labels[1]}')
+    title = (f'Comparación pareada por vehículo (mismo vehículo en ambas corridas)\n'
+             f'{pct:.1f}% de los {n_paired} vehículos pareados mejora en {labels[1]}')
+    if n_total_a is not None and n_total_b is not None and (
+            samples_noncomparable(n_paired, n_total_a) or samples_noncomparable(n_paired, n_total_b)):
+        title += (f'\n(pareados={n_paired} vs completados {labels[0]}={n_total_a}, '
+                  f'{labels[1]}={n_total_b} — no cubre toda la flota)')
+    ax.set_title(title)
     ax.legend(fontsize=9)
     ax.grid(True, alpha=0.25)
     fig.tight_layout()
@@ -556,12 +641,19 @@ def _plot_paired_scatter(merged, metric, out_dir, labels, filename='30_paired_sc
     plt.close(fig)
 
 
-def _plot_paired_delta_hist(delta, metric, out_dir, labels, filename='31_paired_delta_hist.png'):
-    """Histogram of per-vehicle deltas (B - A); negative = improvement."""
+def _plot_paired_delta_hist(delta, metric, out_dir, labels, filename='31_paired_delta_hist.png',
+                            n_total_a=None, n_total_b=None):
+    """Histogram of per-vehicle deltas (B - A); negative = improvement.
+
+    Igual que `_plot_paired_scatter`, opera sobre la intersección de
+    vehículos completados en ambas corridas; se anota si esa intersección
+    es mucho menor que el total completado en alguna corrida.
+    """
     import matplotlib.pyplot as plt
 
     lo, hi = np.percentile(delta, [1, 99])
     clipped = np.clip(delta, lo, hi)
+    n_paired = len(delta)
 
     fig, ax = plt.subplots(figsize=(9, 5))
     ax.hist(clipped, bins=40, color='steelblue', alpha=0.75)
@@ -573,8 +665,13 @@ def _plot_paired_delta_hist(delta, metric, out_dir, labels, filename='31_paired_
     pct = (delta < 0).mean() * 100
     ax.set_xlabel(f'Δ {metric} por vehículo: {labels[1]} − {labels[0]} (s)')
     ax.set_ylabel('Vehículos')
-    ax.set_title(f'Diferencia pareada por vehículo (negativo = mejora)\n'
-                 f'{pct:.1f}% de vehículos mejora')
+    title = (f'Diferencia pareada por vehículo (negativo = mejora)\n'
+             f'{pct:.1f}% de {n_paired} vehículos pareados mejora')
+    if n_total_a is not None and n_total_b is not None and (
+            samples_noncomparable(n_paired, n_total_a) or samples_noncomparable(n_paired, n_total_b)):
+        title += (f'\n(pareados={n_paired} vs completados {labels[0]}={n_total_a}, '
+                  f'{labels[1]}={n_total_b} — no cubre toda la flota)')
+    ax.set_title(title)
     ax.legend(fontsize=9)
     ax.grid(True, alpha=0.25)
     fig.tight_layout()
@@ -986,9 +1083,11 @@ def compare_runs(
 
         # 16. Incomplete trips analysis for BOTH runs (A: 21–24, B: 25–28)
         generated_files.extend(analyze_incomplete_trips(
-            run_a, df_trip_a, out_dir, label=labels[0], tag='A', file_start=21))
+            run_a, df_trip_a, out_dir, label=labels[0], tag='A', file_start=21,
+            df_summary=df_summary_a))
         generated_files.extend(analyze_incomplete_trips(
-            run_b, df_trip_b, out_dir, label=labels[1], tag='B', file_start=25))
+            run_b, df_trip_b, out_dir, label=labels[1], tag='B', file_start=25,
+            df_summary=df_summary_b))
 
         # 17. Paired per-vehicle evidence (29–32)
         if len(dur_a) > 0 and len(dur_b) > 0:
@@ -998,10 +1097,12 @@ def compare_runs(
         merged = _paired_frame(df_trip_a, df_trip_b, 'duration')
         if not merged.empty:
             _plot_paired_scatter(merged, 'duration', out_dir, labels,
-                                 filename='30_paired_scatter.png')
+                                 filename='30_paired_scatter.png',
+                                 n_total_a=len(dur_a), n_total_b=len(dur_b))
             generated_files.append('30_paired_scatter.png')
             _plot_paired_delta_hist(merged['delta'].values, 'duration', out_dir, labels,
-                                    filename='31_paired_delta_hist.png')
+                                    filename='31_paired_delta_hist.png',
+                                    n_total_a=len(dur_a), n_total_b=len(dur_b))
             generated_files.append('31_paired_delta_hist.png')
 
         _plot_throughput_timeline(df_trip_a, df_trip_b, out_dir, labels,
