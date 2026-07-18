@@ -13,6 +13,7 @@ optimized traffic light timing. Generates:
 import csv
 import json
 import os
+import re
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -923,6 +924,14 @@ def compute_verdict(statistical_results: Dict) -> Dict:
 # MAIN COMPARISON FUNCTION
 # =============================================================================
 
+def _label_slug(label: str) -> str:
+    """Etiqueta segura para nombres de archivo: las etiquetas de run vienen
+    del usuario y pueden traer '/', espacios o paréntesis ("Fixed-Time MOPC
+    (60s/25s)") — un '/' crudo en el filename hace que savefig intente crear
+    un subdirectorio inexistente y aborta todo el análisis tras el gráfico 18."""
+    return re.sub(r'[^A-Za-z0-9._-]+', '_', label).strip('_')
+
+
 def compare_runs(
     run_a: str,
     run_b: str,
@@ -1074,12 +1083,12 @@ def compare_runs(
         # 15. Individual time series
         if not df_trip_a.empty and 'depart' in df_trip_a.columns:
             plot_time_series_mean(df_trip_a, 'depart', 'duration', out_dir,
-                                 filename=f'19_time_series_mean_{labels[0]}.png', bin_size=time_bin)
-            generated_files.append(f'19_time_series_mean_{labels[0]}.png')
+                                 filename=f'19_time_series_mean_{_label_slug(labels[0])}.png', bin_size=time_bin)
+            generated_files.append(f'19_time_series_mean_{_label_slug(labels[0])}.png')
         if not df_trip_b.empty and 'depart' in df_trip_b.columns:
             plot_time_series_mean(df_trip_b, 'depart', 'duration', out_dir,
-                                 filename=f'20_time_series_mean_{labels[1]}.png', bin_size=time_bin)
-            generated_files.append(f'20_time_series_mean_{labels[1]}.png')
+                                 filename=f'20_time_series_mean_{_label_slug(labels[1])}.png', bin_size=time_bin)
+            generated_files.append(f'20_time_series_mean_{_label_slug(labels[1])}.png')
 
         # 16. Incomplete trips analysis for BOTH runs (A: 21–24, B: 25–28)
         generated_files.extend(analyze_incomplete_trips(
