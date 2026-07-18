@@ -1,22 +1,24 @@
 #!/usr/bin/env python3
 """Genera results/index.html: resumen consolidado de la campaña A/B.
 
-Layout esperado: results/escenarios/<escenario>/seed_<n>/ab_report.json
-(salida de run_ab.py --output-dir). El veredicto por corrida prioriza el
-throughput (viajes completados): a saturación, la media de duraciones solo
-cuenta a los que terminaron — una media que "mejora" con menos viajes
-completados es sesgo de supervivencia, no una mejora.
+Layout esperado: escenarios/<escenario>/seed_<n>/ab_report.json
+(salida de run_ab.py --output-dir). El veredicto por corrida usa
+`compute_verdict` (visualization/ab_test.py) — la misma función única que
+usan el JSON, el CSV y el HTML de cada corrida — para que la campaña nunca
+se contradiga con el reporte individual. `compute_verdict` ya prioriza el
+throughput como guardia dura (colapso ≠ mejora) y usa el tiempo de sistema
+insesgado cuando está disponible.
 """
 import json
+import sys
 from datetime import datetime
 from pathlib import Path
 
-RESULTS = Path('results')
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from visualization.ab_test import compute_verdict  # noqa: E402
 
-#: Umbral de no-daño en throughput (%): dentro de ±1% se considera igual.
-THR_TIE = 1.0
-#: Caída de throughput que dispara la marca de sesgo de supervivencia.
-THR_SURVIVOR = -5.0
+import os
+RESULTS = Path(os.environ.get('CAMPAIGN_RESULTS','results'))
 
 
 def load_report(seed_dir: Path):
@@ -27,38 +29,35 @@ def load_report(seed_dir: Path):
     st = r.get('statistical_tests', {})
     paired = st.get('paired', {}) or {}
     thr = st.get('throughput', {}) or {}
+    st_time = st.get('system_time') or st.get('system_time_approx') or {}
     a, b = thr.get('completed_a'), thr.get('completed_b')
-    # a=0 o b=0 son datos reales (colapso total), no ausencia de dato
-    thr_pct = (b - a) / a * 100 if a not in (None, 0) and b is not None else None
+    thr_pct = thr.get('throughput_change_pct')
+    verdict = st.get('verdict') or compute_verdict(st)
     return {
         'seed': seed_dir.name.replace('seed_', ''),
         'thr_a': a, 'thr_b': b, 'thr_pct': thr_pct,
+        'imp_pct': st.get('percent_improvement'),
+        'system_time_pct': st_time.get('system_time_improvement_pct'),
         'n_paired': paired.get('n_paired'),
         'mean_delta': paired.get('mean_delta'),
         'median_delta': paired.get('median_delta'),
         'wilcoxon_p': paired.get('wilcoxon_pvalue'),
+        'verdict': verdict.get('verdict'),
+        'reason': verdict.get('reason'),
         'html': str((seed_dir / 'ab_report.html').relative_to(RESULTS)),
     }
 
 
 def classify(r):
-    """'win' / 'tie' / 'loss' por corrida, con throughput como métrica primaria."""
-    tp, p = r['thr_pct'], r['wilcoxon_p']
-    if tp is None:
-        return 'tie'
-    if tp > THR_TIE:
-        return 'win'
-    if tp < -THR_TIE:
-        return 'loss'
-    # Throughput igual: deciden las duraciones pareadas significativas.
-    # Wilcoxon es un test de mediana → el signo lo da median_delta (con
-    # fallback a la media cuando la mediana es exactamente 0).
-    delta = r['median_delta'] if r['median_delta'] else r['mean_delta']
-    if isinstance(p, float) and p < 0.05 and (delta or 0) < 0:
-        return 'win'
-    if isinstance(p, float) and p < 0.05 and (delta or 0) > 0:
-        return 'loss'
-    return 'tie'
+    """'win' / 'tie' / 'loss' agregado para el banner de campaña, derivado
+    del veredicto insesgado de compute_verdict (5 categorías -> 3)."""
+    return {
+        'improvement': 'win',
+        'misleading_regression': 'win',   # mejora real; la media sesgada mentía
+        'regression': 'loss',
+        'misleading_improvement': 'loss',  # empeora en realidad; la media sesgada mentía
+        'tie': 'tie',
+    }[r['verdict']]
 
 
 def fmt(v, spec='.1f'):
@@ -66,26 +65,30 @@ def fmt(v, spec='.1f'):
 
 
 HEAD = ("<tr><th>Corrida</th><th>Viajes A → B</th><th>Δ throughput</th>"
-        "<th>n pareado</th><th>Δ media par. (s)</th><th>Δ mediana par. (s)</th>"
+        "<th>imp% (sesgado)</th><th>Δ tiempo sistema</th>"
+        "<th>n pareado</th><th>Δ mediana par. (s)</th>"
         "<th>p (Wilcoxon)</th><th>Veredicto</th></tr>")
 
-BADGE = {'win': ('✅ mejora', 'pos'), 'loss': ('❌ empeora', 'neg'), 'tie': ('≈ sin efecto', '')}
+BADGE = {
+    'improvement': ('✅ mejora', 'pos'),
+    'misleading_regression': ('✅ mejora (media sesgada mentía)', 'pos'),
+    'regression': ('❌ empeora', 'neg'),
+    'misleading_improvement': ('❌ empeora ⚠️ sesgo de supervivencia', 'neg'),
+    'tie': ('≈ sin efecto', ''),
+}
 
 
 def table_rows(rows):
     out = []
     for r in rows:
-        cls = classify(r)
-        badge, css = BADGE[cls]
-        survivor = (r['thr_pct'] is not None and r['thr_pct'] < THR_SURVIVOR
-                    and (r['mean_delta'] or 0) < 0)
-        if survivor:
-            badge += ' ⚠️ sesgo de supervivencia'
+        badge, css = BADGE[r['verdict']]
         out.append(
-            f"<tr><td><a href='{r['html']}'>seed {r['seed']}</a></td>"
+            f"<tr><td><a href='{r['html']}' title='{r['reason']}'>seed {r['seed']}</a></td>"
             f"<td>{r['thr_a'] or '—'} → {r['thr_b'] or '—'}</td>"
             f"<td class='{'pos' if (r['thr_pct'] or 0) > 0 else 'neg'}'>{fmt(r['thr_pct'], '+.1f')}%</td>"
-            f"<td>{r['n_paired'] or '—'}</td><td>{fmt(r['mean_delta'], '+.1f')}</td>"
+            f"<td>{fmt(r['imp_pct'], '+.1f')}%</td>"
+            f"<td>{fmt(r['system_time_pct'], '+.1f')}%</td>"
+            f"<td>{r['n_paired'] or '—'}</td>"
             f"<td>{fmt(r['median_delta'], '+.1f')}</td><td>{fmt(r['wilcoxon_p'], '.2g')}</td>"
             f"<td class='{css}'>{badge}</td></tr>"
         )
@@ -102,7 +105,7 @@ for sc_dir in sorted((RESULTS / 'escenarios').iterdir()):
         sections.append(f"<h3>{sc_dir.name}</h3><table>{HEAD}{table_rows(rows)}</table>")
 
 if not all_rows:
-    raise SystemExit('No hay ab_report.json en results/escenarios/')
+    raise SystemExit('No hay ab_report.json en escenarios/')
 
 tally = {'win': 0, 'loss': 0, 'tie': 0}
 for r in all_rows:

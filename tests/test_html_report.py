@@ -63,3 +63,47 @@ def test_html_report_survivorship_guard(tmp_path):
     html = path.read_text()
     assert 'banner red' in html
     assert 'supervivencia' in html
+
+
+def test_html_report_comparable_counts_uses_mean_improvement(tmp_path):
+    """Con conteos comparables (<=10% de diferencia), la mejora sigue siendo sobre la media."""
+    path = tmp_path / 'r.html'
+    _write_html_report(
+        path,
+        labels=('Baseline', 'Optimized'),
+        stats_a={'duration': {'count': 349, 'mean': 100.0, 'median': 90.0, 'q95': 150.0}},
+        stats_b={'duration': {'count': 360, 'mean': 90.0, 'median': 80.0, 'q95': 140.0}},
+        statistical_results={'percent_improvement': 10.0, 'permutation_test_pvalue': 0.01},
+        paired={},
+        throughput={'completed_a': 349, 'completed_b': 360, 'throughput_change_pct': 3.15},
+        run_config={}, generated_files=[],
+    )
+    html = path.read_text()
+    # 10% mejora sobre la media (100 -> 90), sin marcador "~" de mediana
+    assert '+10.00%' in html
+    assert '~' not in html
+    assert 'no comparables' not in html
+    assert '<p class="warn">' not in html
+
+
+def test_html_report_noncomparable_counts_uses_median_improvement(tmp_path):
+    """Con conteos que difieren >10% (colapso de un lado), la mejora se calcula sobre la
+    mediana y se marca con '~', más una nota de advertencia visible sobre la tabla."""
+    path = tmp_path / 'r.html'
+    _write_html_report(
+        path,
+        labels=('Baseline', 'Dinamico'),
+        stats_a={'departDelay': {'count': 349, 'mean': 149.88, 'median': 83.92, 'q95': 300.0}},
+        stats_b={'departDelay': {'count': 1022, 'mean': 571.63, 'median': 21.54, 'q95': 900.0}},
+        statistical_results={'percent_improvement': -281.39, 'permutation_test_pvalue': 0.01},
+        paired={},
+        throughput={'completed_a': 349, 'completed_b': 1022, 'throughput_change_pct': 192.8},
+        run_config={}, generated_files=[],
+    )
+    html = path.read_text()
+    # mejora sobre mediana: (83.92 - 21.54) / 83.92 * 100 = +74.34%, positiva (verde) no roja
+    assert '~+74.' in html
+    assert 'muestras no comparables' in html
+    assert '349' in html and '1022' in html
+    assert 'class="warn"' in html
+    assert '⚠️' in html

@@ -623,6 +623,205 @@ def throughput_statistics(df_trip_a: pd.DataFrame, df_trip_b: pd.DataFrame) -> D
     }
 
 
+def system_time_statistics(df_summary_a: pd.DataFrame, df_summary_b: pd.DataFrame) -> Dict:
+    """Métrica primaria insesgada: tiempo total de sistema (vehículo-segundos).
+
+    `percent_improvement` (media de `duration` en tripinfo) solo ve viajes
+    COMPLETADOS: si un lado colapsa (gridlock), su media baja artificialmente
+    porque promedia solo los viajes rápidos que lograron escapar (sesgo de
+    supervivencia). El summary.xml de SUMO, en cambio, reporta por cada paso
+    de simulación cuántos vehículos están `running` (circulando, incluidos
+    los atrapados) — su suma es `system_total_time`, insesgada porque cuenta
+    a TODOS los vehículos en red mientras están en red, hayan llegado o no.
+
+    Se asume un paso de summary de 1s (el caso normal); si el intervalo real
+    difiere, la comparación relativa entre A y B sigue siendo válida siempre
+    que ambas corridas usen el mismo intervalo.
+
+    `inserted` es una columna acumulada (SUMO reporta el total insertado
+    hasta ese paso) → se usa su máximo como total de vehículos que entraron
+    a la red. Si A y B insertan cantidades distintas (backlog de inserción
+    por gridlock: los vehículos esperan en el borde y no llegan a
+    contabilizarse como circulando), `mean_time_per_vehicle` normaliza el
+    tiempo total por vehículo insertado, para que la comparación no
+    favorezca artificialmente a la corrida que menos vehículos logró meter
+    en la red.
+    """
+    def _totals(df):
+        if df.empty or 'running' not in df.columns:
+            return (float('nan'), float('nan'))
+        total_time = float(df['running'].dropna().sum())
+        if 'inserted' in df.columns and not df['inserted'].dropna().empty:
+            inserted = float(df['inserted'].dropna().max())
+        else:
+            inserted = float('nan')
+        return total_time, inserted
+
+    time_a, ins_a = _totals(df_summary_a)
+    time_b, ins_b = _totals(df_summary_b)
+
+    result = {
+        'system_time_a': time_a,
+        'system_time_b': time_b,
+        'inserted_a': ins_a,
+        'inserted_b': ins_b,
+    }
+
+    if time_a == time_a and time_a > 0 and time_b == time_b:
+        result['system_time_improvement_pct'] = float((time_a - time_b) / time_a * 100)
+    else:
+        result['system_time_improvement_pct'] = float('nan')
+
+    mtpv_a = time_a / max(ins_a, 1) if time_a == time_a and ins_a == ins_a else float('nan')
+    mtpv_b = time_b / max(ins_b, 1) if time_b == time_b and ins_b == ins_b else float('nan')
+    result['mean_time_per_vehicle_a'] = mtpv_a
+    result['mean_time_per_vehicle_b'] = mtpv_b
+
+    if mtpv_a == mtpv_a and mtpv_a > 0 and mtpv_b == mtpv_b:
+        result['mean_time_per_vehicle_improvement_pct'] = float((mtpv_a - mtpv_b) / mtpv_a * 100)
+    else:
+        result['mean_time_per_vehicle_improvement_pct'] = float('nan')
+
+    return result
+
+
+# =============================================================================
+# VEREDICTO COMPUESTO (insesgado por supervivencia)
+# =============================================================================
+#
+# `percent_improvement` (media de duration en tripinfo) sufre sesgo de
+# supervivencia: solo ve viajes completados, así que un colapso (gridlock)
+# hace bajar la media porque solo promedia los viajes rápidos que
+# escaparon. Esta función combina throughput (guardia dura), tiempo de
+# sistema (métrica primaria insesgada) y significancia estadística en un
+# único veredicto, usado por el JSON, el CSV, el HTML y el resumen de
+# campaña — para que los cuatro nunca se contradigan entre sí.
+
+#: Umbral de cambio de throughput (%) que se considera "grande": por encima
+#: decide el veredicto sin importar la duración (guardia dura).
+_THR_BIG_PCT = 10.0
+#: Debajo de este |headline_pct| (tiempo de sistema, o duration si no hay
+#: tiempo de sistema disponible) el resultado se considera empate.
+_HEADLINE_TIE_PCT = 2.0
+
+
+def compute_verdict(statistical_results: Dict) -> Dict:
+    """Veredicto A/B único e insesgado.
+
+    Devuelve un dict con:
+        verdict: 'improvement' | 'regression' | 'tie' |
+                 'misleading_improvement' | 'misleading_regression'
+        reason: explicación en español.
+        headline_pct: porcentaje a mostrar como titular (tiempo de sistema
+            cuando está disponible; si no, la media sesgada de duration).
+
+    Reglas (en orden):
+      1. Colapso a 0 viajes completados en alguna corrida → 'tie' (no hay
+         base de comparación).
+      2. |throughput_change_pct| > 10%: el throughput manda.
+         - Cae > 10%: 'regression' (o 'misleading_improvement' si la media
+           de duration mostraba una mejora — sesgo de supervivencia).
+         - Sube > 10%: favorable — 'improvement' (o 'misleading_regression'
+           si la media de duration mostraba un empeoramiento porque el
+           baseline colapsó).
+      3. Throughput dentro de ±10%: decide `system_time_improvement_pct`
+         (con `percent_improvement` como respaldo si no hay tiempo de
+         sistema), apoyado en significancia estadística (permutación o
+         Wilcoxon pareado). |headline| < 2% o no significativo → 'tie'.
+    """
+    thr = statistical_results.get('throughput') or {}
+    thr_pct = thr.get('throughput_change_pct')
+    completed_a = thr.get('completed_a')
+    completed_b = thr.get('completed_b')
+    pct = statistical_results.get('percent_improvement')
+
+    st = statistical_results.get('system_time') or {}
+    st_pct = st.get('system_time_improvement_pct')
+    if st_pct is not None and st_pct != st_pct:  # NaN
+        st_pct = None
+    headline = st_pct if st_pct is not None else pct
+
+    p = statistical_results.get('permutation_test_pvalue')
+    paired = statistical_results.get('paired') or {}
+    p_paired = paired.get('wilcoxon_pvalue')
+    significant = (
+        (p is not None and p == p and p < 0.05) or
+        (p_paired is not None and p_paired == p_paired and p_paired < 0.05)
+    )
+
+    # 1. Colapso total: sin base de comparación.
+    if completed_a == 0 or completed_b == 0:
+        return {
+            'verdict': 'tie',
+            'reason': ('Colapso total de viajes completados (0 en alguna corrida); '
+                       'no hay base de comparación.'),
+            'headline_pct': pct,
+        }
+
+    # 2. Guardia dura de throughput.
+    if thr_pct is not None and thr_pct == thr_pct:
+        if thr_pct < -_THR_BIG_PCT:
+            if pct is not None and pct > 0:
+                return {
+                    'verdict': 'misleading_improvement',
+                    'reason': (
+                        f'La media de duración "mejora" {pct:+.1f}% pero el throughput cae '
+                        f'{thr_pct:+.1f}% ({completed_a} → {completed_b} viajes): sesgo de '
+                        'supervivencia — los viajes lentos no llegan a completarse.'
+                    ),
+                    'headline_pct': headline,
+                }
+            return {
+                'verdict': 'regression',
+                'reason': (
+                    f'El throughput cae {thr_pct:+.1f}% ({completed_a} → {completed_b} viajes); '
+                    'la corrida optimizada empeora el sistema.'
+                ),
+                'headline_pct': headline,
+            }
+        if thr_pct > _THR_BIG_PCT:
+            if pct is not None and pct < 0:
+                return {
+                    'verdict': 'misleading_regression',
+                    'reason': (
+                        f'La media de duración "empeora" {pct:+.1f}% pero el throughput sube '
+                        f'{thr_pct:+.1f}% ({completed_a} → {completed_b} viajes): el baseline '
+                        'colapsó y su media solo promedia los viajes rápidos que escaparon.'
+                    ),
+                    'headline_pct': headline,
+                }
+            return {
+                'verdict': 'improvement',
+                'reason': (
+                    f'El throughput sube {thr_pct:+.1f}% ({completed_a} → {completed_b} viajes) '
+                    'y el tiempo de sistema mejora.'
+                ),
+                'headline_pct': headline,
+            }
+
+    # 3. Throughput estable: decide el tiempo de sistema (o duration como
+    #    respaldo), apoyado en significancia estadística.
+    if headline is None:
+        return {'verdict': 'tie', 'reason': 'Sin datos suficientes para veredicto.', 'headline_pct': None}
+    if abs(headline) < _HEADLINE_TIE_PCT or not significant:
+        return {
+            'verdict': 'tie',
+            'reason': f'La diferencia observada ({headline:+.1f}%) no alcanza significancia o es marginal.',
+            'headline_pct': headline,
+        }
+    if headline > 0:
+        return {
+            'verdict': 'improvement',
+            'reason': f'Mejora de {headline:+.1f}% con significancia estadística y throughput estable.',
+            'headline_pct': headline,
+        }
+    return {
+        'verdict': 'regression',
+        'reason': f'Empeoramiento de {headline:+.1f}% con significancia estadística y throughput estable.',
+        'headline_pct': headline,
+    }
+
+
 # =============================================================================
 # MAIN COMPARISON FUNCTION
 # =============================================================================
@@ -841,6 +1040,12 @@ def compare_runs(
     statistical_results['paired'] = paired
     throughput = throughput_statistics(df_trip_a, df_trip_b)
     statistical_results['throughput'] = throughput
+    # Tiempo total de sistema (métrica primaria insesgada por supervivencia)
+    system_time = system_time_statistics(df_summary_a, df_summary_b)
+    statistical_results['system_time'] = system_time
+    # Veredicto compuesto único: JSON, CSV y HTML delegan aquí.
+    verdict = compute_verdict(statistical_results)
+    statistical_results['verdict'] = verdict
 
     # Use native SUMO tools if requested
     if use_sumo_tools:
@@ -995,6 +1200,15 @@ def _write_csv_summary(
             else:
                 writer.writerow(['', 'Insufficient evidence of difference (p >= 0.05)'])
 
+        # Veredicto compuesto insesgado (throughput + tiempo de sistema)
+        writer.writerow([])
+        writer.writerow(['Veredicto (insesgado por supervivencia)'])
+        verdict = statistical_results.get('verdict') or compute_verdict(statistical_results)
+        writer.writerow(['verdict', verdict.get('verdict')])
+        headline = verdict.get('headline_pct')
+        writer.writerow(['headline_pct', f"{headline:+.2f}%" if isinstance(headline, (int, float)) and headline == headline else ''])
+        writer.writerow(['reason', verdict.get('reason')])
+
 
 def _write_json_report(path: Path, report: Dict):
     """Write JSON report with full analysis results."""
@@ -1044,38 +1258,50 @@ def _fmt(v, spec='.2f', default='—'):
         return default
 
 
-def _verdict(statistical_results: Dict, paired: Dict) -> Tuple[str, str, str]:
-    """Return (css_class, title, detail) for the verdict banner."""
-    pct = statistical_results.get('percent_improvement')
-    p = statistical_results.get('permutation_test_pvalue')
-    p_paired = paired.get('wilcoxon_pvalue') if paired else None
-    significant = (p is not None and p < 0.05) or (p_paired is not None and p_paired < 0.05)
+_VERDICT_CSS = {
+    'improvement': 'green',
+    'misleading_regression': 'green',
+    'regression': 'red',
+    'misleading_improvement': 'red',
+    'tie': 'gray',
+}
 
+
+def _verdict(statistical_results: Dict, paired: Dict) -> Tuple[str, str, str]:
+    """Return (css_class, title, detail) for the verdict banner.
+
+    Delega en `compute_verdict`, la función única de veredicto compuesto
+    (throughput + tiempo de sistema insesgado + significancia) que también
+    usan el JSON, el CSV y el resumen de campaña.
+    """
+    pct = statistical_results.get('percent_improvement')
     if pct is None:
         return ('gray', 'Sin datos suficientes',
                 'No hay viajes completados en ambas corridas para comparar.')
 
-    # Guardia anti sesgo de supervivencia: una "mejora" de la media con
-    # caída de throughput solo significa que los viajes lentos no terminaron.
-    thr = statistical_results.get('throughput') or {}
-    thr_pct = thr.get('throughput_change_pct')
-    if pct > 0 and thr_pct is not None and thr_pct < -5.0:
-        return ('red', f'Resultado engañoso: media {pct:+.1f}% pero throughput {thr_pct:+.1f}%',
-                f'La corrida optimizada completó {thr.get("completed_b")} viajes frente a '
-                f'{thr.get("completed_a")} del baseline. La media de viaje baja porque los viajes '
-                'lentos no llegan a completarse (sesgo de supervivencia), no porque el tráfico mejore.')
+    merged = dict(statistical_results)
+    if paired:
+        merged['paired'] = paired
+    v = compute_verdict(merged)
 
-    if pct > 0 and significant:
-        detail = f'La optimización reduce el tiempo de viaje medio en {pct:.1f}% con significancia estadística.'
-        if paired:
-            detail += (f' {paired["pct_improved"]:.1f}% de los {paired["n_paired"]} vehículos '
-                       f'pareados mejora (Wilcoxon p={_fmt(paired["wilcoxon_pvalue"], ".2e")}).')
-        return ('green', f'Mejora significativa: {pct:+.1f}% en tiempo de viaje', detail)
-    if pct < 0 and significant:
-        return ('red', f'Empeoramiento significativo: {pct:+.1f}% en tiempo de viaje',
-                'La corrida optimizada resulta peor que el baseline con significancia estadística.')
-    return ('gray', f'Resultado no concluyente ({pct:+.1f}%)',
-            f'La diferencia observada no alcanza significancia estadística (p={_fmt(p, ".3f")}).')
+    headline = v['headline_pct']
+    hp = f'{headline:+.1f}%' if isinstance(headline, (int, float)) and headline == headline else '—'
+
+    titles = {
+        'improvement': f'Mejora significativa: {hp} en tiempo de sistema',
+        'misleading_regression': f'Mejora real (el baseline colapsó): {hp} en tiempo de sistema',
+        'regression': f'Empeoramiento: {hp} en tiempo de sistema',
+        'misleading_improvement': f'Resultado engañoso: media {pct:+.1f}% pero throughput cae',
+        'tie': f'Resultado no concluyente ({hp})',
+    }
+
+    css_class = _VERDICT_CSS[v['verdict']]
+    title = titles[v['verdict']]
+    detail = v['reason']
+    if paired and v['verdict'] in ('improvement', 'misleading_regression'):
+        detail += (f' {paired["pct_improved"]:.1f}% de los {paired["n_paired"]} vehículos '
+                   f'pareados mejora (Wilcoxon p={_fmt(paired["wilcoxon_pvalue"], ".2e")}).')
+    return (css_class, title, detail)
 
 
 def _write_html_report(
@@ -1095,6 +1321,26 @@ def _write_html_report(
 
     css_class, verdict_title, verdict_detail = _verdict(statistical_results, paired)
 
+    # --- comparabilidad de muestras (sesgo de supervivencia) ---
+    completed_a = throughput.get('completed_a') if throughput else None
+    completed_b = throughput.get('completed_b') if throughput else None
+    samples_noncomparable = False
+    if completed_a is not None and completed_b is not None and max(completed_a, completed_b) > 0:
+        count_diff_pct = abs(completed_a - completed_b) / max(completed_a, completed_b) * 100
+        samples_noncomparable = count_diff_pct > 10
+
+    header_n_a = f' (n={completed_a})' if completed_a is not None else ''
+    header_n_b = f' (n={completed_b})' if completed_b is not None else ''
+
+    survivorship_note = ''
+    if samples_noncomparable:
+        survivorship_note = (
+            f'<p class="warn">⚠️ Las métricas por viaje solo incluyen viajes completados: '
+            f'{labels[0]} completó {completed_a} y {labels[1]} completó {completed_b} '
+            f'(Δ throughput {_fmt(throughput.get("throughput_change_pct"), "+.1f")}%). '
+            f'El lado que colapsa promedia solo los viajes rápidos que escaparon.</p>'
+        )
+
     # --- tabla de métricas clave A vs B ---
     metric_rows = []
     for metric in ('duration', 'timeLoss', 'waitingTime', 'departDelay'):
@@ -1102,14 +1348,26 @@ def _write_html_report(
         if not (isinstance(sa, dict) and isinstance(sb, dict)):
             continue
         mean_a, mean_b = sa.get('mean'), sb.get('mean')
-        pct = ((mean_a - mean_b) / mean_a * 100) if mean_a else None
+        median_a, median_b = sa.get('median'), sb.get('median')
+        if samples_noncomparable and median_a:
+            pct = (median_a - median_b) / median_a * 100
+            tooltip = (
+                f'title="muestras no comparables (A completó {completed_a}, '
+                f'B completó {completed_b}): mejora calculada sobre medianas; '
+                f'la media está dominada por sesgo de supervivencia"'
+            )
+            improvement_cell = f'<td class="{{color}}" {tooltip}>~{_fmt(pct, "+.2f")}%</td>'
+        else:
+            pct = ((mean_a - mean_b) / mean_a * 100) if mean_a else None
+            improvement_cell = '<td class="{color}">' + f'{_fmt(pct, "+.2f")}%</td>'
         color = 'pos' if (pct or 0) > 0 else 'neg'
+        improvement_cell = improvement_cell.format(color=color)
         metric_rows.append(
             f'<tr><td>{metric}</td>'
             f'<td>{_fmt(mean_a)}</td><td>{_fmt(mean_b)}</td>'
             f'<td>{_fmt(sa.get("median"))}</td><td>{_fmt(sb.get("median"))}</td>'
             f'<td>{_fmt(sa.get("q95"))}</td><td>{_fmt(sb.get("q95"))}</td>'
-            f'<td class="{color}">{_fmt(pct, "+.2f")}%</td></tr>'
+            f'{improvement_cell}</tr>'
         )
 
     # --- tabla de tests estadísticos ---
@@ -1200,6 +1458,8 @@ def _write_html_report(
  th, td {{ border: 1px solid #ddd; padding: .45rem .6rem; text-align: left; }}
  th {{ background: #f6f8fa; }}
  td.pos {{ color: #188038; font-weight: 600; }} td.neg {{ color: #c5221f; font-weight: 600; }}
+ p.warn {{ background: #fff8e1; border: 1px solid #f9ab00; border-radius: 6px;
+           padding: .6rem .9rem; }}
  .grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 1rem; }}
  figure {{ margin: 0; }} img {{ max-width: 100%; border: 1px solid #eee; border-radius: 4px; }}
  figcaption {{ font-size: .78rem; color: #777; text-align: center; }}
@@ -1220,8 +1480,9 @@ de semáforos aplicada en «{labels[1]}».</p>
 {thr_html}
 
 <h2>Métricas clave por viaje</h2>
+{survivorship_note}
 <table>
-<tr><th>Métrica</th><th>Media {labels[0]}</th><th>Media {labels[1]}</th>
+<tr><th>Métrica</th><th>Media {labels[0]}{header_n_a}</th><th>Media {labels[1]}{header_n_b}</th>
 <th>Mediana {labels[0]}</th><th>Mediana {labels[1]}</th>
 <th>p95 {labels[0]}</th><th>p95 {labels[1]}</th><th>Mejora</th></tr>
 {''.join(metric_rows)}
