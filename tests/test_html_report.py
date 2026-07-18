@@ -86,6 +86,36 @@ def test_html_report_comparable_counts_uses_mean_improvement(tmp_path):
     assert '<p class="warn">' not in html
 
 
+def test_html_report_survivorship_note_points_to_unbiased_winner(tmp_path):
+    """Cuando las muestras no son comparables, la nota no debe leerse como
+    'no se puede concluir': debe nombrar explícitamente quién gana según la
+    evidencia insesgada (throughput / tiempo de sistema) y remitir a esa
+    evidencia en vez de dejar la duda solo en las distribuciones de tripinfo."""
+    path = tmp_path / 'r.html'
+    _write_html_report(
+        path,
+        labels=('Fixed-Time (MOPC)', 'Dynamic Optimization'),
+        stats_a={'duration': {'count': 349, 'mean': 75.76, 'median': 70.0, 'q95': 150.0}},
+        stats_b={'duration': {'count': 1022, 'mean': 57.60, 'median': 50.0, 'q95': 140.0}},
+        statistical_results={
+            'percent_improvement': 24.0,
+            'permutation_test_pvalue': 0.001,
+            'system_time': {'system_time_improvement_pct': 62.7,
+                            'mean_time_per_vehicle_improvement_pct': 85.5},
+        },
+        paired={},
+        throughput={'completed_a': 349, 'completed_b': 1022, 'throughput_change_pct': 192.8},
+        run_config={}, generated_files=[],
+    )
+    html = path.read_text()
+    assert 'NO son la evidencia que decide el resultado' in html
+    assert 'favorece a <b>Dynamic Optimization</b>' in html
+    assert '32_throughput_timeline.png' in html
+    assert 'Tiempo de sistema' in html
+    assert '+62.7%' in html
+    assert '+85.5%' in html
+
+
 def test_html_report_noncomparable_counts_uses_median_improvement(tmp_path):
     """Con conteos que difieren >10% (colapso de un lado), la mejora se calcula sobre la
     mediana y se marca con '~', más una nota de advertencia visible sobre la tabla."""

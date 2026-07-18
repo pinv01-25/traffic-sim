@@ -1435,11 +1435,23 @@ def _write_html_report(
 
     survivorship_note = ''
     if samples_noncomparable:
+        # "No comparables" no significa "no se puede concluir": significa que
+        # las distribuciones de tripinfo (duration, timeLoss, etc.) no son la
+        # evidencia correcta para decidir porque el lado que colapsa las
+        # sesga a su favor. La evidencia correcta es la que cuenta a TODOS
+        # los vehículos (throughput y tiempo de sistema, insesgados por
+        # construcción) — y esa es la que sostiene el veredicto de arriba.
+        winner = labels[1] if (completed_b or 0) > (completed_a or 0) else labels[0]
         survivorship_note = (
-            f'<p class="warn">⚠️ Las métricas por viaje solo incluyen viajes completados: '
-            f'{labels[0]} completó {completed_a} y {labels[1]} completó {completed_b} '
+            f'<p class="warn">⚠️ Las métricas por viaje de esta tabla y los histogramas/boxplots '
+            f'solo incluyen viajes completados: {labels[0]} completó {completed_a} y {labels[1]} '
+            f'completó {completed_b} '
             f'(Δ throughput {_fmt(throughput.get("throughput_change_pct"), "+.1f")}%). '
-            f'El lado que colapsa promedia solo los viajes rápidos que escaparon.</p>'
+            f'El lado que colapsa promedia solo los viajes rápidos que escaparon, así que estos '
+            f'gráficos NO son la evidencia que decide el resultado. La evidencia insesgada — '
+            f'throughput y tiempo de sistema, que cuentan a todos los vehículos hayan terminado o '
+            f'no — favorece a <b>{winner}</b> y es la que sostiene el veredicto de arriba '
+            f'(ver <code>32_throughput_timeline.png</code> y la sección de tiempo de sistema).</p>'
         )
 
     # --- tabla de métricas clave A vs B ---
@@ -1500,14 +1512,27 @@ def _write_html_report(
                           f'vehículos mejora; Δ mediana = {_fmt(paired.get("median_delta"), "+.1f")}s'))
     test_html = ''.join(f'<tr><td>{n}</td><td>{v}</td><td>{i}</td></tr>' for n, v, i in test_rows)
 
-    # --- throughput ---
+    # --- throughput y tiempo de sistema (evidencia primaria, insesgada) ---
     thr_html = ''
     if throughput and throughput.get('completed_a') is not None:
+        thr_pct = throughput.get('throughput_change_pct')
         thr_html = (
-            f'<p><b>Throughput:</b> {labels[0]} completó {throughput["completed_a"]} viajes, '
+            f'<p><b>Throughput (evidencia primaria, cuenta a todos los vehículos):</b> '
+            f'{labels[0]} completó {throughput["completed_a"]} viajes, '
             f'{labels[1]} completó {throughput["completed_b"]} '
-            f'({_fmt(throughput.get("throughput_change_pct"), "+.1f")}%).</p>'
+            f'({_fmt(thr_pct, "+.1f")}%).</p>'
         )
+        st = statistical_results.get('system_time') or {}
+        st_pct = st.get('system_time_improvement_pct')
+        mtpv_pct = st.get('mean_time_per_vehicle_improvement_pct')
+        if st_pct is not None and st_pct == st_pct:  # no NaN
+            thr_html += (
+                f'<p><b>Tiempo de sistema (vehículo-segundos, insesgado):</b> '
+                f'{_fmt(st_pct, "+.1f")}% '
+                f'(normalizado por vehículo insertado: {_fmt(mtpv_pct, "+.1f")}%). '
+                'Esta es la métrica que decide cuando el throughput por sí solo no alcanza '
+                'el umbral de guardia.</p>'
+            )
 
     # --- run config ---
     config_html = ''
