@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import datetime as _dt
 import html
 import io
 import json
@@ -121,6 +122,25 @@ def _fig_to_data_uri(fig) -> str:
 
 def _img_tag(data_uri: str, alt: str) -> str:
     return f'<img src="{data_uri}" alt="{html.escape(alt)}" style="max-width:100%;height:auto;">'
+
+
+class FigureCounter:
+    """Numerador incremental para captions 'Figura N. ...'."""
+
+    def __init__(self) -> None:
+        self._n = 0
+
+    def next(self) -> int:
+        self._n += 1
+        return self._n
+
+
+def _figure_html(data_uri: str, alt: str, caption: str, counter: FigureCounter) -> str:
+    n = counter.next()
+    return (
+        f'<figure class="figure">{_img_tag(data_uri, alt)}'
+        f"<figcaption>Figura {n}. {html.escape(caption)}</figcaption></figure>"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -395,39 +415,243 @@ def statistical_rigor(data) -> Dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 CSS = """
-:root { color-scheme: light; }
-* { box-sizing: border-box; }
-body {
-  font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
-  max-width: 1180px;
-  margin: 0 auto;
-  padding: 2rem 1.5rem 4rem;
-  color: #1a1a1a;
-  background: #fafafa;
-  line-height: 1.5;
+:root {
+  color-scheme: light;
+  --ink: #1c1a17;
+  --muted: #66605a;
+  --faint: #948d84;
+  --paper: #fdfcfa;
+  --panel: #f7f5f1;
+  --rule: #ddd7cc;
+  --rule-strong: #a89e8f;
+  --accent: #2b5960;
+  --favorable: #2f6b4f;
+  --desfavorable: #a1382a;
+  --tie: #7a7268;
+  --serif: Charter, 'Iowan Old Style', 'Source Serif 4', Georgia, 'Times New Roman', serif;
+  --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
 }
-h1 { font-size: 1.8rem; border-bottom: 3px solid #263238; padding-bottom: 0.4rem; }
-h2 { font-size: 1.35rem; margin-top: 2.6rem; color: #263238; border-bottom: 1px solid #ddd; padding-bottom: 0.3rem; }
-h3 { font-size: 1.05rem; color: #37474f; }
-table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: 0.88rem; background: white; }
-th, td { border: 1px solid #ddd; padding: 0.4rem 0.6rem; text-align: right; }
-th { background: #263238; color: white; text-align: center; }
-td:first-child, th:first-child { text-align: left; }
-tr:nth-child(even) { background: #f4f4f4; }
-.badge { display: inline-block; padding: 0.15rem 0.55rem; border-radius: 999px; font-size: 0.78rem; font-weight: 600; color: white; }
-.badge.favorable { background: #2e7d32; }
-.badge.tie { background: #757575; }
-.badge.desfavorable { background: #c62828; }
-.score-card { display: flex; gap: 1rem; flex-wrap: wrap; margin: 1rem 0; }
-.score-box { flex: 1; min-width: 220px; background: white; border: 1px solid #ddd; border-radius: 8px; padding: 1rem; }
-.score-box h3 { margin: 0 0 0.5rem; }
-.score-bar { height: 10px; border-radius: 5px; overflow: hidden; display: flex; margin-top: 0.5rem; }
-.figure { background: white; border: 1px solid #ddd; border-radius: 8px; padding: 1rem; margin: 1rem 0; text-align: center; }
-.note { font-size: 0.85rem; color: #555; background: #fff8e1; border-left: 4px solid #f9a825; padding: 0.6rem 0.9rem; margin: 1rem 0; }
-.missing { font-size: 0.85rem; color: #b71c1c; }
-code { background: #eee; padding: 0.1rem 0.3rem; border-radius: 3px; }
-pre.mermaid { background: white; border: 1px solid #ddd; border-radius: 8px; padding: 1rem; margin: 1rem 0; text-align: center; }
-footer { margin-top: 3rem; font-size: 0.8rem; color: #777; }
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  font-family: var(--serif);
+  color: var(--ink);
+  background: var(--paper);
+  margin: 0;
+  line-height: 1.6;
+  font-size: 17px;
+}
+.page {
+  max-width: 76ch;
+  margin: 0 auto;
+  padding: 3.5rem 1.5rem 5rem;
+}
+.wide { max-width: 96ch; }
+
+/* ---- Cover ---- */
+.cover {
+  max-width: 96ch;
+  margin: 0 auto;
+  padding: 4.5rem 1.5rem 3rem;
+  border-bottom: 1px solid var(--rule);
+}
+.cover .kicker {
+  font-family: var(--sans);
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  font-size: 0.75rem;
+  color: var(--accent);
+  margin: 0 0 1rem;
+}
+.cover h1 {
+  font-family: var(--serif);
+  font-size: 2.05rem;
+  line-height: 1.28;
+  font-weight: 600;
+  margin: 0 0 0.75rem;
+  color: var(--ink);
+}
+.cover .subtitle {
+  font-size: 1.08rem;
+  color: var(--muted);
+  margin: 0 0 2rem;
+  max-width: 62ch;
+}
+.cover .meta {
+  font-family: var(--sans);
+  font-size: 0.85rem;
+  color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1.75rem;
+  border-top: 1px solid var(--rule);
+  padding-top: 1rem;
+}
+.cover .meta strong { color: var(--ink); font-weight: 600; }
+
+/* ---- Table of contents ---- */
+nav.toc {
+  max-width: 96ch;
+  margin: 0 auto;
+  padding: 1.75rem 1.5rem 2.25rem;
+  border-bottom: 1px solid var(--rule);
+  font-family: var(--sans);
+}
+nav.toc h2 {
+  font-family: var(--sans);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  font-size: 0.78rem;
+  color: var(--muted);
+  border: none;
+  margin: 0 0 0.85rem;
+  padding: 0;
+}
+nav.toc ol { list-style: none; margin: 0; padding: 0; columns: 2; column-gap: 2.5rem; }
+nav.toc li { break-inside: avoid; margin-bottom: 0.45rem; font-size: 0.92rem; }
+nav.toc a { color: var(--ink); text-decoration: none; border-bottom: 1px solid transparent; }
+nav.toc a:hover { border-bottom-color: var(--accent); }
+nav.toc .num { color: var(--faint); font-variant-numeric: tabular-nums; margin-right: 0.4rem; }
+
+/* ---- Headings ---- */
+h1 { font-size: 1.8rem; }
+h2 {
+  font-size: 1.4rem;
+  font-weight: 600;
+  margin-top: 3.2rem;
+  margin-bottom: 1rem;
+  color: var(--ink);
+  border-bottom: 1px solid var(--rule-strong);
+  padding-bottom: 0.4rem;
+  scroll-margin-top: 1.5rem;
+}
+h3 {
+  font-size: 1.08rem;
+  font-weight: 600;
+  color: var(--ink);
+  margin-top: 2rem;
+  scroll-margin-top: 1.5rem;
+}
+p { margin: 0.9rem 0; }
+a { color: var(--accent); }
+
+/* ---- Tables ---- */
+.table-scroll { overflow-x: auto; margin: 1.25rem 0; }
+table {
+  border-collapse: collapse;
+  width: 100%;
+  font-family: var(--sans);
+  font-size: 0.86rem;
+  font-variant-numeric: tabular-nums;
+}
+thead th {
+  background: var(--panel);
+  color: var(--ink);
+  font-weight: 600;
+  text-align: right;
+  border-bottom: 2px solid var(--rule-strong);
+  padding: 0.55rem 0.85rem;
+  white-space: nowrap;
+}
+thead th:first-child, td:first-child { text-align: left; }
+tbody td {
+  padding: 0.5rem 0.85rem;
+  border-bottom: 1px solid var(--rule);
+  text-align: right;
+  vertical-align: top;
+}
+tbody tr:nth-child(even) { background: #faf9f6; }
+tbody tr:last-child td { border-bottom: 2px solid var(--rule-strong); }
+.num-pos { color: var(--favorable); }
+.num-neg { color: var(--desfavorable); }
+
+/* ---- Verdict marks (text + dot, not pills) ---- */
+.verdict { font-family: var(--sans); font-size: 0.85rem; white-space: nowrap; }
+.verdict::before {
+  content: "";
+  display: inline-block;
+  width: 0.5em;
+  height: 0.5em;
+  border-radius: 50%;
+  margin-right: 0.45em;
+}
+.verdict.favorable { color: var(--favorable); }
+.verdict.favorable::before { background: var(--favorable); }
+.verdict.tie { color: var(--tie); }
+.verdict.tie::before { background: var(--tie); }
+.verdict.desfavorable { color: var(--desfavorable); }
+.verdict.desfavorable::before { background: var(--desfavorable); }
+
+/* ---- Score summary ---- */
+.score-card { display: flex; gap: 1px; flex-wrap: wrap; margin: 1.5rem 0; background: var(--rule); border: 1px solid var(--rule); }
+.score-box { flex: 1; min-width: 200px; background: var(--paper); padding: 1.1rem 1.25rem; }
+.score-box h3 { margin: 0 0 0.7rem; font-family: var(--sans); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+.score-box .counts { font-family: var(--sans); font-size: 0.85rem; color: var(--ink); }
+.score-box .counts .n { color: var(--muted); }
+.score-bar { height: 6px; overflow: hidden; display: flex; margin-top: 0.65rem; background: var(--rule); }
+
+/* ---- Figures ---- */
+.figure { margin: 1.75rem 0; text-align: center; }
+.figure img { max-width: 100%; height: auto; }
+figcaption, .caption {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-top: 0.65rem;
+  text-align: left;
+}
+
+/* ---- Callouts ---- */
+.note {
+  font-family: var(--sans);
+  font-size: 0.88rem;
+  color: var(--ink);
+  background: var(--panel);
+  border-left: 3px solid var(--accent);
+  padding: 0.85rem 1.1rem;
+  margin: 1.25rem 0;
+  line-height: 1.55;
+}
+.missing { font-family: var(--sans); font-size: 0.85rem; color: var(--desfavorable); }
+
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  background: var(--panel);
+  padding: 0.1rem 0.35rem;
+  font-size: 0.85em;
+  border: 1px solid var(--rule);
+}
+pre { background: var(--panel); border: 1px solid var(--rule); padding: 0.9rem 1.1rem; overflow-x: auto; font-size: 0.85rem; }
+pre code { background: none; border: none; padding: 0; }
+
+pre.mermaid {
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  padding: 1.25rem;
+  margin: 1.5rem 0;
+  text-align: center;
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+footer {
+  max-width: 96ch;
+  margin: 4rem auto 0;
+  padding: 1.5rem;
+  border-top: 1px solid var(--rule);
+  font-family: var(--sans);
+  font-size: 0.78rem;
+  color: var(--faint);
+}
+
+@media print {
+  body { background: white; }
+  .cover { break-after: page; }
+  h2 { break-before: page; }
+  a { color: var(--ink); }
+  .table-scroll { overflow-x: visible; }
+}
 """
 
 
@@ -451,16 +675,16 @@ def _score_box_html(title: str, counts: Dict[str, int]) -> str:
     return f"""
     <div class="score-box">
       <h3>{html.escape(title)}</h3>
-      <div>
-        <span class="badge favorable">{counts['favorable']} favorables</span>
-        <span class="badge tie">{counts['tie']} ties</span>
-        <span class="badge desfavorable">{counts['desfavorable']} desfavorables</span>
-        <span style="color:#555;font-size:0.8rem;"> de {counts['n']}</span>
+      <div class="counts">
+        <span class="verdict favorable">{counts['favorable']} favorables</span> &nbsp;
+        <span class="verdict tie">{counts['tie']} ties</span> &nbsp;
+        <span class="verdict desfavorable">{counts['desfavorable']} desfavorables</span>
+        <span class="n"> &nbsp;de {counts['n']}</span>
       </div>
       <div class="score-bar">
-        <div style="width:{fav_pct}%;background:#2e7d32;"></div>
-        <div style="width:{tie_pct}%;background:#9e9e9e;"></div>
-        <div style="width:{des_pct}%;background:#c62828;"></div>
+        <div style="width:{fav_pct}%;background:var(--favorable);"></div>
+        <div style="width:{tie_pct}%;background:var(--tie);"></div>
+        <div style="width:{des_pct}%;background:var(--desfavorable);"></div>
       </div>
     </div>"""
 
@@ -499,8 +723,9 @@ def render_config_table() -> str:
             f"<td style='text-align:left;'>{html.escape(comments.get(key, ''))}</td></tr>"
         )
     return (
-        "<table><thead><tr><th>parámetro</th><th>valor</th><th>comentario</th></tr></thead>"
-        f"<tbody>{''.join(rows)}</tbody></table>"
+        '<div class="table-scroll"><table><thead><tr><th>parámetro</th>'
+        "<th>valor</th><th>comentario</th></tr></thead>"
+        f"<tbody>{''.join(rows)}</tbody></table></div>"
     )
 
 
@@ -509,30 +734,89 @@ def build_report_html(data, seeds: List[int], analysis_path: Optional[Path]) -> 
     missing = missing_runs(data, seeds)
     n_total_expected = len(CAMPAIGNS) * len(SCENARIOS) * len(seeds)
     n_present = n_total_expected - len(missing)
+    fig_counter = FigureCounter()
 
     # Sección 1
-    exec_boxes = _score_box_html("GLOBAL", total) + "".join(
+    exec_boxes = _score_box_html("Global", total) + "".join(
         _score_box_html(CAMPAIGN_LABELS[c], campaign_score(data, c)) for c in CAMPAIGNS
     )
 
     # Sección 2
     grid_images = build_verdict_grid_images(data, seeds)
-    grid_html = "".join(
-        f'<div class="figure"><h3>{html.escape(CAMPAIGN_LABELS[c])}</h3>{_img_tag(img, c)}</div>'
+    grid_intro = (
+        "<p>Cada mapa de calor siguiente corresponde a un plan fijo (A) evaluado contra "
+        "el control dinámico Max-Pressure (B) y despliega, en una grilla, el veredicto "
+        "individual de cada corrida: las filas son los escenarios de demanda y las "
+        "columnas son las semillas aleatorias (seeds) que fijan el patrón de tránsito "
+        "simulado. Cada celda se colorea según el veredicto de esa corrida puntual — "
+        "verde para favorable a B, gris para empate y rojo para desfavorable a B — "
+        "y las celdas blancas marcan corridas todavía no ejecutadas. El patrón a "
+        "observar es si el color domina de forma pareja por fila (un escenario que "
+        "favorece o perjudica sistemáticamente a B, independientemente de la semilla) "
+        "o si se dispersa de forma irregular (sensibilidad a la semilla, no al escenario).</p>"
+    )
+    grid_html = grid_intro + "".join(
+        _figure_html(
+            img,
+            c,
+            f"Veredicto por escenario (fila) y semilla (columna) para el plan fijo "
+            f"{CAMPAIGN_LABELS[c]} (A) contra el control dinámico Max-Pressure (B). "
+            "Verde = favorable a B, gris = empate, rojo = desfavorable a B; blanco = "
+            "corrida pendiente.",
+            fig_counter,
+        )
         for c, img in grid_images.items()
     )
 
     # Sección 3
+    dist_intro = (
+        "<p>Los siguientes diagramas de caja (boxplots) resumen, por escenario de "
+        "demanda, la distribución de una métrica a lo largo de todas las semillas "
+        "disponibles y las tres campañas de plan fijo. En cada caja la línea central "
+        "marca la mediana, los bordes superior e inferior de la caja delimitan el "
+        "rango intercuartílico (percentiles 25 y 75, es decir el 50% central de las "
+        "observaciones) y los bigotes se extienden hasta el valor más extremo dentro "
+        "de 1.5 veces ese rango; los puntos fuera de esa franja se dibujan como "
+        "valores atípicos. El color identifica la campaña (plan fijo A evaluado); "
+        "la línea horizontal punteada en cero separa mejora de B (valores positivos) "
+        "de regresión de B (valores negativos) respecto del plan fijo correspondiente. "
+        "Interesa observar si la caja completa queda por encima o por debajo de cero "
+        "(efecto consistente) o si cruza el cero (efecto no concluyente para ese "
+        "escenario).</p>"
+    )
     dist_specs = [
-        (["throughput", "throughput_change_pct"], "Δ Throughput (%) por escenario", "% cambio throughput"),
-        (["system_time", "system_time_improvement_pct"], "Δ Tiempo de sistema (%) por escenario", "% mejora tiempo de sistema"),
-        (["paired", "pct_improved"], "% viajes pareados mejorados por escenario", "% pct_improved"),
+        (
+            ["throughput", "throughput_change_pct"],
+            "Variación porcentual de viajes completados (Δthroughput, %) por escenario",
+            "Δthroughput (%)",
+            "Variación porcentual del número de viajes completados por el control "
+            "dinámico (B) respecto del plan fijo (A), agrupada por escenario de "
+            "demanda; valores positivos indican que B completó más viajes que A.",
+        ),
+        (
+            ["system_time", "system_time_improvement_pct"],
+            "Variación porcentual del tiempo de sistema (Δtiempo de sistema, %) por escenario",
+            "Δtiempo de sistema (%)",
+            "Variación porcentual del tiempo total de sistema (suma de tiempos de "
+            "viaje) del control dinámico (B) respecto del plan fijo (A), agrupada por "
+            "escenario de demanda; valores positivos indican que B redujo el tiempo "
+            "de sistema respecto de A.",
+        ),
+        (
+            ["paired", "pct_improved"],
+            "Porcentaje de viajes pareados con mejora individual de tiempo por escenario",
+            "viajes pareados mejorados (%)",
+            "Porcentaje de viajes, entre los pareados por origen-destino-salida entre "
+            "A y B, en que el tiempo de viaje individual mejoró bajo el control "
+            "dinámico (B); un valor de 50% equivale a que la mitad de los viajes "
+            "pareados mejoraron y la otra mitad empeoraron.",
+        ),
     ]
-    dist_html_parts = []
-    for path, title, ylabel in dist_specs:
+    dist_html_parts = [dist_intro]
+    for path, title, ylabel, caption in dist_specs:
         img = build_distribution_image(data, path, title, ylabel)
         if img:
-            dist_html_parts.append(f'<div class="figure">{_img_tag(img, title)}</div>')
+            dist_html_parts.append(_figure_html(img, title, caption, fig_counter))
         else:
             dist_html_parts.append(f'<p class="missing">Sin datos suficientes para: {html.escape(title)}</p>')
     dist_html = "".join(dist_html_parts)
@@ -544,15 +828,37 @@ def build_report_html(data, seeds: List[int], analysis_path: Optional[Path]) -> 
         cells = [f"<td>{html.escape(row['scenario'])}</td>"]
         for campaign in CAMPAIGNS:
             c = row[campaign]
+
+            def _signed(x):
+                if x is None:
+                    return "—"
+                cls = "num-pos" if x > 0 else ("num-neg" if x < 0 else "")
+                return f'<span class="{cls}">{fmt(x, 1, "%")}</span>'
+
             cells.append(
-                f"<td>Δthr {fmt(c['median_thr'], 1, '%')} / Δsys {fmt(c['median_sys'], 1, '%')} "
-                f"(n={c['n']}, pérdida ciclo {fmt(c['cycle_loss_pct'], 1, '%')})</td>"
+                "<td>"
+                f"Δthr {_signed(c['median_thr'])} &middot; Δsys {_signed(c['median_sys'])}"
+                f"<br><span style='color:var(--faint);font-size:0.82em;'>"
+                f"n={c['n']} corridas pareadas &middot; pérdida por ciclo {fmt(c['cycle_loss_pct'], 1, '%')}"
+                "</span></td>"
             )
         comp_table_rows.append(f"<tr>{''.join(cells)}</tr>")
     comp_table = (
-        "<table><thead><tr><th>escenario</th>"
-        + "".join(f"<th>{html.escape(CAMPAIGN_LABELS[c])}</th>" for c in CAMPAIGNS)
+        '<div class="table-scroll"><table><thead><tr><th>escenario de demanda</th>'
+        + "".join(
+            f"<th>{html.escape(CAMPAIGN_LABELS[c])} (A)<br>vs. control dinámico (B)</th>"
+            for c in CAMPAIGNS
+        )
         + "</tr></thead><tbody>" + "".join(comp_table_rows) + "</tbody></table>"
+        "<p class='caption'>Δthr = variación porcentual mediana de viajes completados "
+        "(throughput) entre el plan fijo (A, columna) y el control dinámico (B), sobre "
+        "las n corridas pareadas disponibles para esa celda escenario&times;campaña; "
+        "valores positivos favorecen a B. Δsys = variación porcentual mediana del "
+        "tiempo de sistema bajo el mismo criterio; valores positivos (reducción de "
+        "tiempo) favorecen a B. \"pérdida por ciclo\" es el porcentaje de cada ciclo "
+        "semafórico del plan fijo consumido en despeje de intersección (verde perdido, "
+        "amarillo y todo-rojo) y no varía por escenario: 16.7% para el ciclo de 60 s, "
+        "6.7% para 90 s y 5% para 120 s.</p></div>"
     )
 
     # Sección 5
@@ -565,14 +871,56 @@ def build_report_html(data, seeds: List[int], analysis_path: Optional[Path]) -> 
         f"<td>{fmt(rigor[c]['mean_cohens_d'], 3)}</td></tr>"
         for c in CAMPAIGNS
     )
+    rigor_intro = (
+        "<p>La tabla siguiente resume, por cada plan fijo (A) evaluado contra el "
+        "control dinámico (B), la evidencia estadística agregada sobre todas las "
+        "corridas disponibles (todos los escenarios y semillas). El valor p reportado "
+        "corresponde al test pareado de Wilcoxon sobre los tiempos de viaje "
+        "individuales de A frente a B en cada corrida; las columnas de conteo indican "
+        "en cuántas de esas corridas el resultado fue estadísticamente significativo "
+        "a los umbrales convencionales p&lt;0.05 y p&lt;0.01. Cohen's d es una medida "
+        "estandarizada del tamaño del efecto (diferencia de medias dividida por la "
+        "desviación estándar combinada); como referencia orientativa, |d|&asymp;0.2 se "
+        "considera un efecto pequeño, 0.5 mediano y 0.8 grande.</p>"
+    )
     rigor_table = (
-        "<table><thead><tr><th>campaña</th><th>n corridas</th><th>p&lt;0.05</th>"
-        "<th>p&lt;0.01</th><th>Cohen's d medio</th></tr></thead>"
+        rigor_intro
+        + '<div class="table-scroll"><table><thead><tr><th>plan fijo evaluado (A)</th>'
+        "<th>n corridas</th><th>corridas con p&lt;0.05</th>"
+        "<th>corridas con p&lt;0.01</th><th>Cohen's d medio</th></tr></thead>"
         f"<tbody>{rigor_rows}</tbody></table>"
+        "<p class='caption'>p = valor p del test de Wilcoxon pareado sobre tiempos de "
+        "viaje (A vs. B) en cada corrida; \"corridas con p&lt;0.05\" y \"p&lt;0.01\" "
+        "cuentan cuántas de las n corridas alcanzaron cada umbral de significancia. "
+        "Cohen's d medio es el promedio del tamaño de efecto estandarizado sobre esas "
+        "mismas corridas.</p></div>"
     )
     scatter_img = build_scatter_image(data)
+    scatter_intro = (
+        "<p>El siguiente diagrama de dispersión cruza, para cada corrida individual, "
+        "la variación porcentual de throughput (eje horizontal) contra la variación "
+        "porcentual de tiempo de sistema (eje vertical), ambas de B respecto de A. Un "
+        "resultado es <em>coherente</em> cuando ambas métricas se mueven en la "
+        "dirección esperada de forma conjunta: más viajes completados y menor tiempo "
+        "de sistema (cuadrante superior derecho, mejora), o menos viajes completados "
+        "y mayor tiempo de sistema (cuadrante inferior izquierdo, regresión). Los "
+        "cuadrantes restantes son <em>incoherentes</em>: indican que una mejora "
+        "aparente en una métrica coincide con un deterioro en la otra, típicamente "
+        "porque un throughput más bajo censura del cálculo a los viajes más lentos "
+        "(ver nota metodológica del resumen ejecutivo). El color identifica la "
+        "campaña de origen de cada punto.</p>"
+    )
     scatter_html = (
-        f'<div class="figure">{_img_tag(scatter_img, "scatter thr vs sys time")}</div>'
+        scatter_intro + _figure_html(
+            scatter_img,
+            "dispersión Δthroughput vs Δtiempo de sistema",
+            "Cada punto es una corrida individual (escenario, semilla, campaña); eje "
+            "horizontal: Δthroughput (%) de B respecto de A; eje vertical: Δtiempo de "
+            "sistema (%) de B respecto de A. Los cuadrantes superior-derecho e "
+            "inferior-izquierdo son coherentes (mejora o regresión conjunta); los "
+            "otros dos son incoherentes.",
+            fig_counter,
+        )
         if scatter_img else '<p class="missing">Sin datos suficientes para el scatter.</p>'
     )
 
@@ -595,53 +943,114 @@ def build_report_html(data, seeds: List[int], analysis_path: Optional[Path]) -> 
     )
     seeds_html = ", ".join(str(s) for s in seeds)
 
+    toc_entries = [
+        ("1", "Resumen ejecutivo", "resumen-ejecutivo"),
+        ("2", "Grilla de veredictos", "grilla-de-veredictos"),
+        ("3", "Distribuciones", "distribuciones"),
+        ("4", "Comparación entre plan fijo y control dinámico", "comparacion-entre-baselines"),
+        ("5", "Rigor estadístico", "rigor-estadistico"),
+        ("6", "Análisis técnico", "analisis"),
+        ("7", "Apéndice de reproducibilidad", "apendice-de-reproducibilidad"),
+    ]
+    toc_html = "".join(
+        f'<li><a href="#{anchor}"><span class="num">{n}</span>{html.escape(title)}</a></li>'
+        for n, title, anchor in toc_entries
+    )
+
+    generated_on = _dt.date.today().isoformat()
+
     return f"""<!doctype html>
 <html lang="es">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Reporte de campaña — traffic-sim</title>
 <style>{CSS}</style>
 {_mermaid_script_tag()}
 </head>
 <body>
-<h1>Reporte de mega-campaña A/B — Optimización dinámica vs. planes fijos</h1>
-<p>Comparación de <strong>{len(CAMPAIGNS)} baselines</strong> × <strong>{len(SCENARIOS)} escenarios</strong>
-× <strong>{len(seeds)} seeds</strong> = {n_total_expected} corridas esperadas
-({n_present} presentes al momento de generar este reporte).</p>
 
-<h2>1. Resumen ejecutivo</h2>
-<div class="score-card">{exec_boxes}</div>
-<div class="note">
-<strong>Nota metodológica.</strong> El veredicto de cada corrida clasifica en <em>favorable</em>
-los casos <code>improvement</code> y <code>misleading_regression</code> (mejora insesgada aunque
-la media cruda diga lo contrario por censura de supervivencia), en <em>desfavorable</em>
-<code>regression</code> y <code>misleading_improvement</code> (mejora aparente de la media
-enmascarando colapso de throughput), y el resto como <em>tie</em> / no concluyente.
-Esta convención evita que una caída de throughput (menos viajes completados, por lo tanto
-menor censura de los peores viajes) se lea como mejora de tiempos.
+<div class="cover">
+  <p class="kicker">Traffic-sim &middot; Control jerárquico de semáforos</p>
+  <h1>Optimización dinámica vs. planes fijos</h1>
+  <p class="subtitle">Reporte de mega-campaña A/B: {len(CAMPAIGNS)} planes fijos (A)
+  contrastados contra el control dinámico Max-Pressure (B), evaluados sobre
+  {len(SCENARIOS)} escenarios de demanda con {len(seeds)} semillas aleatorias
+  por celda escenario&times;campaña.</p>
+  <div class="meta">
+    <span><strong>Fecha</strong> — {generated_on}</span>
+    <span><strong>Corridas</strong> — {n_present} / {n_total_expected}</span>
+    <span><strong>Planes fijos (A)</strong> — {", ".join(CAMPAIGN_LABELS[c] for c in CAMPAIGNS)}</span>
+  </div>
 </div>
 
-<h2>2. Grilla de veredictos (escenario × seed)</h2>
+<nav class="toc">
+  <h2>Índice</h2>
+  <ol>{toc_html}</ol>
+</nav>
+
+<div class="page">
+
+<h2 id="resumen-ejecutivo">1. Resumen ejecutivo</h2>
+<p>
+A lo largo de esta campaña se define A como el plan fijo bajo evaluación (uno de
+{", ".join(CAMPAIGN_LABELS[c] for c in CAMPAIGNS)}, según la celda) y B como el
+control dinámico Max-Pressure, ambos simulados sobre la misma red y el mismo
+patrón de demanda dentro de cada corrida. Se agregaron {n_present} de
+{n_total_expected} corridas planificadas ({len(CAMPAIGNS)} planes fijos &times;
+{len(SCENARIOS)} escenarios de demanda &times; {len(seeds)} semillas). Sobre el
+total de corridas presentes, el control dinámico resultó favorable en
+{total['favorable']} de {total['n']} ({fmt(100.0 * total['favorable'] / total['n'], 1) if total['n'] else '—'}%),
+en empate en {total['tie']} ({fmt(100.0 * total['tie'] / total['n'], 1) if total['n'] else '—'}%)
+y desfavorable en {total['desfavorable']} ({fmt(100.0 * total['desfavorable'] / total['n'], 1) if total['n'] else '—'}%).
+El desglose por plan fijo, incluido a continuación, muestra si este balance es
+homogéneo entre campañas o si concentra las corridas desfavorables en algún
+plan fijo en particular.
+</p>
+<div class="score-card">{exec_boxes}</div>
+<div class="note">
+<strong>Nota metodológica sobre el veredicto.</strong> Cada corrida individual (una
+combinación de plan fijo, escenario y semilla) recibe un veredicto que compara A
+contra B y se clasifica en una de tres categorías. Se considera <em>favorable</em>
+a B cuando el resultado es <code>improvement</code> (mejora directa y no sesgada)
+o <code>misleading_regression</code> (la media cruda de tiempos de viaje sugiere
+una regresión, pero se debe a que B completó más viajes y por lo tanto censura
+menos los viajes más lentos que A dejó sin terminar; corregido ese sesgo, B es en
+realidad mejor). Se considera <em>desfavorable</em> a B cuando el resultado es
+<code>regression</code> (regresión directa) o <code>misleading_improvement</code>
+(la media cruda sugiere una mejora, pero esta enmascara una caída real de
+throughput bajo B). El resto de los casos se clasifica como <em>empate</em> o no
+concluyente. Esta convención evita que una caída de throughput bajo B —menos
+viajes completados y, en consecuencia, menor censura de los viajes más lentos—
+se lea erróneamente como una mejora de los tiempos de viaje.
+</div>
+
+<h2 id="grilla-de-veredictos">2. Grilla de veredictos (escenario &times; seed)</h2>
 {grid_html}
 
-<h2>3. Distribuciones</h2>
+<h2 id="distribuciones">3. Distribuciones</h2>
 {dist_html}
 
-<h2>4. Comparación entre baselines</h2>
-<p>Mediana de Δthroughput y Δtiempo de sistema por escenario y campaña, junto con el
-tiempo perdido por ciclo del plan fijo (verde perdido en amarillo/todo-rojo respecto
-al ciclo total): 60s → 16.7%, 90s → 6.7%, 120s → 5%.</p>
+<h2 id="comparacion-entre-baselines">4. Comparación entre plan fijo y control dinámico</h2>
+<p>La siguiente tabla resume, para cada combinación de escenario de demanda (fila) y
+plan fijo evaluado (columna, A), la mediana de las variaciones porcentuales de
+throughput (Δthr) y de tiempo de sistema (Δsys) del control dinámico (B) frente a
+ese plan fijo, junto con el número de corridas pareadas agregadas y la pérdida de
+capacidad por ciclo inherente al plan fijo (tiempo dedicado a despeje de
+intersección — verde perdido, amarillo y todo-rojo — como porcentaje del ciclo
+total, un valor fijo por campaña que no depende del escenario). Valores positivos
+en Δthr o Δsys favorecen al control dinámico.</p>
 {comp_table}
 
-<h2>5. Rigor estadístico</h2>
+<h2 id="rigor-estadistico">5. Rigor estadístico</h2>
 {rigor_table}
-<h3>Coherencia throughput% vs tiempo de sistema%</h3>
+<h3>Coherencia entre variación de throughput y variación de tiempo de sistema</h3>
 {scatter_html}
 
 <h2 id="analisis">6. Análisis técnico</h2>
 {analysis_html}
 
-<h2>7. Apéndice de reproducibilidad</h2>
+<h2 id="apendice-de-reproducibilidad">7. Apéndice de reproducibilidad</h2>
 <h3>Seeds</h3>
 <p><code>{html.escape(seeds_html)}</code></p>
 <h3>Comandos de reproducción</h3>
@@ -652,7 +1061,10 @@ uv run python scripts/build_campaign_report.py --out results/campanas/reporte_fi
 <h3>Corridas faltantes</h3>
 {missing_html}
 
-<footer>Generado por scripts/build_campaign_report.py</footer>
+</div>
+
+<footer>Generado por <code>scripts/build_campaign_report.py</code> &mdash; reproducible a partir de
+los <code>ab_report.json</code> en <code>results/campanas/&lt;campaña&gt;/&lt;escenario&gt;/seed_&lt;n&gt;/</code>.</footer>
 </body>
 </html>"""
 
