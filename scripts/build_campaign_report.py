@@ -786,7 +786,7 @@ def build_report_html(data, seeds: List[int], analysis_path: Optional[Path]) -> 
     )
     dist_specs = [
         (
-            ["throughput", "throughput_change_pct"],
+            ["statistical_tests", "throughput", "throughput_change_pct"],
             "Variación porcentual de viajes completados (Δthroughput, %) por escenario",
             "Δthroughput (%)",
             "Variación porcentual del número de viajes completados por el control "
@@ -794,7 +794,7 @@ def build_report_html(data, seeds: List[int], analysis_path: Optional[Path]) -> 
             "demanda; valores positivos indican que B completó más viajes que A.",
         ),
         (
-            ["system_time", "system_time_improvement_pct"],
+            ["statistical_tests", "system_time", "system_time_improvement_pct"],
             "Variación porcentual del tiempo de sistema (Δtiempo de sistema, %) por escenario",
             "Δtiempo de sistema (%)",
             "Variación porcentual del tiempo total de sistema (suma de tiempos de "
@@ -803,7 +803,7 @@ def build_report_html(data, seeds: List[int], analysis_path: Optional[Path]) -> 
             "de sistema respecto de A.",
         ),
         (
-            ["paired", "pct_improved"],
+            ["statistical_tests", "paired", "pct_improved"],
             "Porcentaje de viajes pareados con mejora individual de tiempo por escenario",
             "viajes pareados mejorados (%)",
             "Porcentaje de viajes, entre los pareados por origen-destino-salida entre "
